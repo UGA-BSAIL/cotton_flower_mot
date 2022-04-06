@@ -125,6 +125,22 @@ class FeatureName(enum.Enum):
 
 
 @enum.unique
+class RotNetFeatureName(enum.Enum):
+    """
+    Standard key names for processed RotNet features.
+    """
+
+    IMAGE = "image"
+    """
+    The complete image.
+    """
+    ROTATION = "rotation"
+    """
+    Integer specifying the rotation class label of this image.
+    """
+
+
+@enum.unique
 class HeatMapSource(enum.Enum):
     """
     Specifies how we want to produce heatmaps for CenterNet.
@@ -316,6 +332,22 @@ def _augment_inputs(
         )
 
     return image, heatmap, geometry
+
+
+def _imagenet_to_rot_net(imagenet_features: Feature) -> Feature:
+    """
+    Converts imagenet features, as loaded by TFDS, to features that can be
+    used for RotNet.
+
+    Args:
+        imagenet_features: The raw imagenet features.
+
+    Returns:
+        Equivalent RotNet features. Will match the spec set out in
+        `RotNetFeatureName`.
+
+    """
+    # All we care about here is the image.
 
 
 def _get_geometric_features(
