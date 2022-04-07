@@ -334,7 +334,31 @@ def _augment_inputs(
     return image, heatmap, geometry
 
 
-def _imagenet_to_rot_net(imagenet_features: Feature) -> Feature:
+def _extract_rotations(image: tf.Tensor) -> tf.Tensor:
+    """
+    Extracts all four rotations from an image.
+
+    Args:
+        image: The image to extract rotations from.
+
+    Returns:
+        The four rotations, in a single tensor, with a new dimension
+        prepended. The order is always 0, 90, 180, 270.
+
+    """
+    # 90-degree rotation.
+    deg_90 = tf.image.rot90(image)
+    # 180-degree rotation, which is just flipping.
+    deg_180 = tf.image.flip_up_down(image)
+    # 270-degree rotation.
+    deg_270 = tf.image.flip_left_right(deg_90)
+
+    return tf.stack([image, deg_90, deg_180, deg_270])
+
+
+def _imagenet_to_rot_net(
+    imagenet_features: Feature,
+) -> Tuple[Feature, Feature]:
     """
     Converts imagenet features, as loaded by TFDS, to features that can be
     used for RotNet.
@@ -344,10 +368,21 @@ def _imagenet_to_rot_net(imagenet_features: Feature) -> Feature:
 
     Returns:
         Equivalent RotNet features. Will match the spec set out in
-        `RotNetFeatureName`.
+        `RotNetFeatureName`. Will return input and target features.
 
     """
     # All we care about here is the image.
+    image = imagenet_features["image"]
+
+    # Resize to standard ImageNet shape.
+    image = tf.image.resize(image, (224, 224))
+
+    # Labels are just integers.
+    labels = tf.range(4)
+    rotations = _extract_rotations(image)
+    return {RotNetFeatureName.IMAGE.value: rotations}, {
+        RotNetFeatureName.ROTATION.value: labels,
+    }
 
 
 def _get_geometric_features(
@@ -1079,6 +1114,35 @@ def _batch_and_prefetch(
     options.experimental_optimization.map_fusion = True
     options.experimental_optimization.map_and_filter_fusion = True
     return prefetched.with_options(options)
+
+
+def rot_net_inputs_and_targets_from_imagenet(
+    imagenet: tf.data.Dataset,
+    *,
+    batch_size: int = 8,
+    num_prefetch_batches: int = 1,
+) -> tf.data.Dataset:
+    """
+    Loads RotNet input features from the ImageNet dataset.
+
+    Args:
+        imagenet: The raw imagenet dataset, loaded from TFDS.
+        batch_size: The batch size to use. The actual batch size will be
+            multiplied by four. because it will include all four rotations.
+        num_prefetch_batches: The number of batches to prefetch.
+
+    Returns:
+        A dataset that produces input images and target classes.
+
+    """
+    # Extract the rotations.
+    rot_net_dataset = imagenet.map(_imagenet_to_rot_net)
+    # Unbatch to separate all the rotations.
+    rot_net_dataset = rot_net_dataset.unbatch()
+
+    # Batch and prefetch.
+    batched = rot_net_dataset.batch(batch_size * 4)
+    return batched.prefetch(num_prefetch_batches)
 
 
 def inputs_and_targets_from_dataset(

@@ -14,11 +14,24 @@ from tensorflow.keras.regularizers import l2
 from ...config import ModelConfig
 
 
+def rotnet_resnet() -> tf.keras.Model:
+    """
+    Creates a new ResNet-based model for pre-training with the RotNet
+    self-supervised task.
+
+    Returns:
+        The model that it created.
+
+    """
+    resnet = ResNet101V2(include_top=True, classes=4, weights=None)
+    return resnet
+
+
 def resnet(
     *,
     image_input: tf.Tensor,
     config: ModelConfig,
-):
+) -> tf.Tensor:
     """
     Creates a new ResNet-based model.
 

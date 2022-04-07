@@ -544,3 +544,14 @@ def make_losses(
             classification_weight=0.1, name="ciou_loss"
         ),
     }
+
+
+def make_rotnet_loss() -> tf.keras.losses.Loss:
+    """
+    Creates the loss for the RotNet model.
+
+    Returns:
+        The loss for the RotNet model.
+
+    """
+    return tf.keras.losses.CategoricalCrossentropy()

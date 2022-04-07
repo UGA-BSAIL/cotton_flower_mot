@@ -17,36 +17,7 @@ from .callbacks import LogHeatmaps
 from .centernet_model import build_model
 from .losses import make_losses
 from .metrics import make_metrics
-
-
-def _make_learning_rate(
-    config: Dict[str, Any]
-) -> Union[float, schedules.LearningRateSchedule]:
-    """
-    Creates the learning rate to use for optimization, based on the user
-    configuration.
-
-    Args:
-        config: The configuration for the learning rate.
-
-    Returns:
-        Either a float for a fixed learning rate, or a `LearningRateSchedule`.
-
-    """
-    initial_rate = config["initial"]
-    if not config.get("decay", False):
-        # No decay is configured.
-        logger.debug("Using fixed learning rate of {}.", initial_rate)
-        return initial_rate
-
-    logger.debug("Using decaying learning rate.")
-    return tf.keras.experimental.CosineDecayRestarts(
-        initial_rate,
-        config["decay_steps"],
-        t_mul=config["t_mul"],
-        m_mul=config["m_mul"],
-        alpha=config["min_learning_rate"],
-    )
+from ..learning_rate import make_learning_rate
 
 
 def set_check_numerics(enable: bool) -> None:
@@ -206,7 +177,7 @@ def train_model(
         logger.debug("Using phase parameters: {}", phase)
 
         optimizer = tf.keras.optimizers.Adam(
-            learning_rate=_make_learning_rate(phase["learning_rate"]),
+            learning_rate=make_learning_rate(phase["learning_rate"]),
         )
         model.compile(
             optimizer=optimizer,
