@@ -21,9 +21,6 @@ from .layers import (
 )
 from .layers.resnet import resnet
 
-# Use mixed precision to speed up training.
-tf.keras.mixed_precision.set_global_policy("mixed_float16")
-
 
 def _build_backbone(
     normalized_input: tf.Tensor, *, config: ModelConfig

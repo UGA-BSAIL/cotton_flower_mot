@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 import tensorflow as tf
 
+from ..dataset_io import RotNetFeatureName
 from ..heat_maps import make_point_annotation_map, trim_out_of_bounds
 from ..schemas import ModelTargets
 from .graph_utils import compute_pairwise_similarities
@@ -546,7 +547,7 @@ def make_losses(
     }
 
 
-def make_rotnet_loss() -> tf.keras.losses.Loss:
+def make_rotnet_loss() -> Dict[str, tf.keras.losses.Loss]:
     """
     Creates the loss for the RotNet model.
 
@@ -554,4 +555,6 @@ def make_rotnet_loss() -> tf.keras.losses.Loss:
         The loss for the RotNet model.
 
     """
-    return tf.keras.losses.CategoricalCrossentropy()
+    return {
+        RotNetFeatureName.PREDICTIONS.value: tf.keras.losses.SparseCategoricalCrossentropy()
+    }

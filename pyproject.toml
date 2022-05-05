@@ -7,12 +7,11 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "~3.8"
-tensorflow = "~2.5.0"
+tensorflow = "~2.8.0"
 kedro = {extras = ["matplotlib", "pandas"], version = "^0.17.1"}
 pycvat = {path = "pycvat", develop = false}
 pandas = "^1.2.3"
 loguru = "^0.5.3"
-numpy = ">=1.19.2,<1.20.0"
 spektral = "^1.0.5"
 seaborn = "^0.11.1"
 matplotlib = "^3.3.4"
@@ -22,6 +21,7 @@ opencv-python = "^4.5.1"
 tensorflow-addons = "^0.13.0"
 tenacity = "^8.0.1"
 tensorflow-datasets = "^4.5.2"
+numpy = "^1.22.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"

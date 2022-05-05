@@ -45,6 +45,7 @@ from .pipelines import (
     model_data_load,
     model_evaluation,
     model_training,
+    rotnet,
 )
 
 
@@ -76,6 +77,7 @@ class ProjectHooks:
         )
         conversion_pipeline = convert_annotations.create_pipeline()
         annotation_pipeline = auto_annotation.create_pipeline()
+        rotnet_pipeline = rotnet.create_pipeline()
 
         return {
             "__default__": eda_pipeline + training_pipeline,
@@ -85,6 +87,7 @@ class ProjectHooks:
             "model_evaluation": evaluation_pipeline,
             "convert_annotations": conversion_pipeline,
             "auto_annotation": annotation_pipeline,
+            "rotnet": rotnet_pipeline,
         }
 
     @hook_impl

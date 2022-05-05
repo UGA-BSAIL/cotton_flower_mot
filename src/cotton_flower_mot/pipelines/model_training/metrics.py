@@ -3,10 +3,12 @@ Custom metrics for the model.
 """
 
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
+import keras.metrics
 import tensorflow as tf
 
+from ..dataset_io import RotNetFeatureName
 from ..schemas import ModelTargets
 from .graph_utils import compute_pairwise_similarities
 from .loss_metric_utilities import MaybeRagged, correct_ragged_mismatch
@@ -305,4 +307,17 @@ def make_metrics() -> Dict[str, tf.keras.metrics.Metric]:
     return {
         ModelTargets.GEOMETRY_SPARSE_PRED.value: AveragePrecision(),
         ModelTargets.HEATMAP.value: MaxConfidence(),
+    }
+
+
+def make_rotnet_metrics() -> Dict[str, tf.keras.metrics.Metric]:
+    """
+    Creates metrics to use for RotNet pre-training.
+
+    Returns:
+        The metrics that it created.
+
+    """
+    return {
+        RotNetFeatureName.PREDICTIONS.value: keras.metrics.SparseCategoricalAccuracy()
     }

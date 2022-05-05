@@ -134,7 +134,7 @@ class RotNetFeatureName(enum.Enum):
     """
     The complete image.
     """
-    ROTATION = "rotation"
+    PREDICTIONS = "predictions"
     """
     Integer specifying the rotation class label of this image.
     """
@@ -381,7 +381,7 @@ def _imagenet_to_rot_net(
     labels = tf.range(4)
     rotations = _extract_rotations(image)
     return {RotNetFeatureName.IMAGE.value: rotations}, {
-        RotNetFeatureName.ROTATION.value: labels,
+        RotNetFeatureName.PREDICTIONS.value: labels,
     }
 
 

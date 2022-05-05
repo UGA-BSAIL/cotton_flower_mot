@@ -1,0 +1,26 @@
+# ImageNet dataset location.
+imagenet_dir: "/scratch/djp44210/tensorflow_datasets"
+#imagenet_dir: "/run/user/1000/gvfs/smb-share:server=bsailn1.engr.uga.edu,share=bsail,user=daniel/scratch/imagenet"
+# Whether to use mixed precision for training.
+use_mixed_precision: true
+
+# Optimizer parameters.
+learning_rate:
+  # Initial learning rate value.
+  initial: 0.01
+  # Specify that we want to decay over time.
+  decay: true
+  # Number of steps to decay over.
+  # (160146 steps per epoch)
+  decay_steps: 320292
+  # Used to derive the number of iterations in the i-th period.
+  t_mul: 2.0
+  # Used to derive the initial learning rate of the i-th period.
+  m_mul: 1.0
+  # Minimum learning rate to hit.
+  min_learning_rate: 0.00001
+  # Momentum to use.
+  momentum: 0.9
+
+# Number of epochs to train for.
+num_epochs: 6

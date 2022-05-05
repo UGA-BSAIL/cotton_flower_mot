@@ -12,7 +12,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
-#SBATCH --time=16:00:00
+#SBATCH --time=56:00:00
 #SBATCH --mem=20gb
 #SBATCH --mail-user=daniel.petti@uga.edu
 #SBATCH --mail-type=END,FAIL
@@ -60,4 +60,4 @@ ml cuDNN/8.1.0.77-CUDA-11.2.1
 export PYTHONHASHSEED=0
 
 # Run the training.
-poetry run kedro run --pipeline=model_training "$@"
+poetry run kedro run --pipeline=rotnet "$@"
