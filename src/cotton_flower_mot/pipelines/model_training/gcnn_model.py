@@ -307,11 +307,14 @@ def _build_gnn(
     nodes1_1, edges1_1 = ResidualCensNet(
         config.num_node_features, config.num_edge_features
     )((node_features, graph_structure, edge_features))
-    nodes1_2, _ = ResidualCensNet(
+    nodes1_2, edges1_2 = ResidualCensNet(
         config.num_node_features, config.num_edge_features
     )((nodes1_1, graph_structure, edges1_1))
+    nodes1_3, _ = ResidualCensNet(
+        config.num_node_features, config.num_edge_features
+    )((nodes1_2, graph_structure, edges1_2))
 
-    return nodes1_2
+    return nodes1_3
 
 
 def _triangular_adjacency(adjacency):
