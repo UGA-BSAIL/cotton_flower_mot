@@ -199,10 +199,10 @@ def _build_affinity_mlp(
     *,
     detection_geom_features: tf.Tensor,
     tracklet_geom_features: tf.Tensor,
-    detection_inter_features: tf.Tensor,
-    tracklet_inter_features: tf.Tensor,
     detection_app_features: tf.Tensor,
     tracklet_app_features: tf.Tensor,
+    interaction_features: tf.Tensor,
+    config: ModelConfig,
 ) -> tf.Tensor:
     """
     Builds the MLP that computes the affinity score between two nodes.
@@ -212,14 +212,13 @@ def _build_affinity_mlp(
             with shape `[batch_size, max_n_detections, 4]`.
         tracklet_geom_features: The padded tracklet geometry features,
             with shape `[batch_size, max_n_tracklets, 4]`.
-        detection_inter_features: The padded detection interaction features,
-            with shape `[batch_size, max_n_detections, num_features]`.
-        tracklet_inter_features: The padded tracklet interaction features,
-            with shape `[batch_size, max_n_tracklets, num_features]`.
         detection_app_features: The padded detection appearance features,
             with shape `[batch_size, max_n_detections, num_features]`.
         tracklet_app_features: The padded tracklet appearance features,
             with shape `[batch_size, max_n_tracklets, num_features]`.
+        interaction_features: Combined interaction features. Should have
+            shape `[batch_size, n_edges, num_features]`.
+        config: The model configuration being used.
 
     Returns:
         The final affinity scores between each pair of tracklet and detections.
@@ -247,12 +246,6 @@ def _build_affinity_mlp(
         ),
         name="aspect_ratio_penalty",
     )((tracklet_geom_features, detection_geom_features))
-    interaction_cosine = layers.Lambda(
-        lambda f: compute_pairwise_similarities(
-            cosine_similarity, left_features=f[0], right_features=f[1]
-        ),
-        name="interaction_cosine_similarity",
-    )((tracklet_inter_features, detection_inter_features))
     appearance_cosine = layers.Lambda(
         lambda f: compute_pairwise_similarities(
             cosine_similarity, left_features=f[0], right_features=f[1]
@@ -260,14 +253,39 @@ def _build_affinity_mlp(
         name="appearance_cosine_similarity",
     )((tracklet_app_features, detection_app_features))
 
+    def _reshape_interaction(
+        _interaction_features: tf.Tensor,
+        _tracklet_features: tf.Tensor,
+        _detection_features: tf.Tensor,
+    ) -> tf.Tensor:
+        # Interaction features have to be reshaped to separate detections and
+        # tracklets.
+        num_tracklets = tf.shape(_tracklet_features)[1]
+        num_detections = tf.shape(_detection_features)[1]
+        batch_size = tf.shape(_interaction_features)[0]
+        return tf.reshape(
+            _interaction_features,
+            tf.stack([batch_size, num_tracklets, num_detections, -1]),
+        )
+
+    interaction_reshaped = layers.Lambda(
+        lambda f: _reshape_interaction(*f), name="interaction_features_reshape"
+    )((interaction_features, tracklet_geom_features, detection_geom_features))
+
     # Concatenate into our input.
-    similarity_input = tf.stack(
-        (iou, distance, aspect_ratio, interaction_cosine, appearance_cosine),
+    iou = tf.expand_dims(iou, axis=-1)
+    distance = tf.expand_dims(distance, axis=-1)
+    aspect_ratio = tf.expand_dims(aspect_ratio, axis=-1)
+    appearance_cosine = tf.expand_dims(appearance_cosine, axis=-1)
+    similarity_input = tf.concat(
+        (iou, distance, aspect_ratio, interaction_reshaped, appearance_cosine),
         axis=-1,
     )
     # Make sure the channels dimension is defined statically so Keras layers
     # work.
-    similarity_input = tf.ensure_shape(similarity_input, (None, None, None, 5))
+    similarity_input = tf.ensure_shape(
+        similarity_input, (None, None, None, config.num_edge_features + 4)
+    )
 
     # Apply the MLP. 1x1 convolution is an efficient way to apply the same MLP
     # to every detection/tracklet pair.
@@ -300,8 +318,8 @@ def _build_gnn(
         config: The model configuration.
 
     Returns:
-        The output node features from the GNN, which will have the shape
-        `[batch_size, n_nodes, n_gcn_channels]`.
+        The output edge features from the GNN, which will have the shape
+        `[batch_size, n_edges, n_gcn_channels]`.
 
     """
     nodes1_1, edges1_1 = ResidualCensNet(
@@ -310,11 +328,11 @@ def _build_gnn(
     nodes1_2, edges1_2 = ResidualCensNet(
         config.num_node_features, config.num_edge_features
     )((nodes1_1, graph_structure, edges1_1))
-    nodes1_3, _ = ResidualCensNet(
+    _, edges1_3 = ResidualCensNet(
         config.num_node_features, config.num_edge_features
     )((nodes1_2, graph_structure, edges1_2))
 
-    return nodes1_3
+    return edges1_3
 
 
 def _triangular_adjacency(adjacency):
@@ -566,7 +584,7 @@ def extract_interaction_features(
     detections_geometry: tf.RaggedTensor,
     tracklets_geometry: tf.RaggedTensor,
     config: ModelConfig,
-) -> Tuple[tf.Tensor, tf.Tensor]:
+) -> tf.Tensor:
     """
     Builds the portion of the system that extracts interaction features.
 
@@ -586,11 +604,8 @@ def extract_interaction_features(
         config: The model configuration.
 
     Returns:
-        The extracted interaction features, for both the left and right nodes
-        in the graph, in that order. Each set will have the shape
-        `[batch_size, max_n_nodes, n_inter_features]`, where the second
-        dimension will be padded. Left nodes correspond to tracklets, and
-        right nodes to detections.
+        The extracted interaction features. They will have the shape
+        `[batch_size, n_edges, n_inter_features]`.
 
     """
     # For the rest of the pipeline, we need a dense representation of the
@@ -625,18 +640,12 @@ def extract_interaction_features(
     combined_app_features = layers.Concatenate(axis=1)(
         (tracklets_app_features, detections_app_features)
     )
-    final_node_features = _build_gnn(
+    return _build_gnn(
         graph_structure=graph_structure,
         node_features=combined_app_features,
         edge_features=edge_features,
         config=config,
     )
-
-    # Split back into separate tracklets and detections.
-    max_num_tracklets = tf.shape(tracklets_app_features)[1]
-    tracklets_inter_features = final_node_features[:, :max_num_tracklets, :]
-    detections_inter_features = final_node_features[:, max_num_tracklets:, :]
-    return tracklets_inter_features, detections_inter_features
 
 
 def compute_association(
@@ -684,10 +693,7 @@ def compute_association(
         detections=detections, tracklets=tracklets, config=config
     )
     # Extract interaction features.
-    (
-        tracklets_inter_features,
-        detections_inter_features,
-    ) = extract_interaction_features(
+    interaction_features = extract_interaction_features(
         detections_app_features=detections_app_features,
         tracklets_app_features=tracklets_app_features,
         detections_geometry=detections_geometry,
@@ -703,10 +709,10 @@ def compute_association(
     affinity_scores = _build_affinity_mlp(
         detection_geom_features=detections_geom_features,
         tracklet_geom_features=tracklets_geom_features,
-        detection_inter_features=detections_inter_features,
-        tracklet_inter_features=tracklets_inter_features,
         detection_app_features=detections_app_features,
         tracklet_app_features=tracklets_app_features,
+        interaction_features=interaction_features,
+        config=config,
     )
 
     # Compute the association matrices.
