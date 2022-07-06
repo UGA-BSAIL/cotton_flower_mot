@@ -202,7 +202,6 @@ def _build_affinity_mlp(
     detection_app_features: tf.Tensor,
     tracklet_app_features: tf.Tensor,
     interaction_features: tf.Tensor,
-    config: ModelConfig,
 ) -> tf.Tensor:
     """
     Builds the MLP that computes the affinity score between two nodes.
@@ -218,7 +217,6 @@ def _build_affinity_mlp(
             with shape `[batch_size, max_n_tracklets, num_features]`.
         interaction_features: Combined interaction features. Should have
             shape `[batch_size, n_edges, num_features]`.
-        config: The model configuration being used.
 
     Returns:
         The final affinity scores between each pair of tracklet and detections.
@@ -284,7 +282,7 @@ def _build_affinity_mlp(
     # Make sure the channels dimension is defined statically so Keras layers
     # work.
     similarity_input = tf.ensure_shape(
-        similarity_input, (None, None, None, config.num_edge_features + 4)
+        similarity_input, (None, None, None, 5)
     )
 
     # Apply the MLP. 1x1 convolution is an efficient way to apply the same MLP
@@ -329,7 +327,7 @@ def _build_gnn(
         config.num_node_features, config.num_edge_features
     )((nodes1_1, graph_structure, edges1_1))
     _, edges1_3 = ResidualCensNet(
-        config.num_node_features, config.num_edge_features
+        config.num_node_features, 1
     )((nodes1_2, graph_structure, edges1_2))
 
     return edges1_3
@@ -712,7 +710,6 @@ def compute_association(
         detection_app_features=detections_app_features,
         tracklet_app_features=tracklets_app_features,
         interaction_features=interaction_features,
-        config=config,
     )
 
     # Compute the association matrices.
