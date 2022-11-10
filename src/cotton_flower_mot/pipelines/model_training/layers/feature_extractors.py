@@ -6,8 +6,46 @@ Builds pre-trained feature extractors that are useful for transfer learning.
 from typing import Tuple
 
 import tensorflow as tf
-from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2S
-from tensorflow.keras.applications.resnet_v2 import ResNet101V2
+from keras.applications.efficientnet_v2 import EfficientNetV2S
+from keras.applications.resnet_v2 import ResNet101V2
+from .future.convnext import ConvNeXtSmall
+
+
+def convnext(
+        *,
+        image_input: tf.Tensor,
+        input_shape: Tuple[int, int, int],
+        pretrained: bool = True,
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    """
+    Creates a new ConvNeXt-based model.
+
+    Args:
+        image_input: The tensor containing (non-normalized) input images.
+        input_shape: The shape of the inputs to the model.
+        pretrained: If true, it will use pretrained `ImageNet` weights and
+            fix those portions of the network. Otherwise, it will initialize
+            randomly, and the whole thing will be trainable.
+
+    Returns:
+        The multiscale features extracted from the encoder, from the shallowest
+        to deepest.
+
+    """
+    model = ConvNeXtSmall(
+        include_top=False,
+        input_tensor=image_input,
+        input_shape=input_shape,
+        weights="imagenet" if pretrained else None,
+    )
+    model.trainable = not pretrained
+
+    stage0 = model.get_layer("tf.__operators__.add_2").get_output_at(0)
+    stage1 = model.get_layer("tf.__operators__.add_5").get_output_at(0)
+    stage2 = model.get_layer("tf.__operators__.add_32").get_output_at(0)
+    top = model.get_layer("layer_normalization").get_output_at(0)
+
+    return stage0, stage1, stage2, top
 
 
 def efficientnet(

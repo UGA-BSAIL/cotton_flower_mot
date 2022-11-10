@@ -19,6 +19,7 @@ from .gnn import DynamicEdgeGcn, ResidualCensNet
 from .mlp_conv import MlpConv
 from .pooling import PeakLayer
 from .utility import BnActConv, BnActDense
+from .future.convnext import LayerScale
 
 # Make sure that Kedro is aware of custom layers.
 CUSTOM_LAYERS = {
@@ -40,6 +41,7 @@ CUSTOM_LAYERS = {
         BottleneckBlock,
         ReductionStages,
         CenterSizes,
+        LayerScale,
     )
 }
 if "custom_objects" not in TensorFlowModelDataset.DEFAULT_LOAD_ARGS:

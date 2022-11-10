@@ -6,8 +6,8 @@ Implementation of the CenterNet detector model.
 from typing import Optional, Tuple
 
 import tensorflow as tf
-from tensorflow.keras import layers
-from tensorflow.keras.layers import (
+from keras import layers
+from keras.layers import (
     BatchNormalization,
     Concatenate,
     Conv2D,
@@ -15,6 +15,7 @@ from tensorflow.keras.layers import (
     Dropout,
     ReLU,
     UpSampling2D,
+    ZeroPadding2D,
 )
 from tensorflow.python.keras.regularizers import l2
 
@@ -26,7 +27,7 @@ from ..schemas import (
     RotNetTargets,
 )
 from .layers import BnActConv, PeakLayer
-from .layers.feature_extractors import efficientnet
+from .layers.feature_extractors import convnext
 
 
 def _build_decoder(
@@ -64,6 +65,8 @@ def _build_decoder(
     )(UpSampling2D()(x))
     x = BatchNormalization()(x)
     x = ReLU()(x)
+    # We need a little padding to make the layer sizes line up.
+    x = ZeroPadding2D(((1, 0), (0, 0)))(x)
     x = Concatenate()([scale3, x])
     x = Conv2D(
         256,
@@ -86,6 +89,7 @@ def _build_decoder(
     )(UpSampling2D()(scale3_merged))
     x = BatchNormalization()(x)
     x = ReLU()(x)
+    x = ZeroPadding2D(((1, 0), (0, 0)))(x)
     x = Concatenate()([scale2, x])
     x = Conv2D(
         128,
@@ -108,9 +112,7 @@ def _build_decoder(
     )(UpSampling2D()(x))
     x = BatchNormalization()(x)
     x = ReLU()(x)
-    # Because of the way the resnet layer sizes shake out, we need to add
-    # some slight cropping here.
-    x = Cropping2D(cropping=((1, 0), (0, 0)))(x)
+    x = ZeroPadding2D(((1, 0), (0, 0)))(x)
     x = Concatenate()([scale1, x])
     x = Conv2D(
         64,
@@ -250,7 +252,7 @@ def _build_common(
     if encoder is not None:
         encoder_features = encoder(normalized)
     else:
-        encoder_features = efficientnet(
+        encoder_features = convnext(
             image_input=normalized,
             input_shape=input_shape,
             pretrained=pretrained,
@@ -332,7 +334,7 @@ def build_rotnet_model(config: ModelConfig) -> tf.keras.Model:
         name=ModelInputs.DETECTIONS_FRAME.value,
     )
 
-    _, _, _, features = efficientnet(
+    _, _, _, features = convnext(
         image_input=images,
         input_shape=config.rot_net_input_shape,
         pretrained=False,

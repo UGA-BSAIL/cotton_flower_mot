@@ -42,6 +42,7 @@ function prepare_environment() {
 
   # Create output directories.
   mkdir "${job_dir}/output_data"
+  mkdir "${job_dir}/logs"
 
   # Set the working directory correctly for Kedro.
   cd "${job_dir}"
