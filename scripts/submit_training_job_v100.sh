@@ -54,4 +54,4 @@ prepare_environment
 source scripts/load_common.sh
 
 # Run the training.
-poetry run kedro run --pipeline=model_training "$@"
+poetry run kedro run --pipeline=model_training --env=v100 "$@"

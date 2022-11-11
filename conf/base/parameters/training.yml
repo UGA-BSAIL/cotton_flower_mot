@@ -1,10 +1,3 @@
-# Batch size to use for training.
-batch_size: 12
-# Batch size to use for training RotNet
-rot_net_batch_size: 8
-# Batch size to use for training colorization.
-colorization_batch_size: 16
-
 # Tensorboard parameters.
 # Log directory.
 tensorboard_output_dir: ${log_dir}/tensorboard

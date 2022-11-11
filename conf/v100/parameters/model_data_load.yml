@@ -1,0 +1,2 @@
+# Number of batches to buffer when shuffling.
+shuffle_buffer_size: 3
