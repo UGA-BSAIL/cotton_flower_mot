@@ -364,32 +364,61 @@ def _augment_inputs(
     *,
     images: Iterable[tf.Tensor],
     heatmaps: Optional[Iterable[tf.Tensor]],
-    geometry: Iterable[tf.Tensor],
+    input_geometry: Iterable[tf.Tensor],
+    target_geometry: Iterable[tf.Tensor],
     config: DataAugmentationConfig,
-) -> Tuple[List[tf.Tensor], Optional[List[tf.Tensor]], List[tf.Tensor],]:
+) -> Tuple[
+    List[tf.Tensor],
+    Optional[List[tf.Tensor]],
+    List[tf.Tensor],
+    List[tf.Tensor],
+]:
     """
     Applies data augmentation to images.
 
     Args:
         images: The images to augment.
         heatmaps: The corresponding heatmaps, or None if there are no heatmaps.
-        geometry: Bounding box geometry, of the form
-            `[center_x, center_y, width, height, offset_x, offset_y]`.
+        input_geometry: Bounding box geometry, of the form
+            `[center_x, center_y, width, height]`, used as input for the
+            tracker.
+        target_geometry: Bounding box geometry, of the form
+            `[center_x, center_y, width, height, offset_x, offset_y]`,
+            used as targets for the detector.
         config: Configuration for data augmentation.
 
     Returns:
-        The augmented images, heatmaps, and geometry.
+        The augmented images, heatmaps, input geometry, and target geometry.
 
     """
     images = [_augment_images(i, config) for i in images]
 
     # Perform flipping.
     if config.flip:
-        images, heatmaps, geometry = _random_flip(
-            images=images, heatmaps=heatmaps, geometry=geometry
+        input_geometry = list(input_geometry)
+        target_geometry = list(target_geometry)
+        all_geometry = input_geometry + target_geometry
+
+        images, heatmaps, all_geometry = _random_flip(
+            images=images, heatmaps=heatmaps, geometry=all_geometry
         )
 
-    return images, heatmaps, geometry
+        # Separate the geometry again.
+        num_inputs = len(input_geometry)
+        input_geometry = all_geometry[:num_inputs]
+        target_geometry = all_geometry[num_inputs:]
+
+    # Apply random jitter, but only to the input geometry.
+    input_geometry = [
+        _add_bbox_jitter(
+            g,
+            max_fractional_change=config.max_bbox_jitter,
+            image_shape=tf.shape(images[0]),
+        )
+        for g in input_geometry
+    ]
+
+    return images, heatmaps, input_geometry, target_geometry
 
 
 def _extract_rotations(image: tf.Tensor) -> tf.Tensor:
@@ -904,15 +933,16 @@ def _decode_images(
             (
                 (detections_frame, tracklets_frame),
                 (heatmap,),
-                (detections_geometry, tracklets_geometry, target_geometry),
+                (detections_geometry, tracklets_geometry),
+                (target_geometry,),
             ) = _augment_inputs(
                 images=(detections_frame, tracklets_frame),
                 heatmaps=(heatmap,),
-                geometry=(
+                input_geometry=(
                     detections_geometry,
                     tracklets_geometry,
-                    target_geometry,
                 ),
+                target_geometry=(target_geometry,),
                 config=augmentation_config,
             )
 
