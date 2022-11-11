@@ -55,9 +55,10 @@ def test_solve_optimal_transport_entropy() -> None:
     transport_good = transport_good.numpy()
     dist_good = dist_good.numpy()
 
-    transport_homogeneous, dist_homogeneous = assignment.solve_optimal_transport(
-        cost, lamb=0.1
-    )
+    (
+        transport_homogeneous,
+        dist_homogeneous,
+    ) = assignment.solve_optimal_transport(cost, lamb=0.1)
     transport_homogeneous = transport_homogeneous.numpy()
     dist_homogeneous = dist_homogeneous.numpy()
 

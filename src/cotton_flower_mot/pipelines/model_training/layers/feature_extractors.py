@@ -12,10 +12,10 @@ from .future.convnext import ConvNeXtSmall
 
 
 def convnext(
-        *,
-        image_input: tf.Tensor,
-        input_shape: Tuple[int, int, int],
-        pretrained: bool = True,
+    *,
+    image_input: tf.Tensor,
+    input_shape: Tuple[int, int, int],
+    pretrained: bool = True,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
     """
     Creates a new ConvNeXt-based model.

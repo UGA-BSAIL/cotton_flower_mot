@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, List
 
 import numpy as np
 import tensorflow as tf
@@ -238,54 +238,60 @@ def _flip_geometry(
 
 
 def _random_flip(
-    *, image: tf.Tensor, heatmap: Optional[tf.Tensor], geometry: tf.Tensor
-) -> Tuple[tf.Tensor, Optional[tf.Tensor], tf.Tensor]:
+    *,
+    images: Iterable[tf.Tensor],
+    heatmaps: Optional[Iterable[tf.Tensor]],
+    geometry: Iterable[tf.Tensor],
+) -> Tuple[List[tf.Tensor], Optional[List[tf.Tensor]], List[tf.Tensor],]:
     """
     Randomly flips input images vertically and horizontally,
-    also transforming the corresponding geometry.
+    also transforming the corresponding geometry. It will apply the same
+    transformation to pairs of images, in order to avoid disturbing the
+    geometric relationships that the tracker relies on.
 
     Args:
-        image: The 3D image to possibly flip.
-        heatmap: The corresponding heatmap, or None if there is no heatmap.
-        geometry: Bounding box geometry for the image, of the form
+        images: The 3D images to possibly flip.
+        heatmaps: The corresponding heatmaps, or None if there are no heatmaps.
+        geometry: Bounding box geometry for the images, of the form
             `[center_x, center_y, width, height, offset_x, offset_y]`.
 
     Returns:
-        The same image, heatmap, and geometry, possibly flipped.
+        The same images, heatmaps, and geometry, possibly flipped.
 
     """
+
+    def _do_flip(_image: tf.Tensor) -> tf.Tensor:
+        # Flip the image and heatmap.
+        _image = tf.cond(
+            should_flip_lr,
+            lambda: tf.image.flip_left_right(_image),
+            lambda: _image,
+        )
+        _image = tf.cond(
+            should_flip_ud,
+            lambda: tf.image.flip_up_down(_image),
+            lambda: _image,
+        )
+
+        return _image
+
     # Determine if we should do the flipping.
     should_flip = tf.random.uniform((2,), maxval=2, dtype=tf.int32)
     should_flip = tf.cast(should_flip, tf.bool)
     should_flip_lr = should_flip[0]
     should_flip_ud = should_flip[1]
 
-    # Flip the image and heatmap.
-    image = tf.cond(
-        should_flip_lr, lambda: tf.image.flip_left_right(image), lambda: image
-    )
-    image = tf.cond(
-        should_flip_ud, lambda: tf.image.flip_up_down(image), lambda: image
-    )
-
-    if heatmap is not None:
-        heatmap = tf.cond(
-            should_flip_lr,
-            lambda: tf.image.flip_left_right(heatmap),
-            lambda: heatmap,
-        )
-        heatmap = tf.cond(
-            should_flip_ud,
-            lambda: tf.image.flip_up_down(heatmap),
-            lambda: heatmap,
-        )
+    images = [_do_flip(i) for i in images]
+    if heatmaps is not None:
+        heatmaps = [_do_flip(h) for h in heatmaps]
 
     # Flip the bounding boxes.
-    geometry = _flip_geometry(
-        geometry, left_right=should_flip_lr, up_down=should_flip_ud
+    _flip_geo_ = partial(
+        _flip_geometry, left_right=should_flip_lr, up_down=should_flip_ud
     )
+    geometry = [_flip_geo_(g) for g in geometry]
 
-    return image, heatmap, geometry
+    return images, heatmaps, geometry
 
 
 def _add_bbox_jitter(
@@ -356,35 +362,34 @@ def _augment_images(
 
 def _augment_inputs(
     *,
-    image: tf.Tensor,
-    heatmap: Optional[tf.Tensor],
-    geometry: tf.Tensor,
+    images: Iterable[tf.Tensor],
+    heatmaps: Optional[Iterable[tf.Tensor]],
+    geometry: Iterable[tf.Tensor],
     config: DataAugmentationConfig,
-) -> Tuple[tf.Tensor, Optional[tf.Tensor], tf.Tensor]:
+) -> Tuple[List[tf.Tensor], Optional[List[tf.Tensor]], List[tf.Tensor],]:
     """
     Applies data augmentation to images.
 
     Args:
-        image: The image to augment.
-        heatmap: The corresponding heatmap, or None if there is no heatmap.
+        images: The images to augment.
+        heatmaps: The corresponding heatmaps, or None if there are no heatmaps.
         geometry: Bounding box geometry, of the form
             `[center_x, center_y, width, height, offset_x, offset_y]`.
         config: Configuration for data augmentation.
 
     Returns:
-        The augmented image, heatmap, and geometry.
+        The augmented images, heatmaps, and geometry.
 
     """
-    # Convert to floats once so we're not doing many redundant conversions.
-    image = _augment_images(image, config)
+    images = [_augment_images(i, config) for i in images]
 
     # Perform flipping.
     if config.flip:
-        image, heatmap, geometry = _random_flip(
-            image=image, heatmap=heatmap, geometry=geometry
+        images, heatmaps, geometry = _random_flip(
+            images=images, heatmaps=heatmaps, geometry=geometry
         )
 
-    return image, heatmap, geometry
+    return images, heatmaps, geometry
 
 
 def _extract_rotations(image: tf.Tensor) -> tf.Tensor:
@@ -874,7 +879,9 @@ def _decode_images(
         detections_frame = inputs.get(ModelInputs.DETECTIONS_FRAME.value, None)
         tracklets_frame = inputs.get(ModelInputs.TRACKLETS_FRAME.value, None)
         heatmap = targets.get(ModelTargets.HEATMAP.value, None)
-        geometric_features = targets[ModelTargets.GEOMETRY_DENSE_PRED.value]
+        detections_geometry = inputs[ModelInputs.DETECTION_GEOMETRY.value]
+        tracklets_geometry = inputs[ModelInputs.TRACKLET_GEOMETRY.value]
+        target_geometry = targets[ModelTargets.GEOMETRY_DENSE_PRED.value]
 
         # Decode the image features.
         if heat_map_source == HeatMapSource.LOAD:
@@ -884,7 +891,7 @@ def _decode_images(
         elif heat_map_source == HeatMapSource.GENERATE:
             # Generate a new heatmap.
             heatmap = make_object_heat_map(
-                geometric_features[:, :4],
+                target_geometry[:, :4],
                 map_size=tf.constant(model_config.heatmap_size),
                 normalized=False,
             )
@@ -894,25 +901,28 @@ def _decode_images(
             tracklets_frame = _decode_image(tracklets_frame, ratio=2)
 
             # Perform data augmentation.
-            detections_frame, heatmap, geometric_features = _augment_inputs(
-                image=detections_frame,
-                heatmap=heatmap,
-                geometry=geometric_features,
+            (
+                (detections_frame, tracklets_frame),
+                (heatmap,),
+                (detections_geometry, tracklets_geometry, target_geometry),
+            ) = _augment_inputs(
+                images=(detections_frame, tracklets_frame),
+                heatmaps=(heatmap,),
+                geometry=(
+                    detections_geometry,
+                    tracklets_geometry,
+                    target_geometry,
+                ),
                 config=augmentation_config,
             )
 
             inputs[ModelInputs.DETECTIONS_FRAME.value] = detections_frame
             inputs[ModelInputs.TRACKLETS_FRAME.value] = tracklets_frame
             # Update all the geometry.
-            inputs[ModelInputs.DETECTION_GEOMETRY.value] = geometric_features[
-                :, :4
-            ]
-            targets[
-                ModelTargets.GEOMETRY_DENSE_PRED.value
-            ] = geometric_features
-            targets[
-                ModelTargets.GEOMETRY_SPARSE_PRED.value
-            ] = geometric_features
+            inputs[ModelInputs.DETECTION_GEOMETRY.value] = detections_geometry
+            inputs[ModelInputs.TRACKLET_GEOMETRY.value] = tracklets_geometry
+            targets[ModelTargets.GEOMETRY_DENSE_PRED.value] = target_geometry
+            targets[ModelTargets.GEOMETRY_SPARSE_PRED.value] = target_geometry
 
         if heatmap is not None:
             targets[ModelTargets.HEATMAP.value] = heatmap

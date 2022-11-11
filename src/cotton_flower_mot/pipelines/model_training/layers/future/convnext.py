@@ -274,8 +274,12 @@ def ConvNeXtBlock(
             groups=projection_dim,
             name=name + "_depthwise_conv",
         )(x)
-        x = layers.LayerNormalization(epsilon=1e-6, name=name + "_layernorm")(x)
-        x = layers.Dense(4 * projection_dim, name=name + "_pointwise_conv_1")(x)
+        x = layers.LayerNormalization(epsilon=1e-6, name=name + "_layernorm")(
+            x
+        )
+        x = layers.Dense(4 * projection_dim, name=name + "_pointwise_conv_1")(
+            x
+        )
         x = layers.Activation("gelu", name=name + "_gelu")(x)
         x = layers.Dense(projection_dim, name=name + "_pointwise_conv_2")(x)
 
