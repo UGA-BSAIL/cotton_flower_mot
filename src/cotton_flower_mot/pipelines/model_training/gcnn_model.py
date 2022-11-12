@@ -316,6 +316,10 @@ def _build_gnn(
         config.num_edge_features,
         activation="relu",
     )((node_features, graph_structure, edge_features))
+
+    nodes1_1 = tf.debugging.assert_all_finite(nodes1_1, "nodes1_1")
+    edges1_1 = tf.debugging.assert_all_finite(edges1_1, "edges1_1")
+
     nodes1_1 = layers.BatchNormalization()(nodes1_1)
     edges1_1 = layers.BatchNormalization()(edges1_1)
     nodes1_2, _ = ResidualCensNet(

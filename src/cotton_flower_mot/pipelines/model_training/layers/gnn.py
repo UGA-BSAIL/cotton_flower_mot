@@ -180,7 +180,7 @@ class ResidualCensNet(layers.Layer):
             edge_channels: Number of output channels for the edge features.
             *args: Will be forwarded to the `CensNetConv` layer.
             name: The name of this layer.
-            edge_output: Whether to include an edge ouput from the layer.
+            edge_output: Whether to include an edge output from the layer.
             **kwargs: Will be forwarded to the `CensNetConv` layer.
         """
         super().__init__(name=name)
