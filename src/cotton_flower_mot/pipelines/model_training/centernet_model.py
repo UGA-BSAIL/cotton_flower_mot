@@ -27,7 +27,7 @@ from ..schemas import (
     RotNetTargets,
 )
 from .layers import BnActConv, PeakLayer
-from .layers.feature_extractors import convnext
+from .layers.feature_extractors import efficientnet
 
 
 def _build_decoder(
@@ -252,7 +252,7 @@ def _build_common(
     if encoder is not None:
         encoder_features = encoder(normalized)
     else:
-        encoder_features = convnext(
+        encoder_features = efficientnet(
             image_input=normalized,
             input_shape=input_shape,
             pretrained=pretrained,

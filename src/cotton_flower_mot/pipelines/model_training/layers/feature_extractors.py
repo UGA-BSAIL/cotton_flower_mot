@@ -9,6 +9,7 @@ import tensorflow as tf
 from keras.applications.efficientnet_v2 import EfficientNetV2S
 from keras.applications.resnet_v2 import ResNet101V2
 from .future.convnext import ConvNeXtSmall
+from keras import layers
 
 
 def convnext(
@@ -81,6 +82,11 @@ def efficientnet(
     block3 = model.get_layer("block3d_add").get_output_at(0)
     block5 = model.get_layer("block5i_add").get_output_at(0)
     top = model.get_layer("top_activation").get_output_at(0)
+
+    # Fudge the sizes a little bit so everything's the same size as ConvNeXt.
+    block3 = layers.Cropping2D(((0, 1), (0, 0)))(block3)
+    block5 = layers.Cropping2D(((1, 0), (0, 0)))(block5)
+    top = layers.Cropping2D(((0, 1), (0, 0)))(top)
 
     return block2, block3, block5, top
 
