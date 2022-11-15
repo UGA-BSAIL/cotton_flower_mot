@@ -298,7 +298,6 @@ def _add_bbox_jitter(
     bbox_coords: tf.Tensor,
     *,
     max_fractional_change: float = 0.05,
-    image_shape: tf.Tensor,
 ) -> tf.Tensor:
     """
     Adds uniform random jitter to bounding box coordinates.
@@ -308,22 +307,18 @@ def _add_bbox_jitter(
             `[min_y, min_x, max_y, max_x]`, in pixels.
         max_fractional_change: The maximum absolute amount that a coordinate
             can change, as a fraction of the original coordinate value.
-        image_shape: A 1D vector describing the shape of the corresponding
-            image.
     Returns:
         The bounding box coordinates with jitter.
     """
-    # Calculate maximum change in pixels.
-    image_height_width = tf.cast(image_shape[:2], tf.float32)
-    max_absolute_change = image_height_width * max_fractional_change
-    # Expand it so it aligns with both the corner points.
-    max_absolute_change = tf.tile(max_absolute_change, (2,))
+    # The maximum change will be the same for the center x, center y,
+    # width and height dimensions.
+    max_fractional_change = tf.constant([max_fractional_change] * 4)
 
     # Generate random jitters.
     jitter_magnitude = tf.random.uniform(
         tf.shape(bbox_coords),
-        minval=-max_absolute_change,
-        maxval=max_absolute_change,
+        minval=-max_fractional_change,
+        maxval=max_fractional_change,
     )
 
     # Apply the jitters.
@@ -413,7 +408,6 @@ def _augment_inputs(
         _add_bbox_jitter(
             g,
             max_fractional_change=config.max_bbox_jitter,
-            image_shape=tf.shape(images[0]),
         )
         for g in input_geometry
     ]

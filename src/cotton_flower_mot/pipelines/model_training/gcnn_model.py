@@ -9,7 +9,9 @@ from typing import Tuple
 import tensorflow as tf
 from loguru import logger
 from spektral.utils.convolution import line_graph
-from tensorflow.keras import layers
+from spektral.layers.convolutional import CensNetConv
+from keras import layers
+from keras.constraints import UnitNorm
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
