@@ -8,7 +8,7 @@ from typing import Tuple
 import tensorflow as tf
 from keras.applications.efficientnet_v2 import EfficientNetV2S
 from keras.applications.resnet_v2 import ResNet101V2
-from .future.convnext import ConvNeXtBase
+from .future.convnext import ConvNeXtLarge
 from keras import layers
 
 
@@ -33,7 +33,7 @@ def convnext(
         to deepest.
 
     """
-    model = ConvNeXtBase(
+    model = ConvNeXtLarge(
         include_top=False,
         input_tensor=image_input,
         input_shape=input_shape,
