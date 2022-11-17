@@ -98,16 +98,24 @@ class OnlineTracker:
     Performs online tracking using a given model.
     """
 
-    def __init__(self, model: tf.keras.Model, *, death_window: int = 10):
+    def __init__(
+        self,
+        model: tf.keras.Model,
+        *,
+        death_window: int = 10,
+        confidence_threshold: float = 0.5
+    ):
         """
         Args:
             model: The model to use for tracking.
             death_window: How many consecutive frames we have to not observe
                 a tracklet for before we consider it dead.
+            confidence_threshold: The confidence threshold to use for detection.
 
         """
         self.__model = model
         self.__death_window = death_window
+        self.__confidence_threshold = confidence_threshold
 
         # Stores the previous frame.
         self.__previous_frame = None
@@ -282,14 +290,25 @@ class OnlineTracker:
         frame = np.expand_dims(frame, axis=0)
         previous_frame = np.expand_dims(self.__previous_frame, axis=0)
         previous_geometry = np.expand_dims(self.__previous_geometry, axis=0)
+        # The detections geometry input is not actually used in inference mode,
+        # so we just feed it an empty tensor.
+        current_geometry = np.empty((1, 0, 4), dtype=np.float32)
 
         # Convert to ragged tensors.
         previous_geometry = tf.RaggedTensor.from_tensor(previous_geometry)
+        current_geometry = tf.RaggedTensor.from_tensor(current_geometry)
 
         return {
             ModelInputs.DETECTIONS_FRAME.value: frame,
             ModelInputs.TRACKLETS_FRAME.value: previous_frame,
             ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
+            ModelInputs.DETECTION_GEOMETRY.value: current_geometry,
+            # Put the model into inference mode.
+            ModelInputs.USE_GT_DETECTIONS.value: [False],
+            # Set the confidence threshold.
+            ModelInputs.CONFIDENCE_THRESHOLD.value: [
+                self.__confidence_threshold
+            ],
         }
 
     def __match_frame_pair(self, *, frame: np.ndarray) -> None:
