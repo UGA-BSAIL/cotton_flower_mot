@@ -41,10 +41,10 @@ def convnext(
     )
     model.trainable = not pretrained
 
-    stage0 = model.get_layer("tf.__operators__.add_2").get_output_at(0)
-    stage1 = model.get_layer("tf.__operators__.add_5").get_output_at(0)
-    stage2 = model.get_layer("tf.__operators__.add_32").get_output_at(0)
-    top = model.get_layer("layer_normalization").get_output_at(0)
+    stage0 = model.get_layer(index=26).get_output_at(0)
+    stage1 = model.get_layer(index=51).get_output_at(0)
+    stage2 = model.get_layer(index=268).get_output_at(0)
+    top = model.get_layer(index=294).get_output_at(0)
 
     return stage0, stage1, stage2, top
 

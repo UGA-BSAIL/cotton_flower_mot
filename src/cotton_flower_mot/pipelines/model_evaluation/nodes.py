@@ -52,9 +52,8 @@ def compute_tracks_for_clip(
             current_sequence_id = sequence_id
             tracker = OnlineTracker(model)
 
-        tracker.add_new_detections(
-            detections=inputs[ModelInputs.DETECTIONS.value].numpy(),
-            geometry=inputs[ModelInputs.DETECTION_GEOMETRY.value].numpy(),
+        tracker.process_frame(
+            frame=inputs[ModelInputs.DETECTIONS_FRAME.value].numpy(),
         )
     # Add the last one.
     tracks_from_clips[current_sequence_id] = tracker.tracks

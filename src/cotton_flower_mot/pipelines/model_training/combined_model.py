@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
+from keras import layers
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
@@ -55,14 +55,14 @@ def _extract_appearance_features(
         return _features.with_values(flat_features)
 
     features = layers.Lambda(_flatten_features)(feature_crops)
-    # return layers.Dense(config.num_appearance_features, activation="relu")(
-    #     features
-    # )
     return features
 
 
 def _apply_detector(
-    detector: tf.keras.Model, *, frames: tf.Tensor
+    detector: tf.keras.Model,
+    *,
+    frames: tf.Tensor,
+    confidence_threshold: float = 0.0
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor]:
     """
     Applies the detector model to an input.
@@ -70,12 +70,18 @@ def _apply_detector(
     Args:
         detector: The detector model.
         frames: The input frames.
+        confidence_threshold: The minimum confidence of detections. Any
+            detections with lower confidence will be removed.
 
     Returns:
         The heatmaps, dense geometry predictions, and bounding boxes.
 
     """
     heatmap, dense_geometry, bboxes = detector(frames)
+
+    # Remove low-confidence detections.
+    confidence = bboxes[:, :, 4]
+    bboxes = tf.ragged.boolean_mask(bboxes, confidence >= confidence_threshold)
 
     # Ensure that the resulting layers have the correct names when we set
     # them as outputs.
@@ -94,10 +100,71 @@ def _apply_detector(
     return heatmap, dense_geometry, bboxes
 
 
+def _choose_rois_for_tracker(
+    *,
+    detection_bboxes: tf.RaggedTensor,
+    tracker_roi_input: tf.RaggedTensor,
+    use_gt_detections: tf.Tensor
+) -> tf.RaggedTensor:
+    """
+    The tracker can operate in two modes, which are dynamically selectable at
+    runtime. In training mode, ground-truth bounding boxes for objects to
+    track are fed into the model, and these are used to train the tracker. In
+    inference mode, however, we don't have any ground-truth, so we rely
+    directly on the output of the detector.
+
+    This function implements the logic necessary to select the proper source
+    for these tracker ROIs. This is much more complicated than you would
+    expect, mainly due to TensorFlow's obstreperousness about normal tensors vs.
+    Keras tensors, and some (probable) bugs in the implementation of the
+    Keras `Lambda` layer related to the handling of `RaggedTensor`s.
+
+    Args:
+        detection_bboxes: The bounding boxes from the detector. Should have
+            the shape `[batch_size, (num_detections), 4]`.
+        tracker_roi_input: The ground-truth bounding boxes input by the user.
+            Should have the shape `[batch_size, (num_detections), 4]`.
+        use_gt_detections: A special input that selects whether we use the
+            detected or ground-truth bounding boxes. Should be a vector tensor
+            with exactly one boolean element.
+
+    Returns:
+        The ROIs to use for the tracker, with the shape
+        `[batch_size, (num_detections), 4]`.
+
+    """
+    # Keras Lambda layers seem to have some bugs when handling RaggedTensors,
+    # so we convert them to normal tensors for this operation, and then back.
+    roi_input_non_ragged = (
+        tracker_roi_input.flat_values,
+        tracker_roi_input.nested_row_splits,
+    )
+    detection_bboxes_non_ragged = (
+        detection_bboxes.flat_values,
+        detection_bboxes.nested_row_splits,
+    )
+    # If we are in training mode, use the input ROIs. Otherwise, just grab
+    # the bounding boxes from the detector.
+    detection_geometry_values, detection_geometry_splits = layers.Lambda(
+        lambda params: tf.cond(
+            params[0][0],
+            # Use the ground-truth ROIs supplied by the user.
+            lambda: params[1],
+            # Use the detections.
+            lambda: params[2],
+        ),
+        name="check_gt_detections",
+    )((use_gt_detections, roi_input_non_ragged, detection_bboxes_non_ragged))
+
+    # Reconstruct the ragged tensor.
+    return tf.RaggedTensor.from_nested_row_splits(
+        detection_geometry_values, detection_geometry_splits
+    )
+
+
 def build_combined_model(
     config: ModelConfig,
     encoder: Optional[tf.keras.Model] = None,
-    is_training: bool = True,
 ) -> tf.keras.Model:
     """
     Builds the combined detection + tracking model.
@@ -106,11 +173,6 @@ def build_combined_model(
         config: The model configuration.
         encoder: A custom pretrained encoder which will be used for feature
             extraction.
-        is_training: Whether to use the training or inference configuration
-            for the model. The primary difference is that the inference
-            configuration uses the inferred detections in the tracking step,
-            but the training configuration uses ground-truth detections,
-            which have to be input manually.
 
     Returns:
         The model it created.
@@ -131,13 +193,24 @@ def build_combined_model(
         shape=config.detection_model_input_shape,
         name=ModelInputs.TRACKLETS_FRAME.value,
     )
+    # Confidence threshold to use for filtering detections.
+    confidence_threshold = layers.Input(
+        shape=(),
+        dtype=tf.float32,
+        batch_size=1,
+        name=ModelInputs.CONFIDENCE_THRESHOLD.value,
+    )
 
     # Apply the detection model to the input frames.
     (
         detection_heatmap,
         detection_dense_geometry,
-        detection_bboxes,
-    ) = _apply_detector(detector, frames=current_frames)
+        detection_bboxes_with_conf,
+    ) = _apply_detector(
+        detector,
+        frames=current_frames,
+        confidence_threshold=confidence_threshold[0],
+    )
 
     geometry_input_shape = (None, 4)
     # In all cases, we need to manually provide the tracklet bounding boxes.
@@ -148,24 +221,32 @@ def build_combined_model(
         ragged=True,
         name=ModelInputs.TRACKLET_GEOMETRY.value,
     )
-    # Default to using
-    model_inputs = [current_frames, previous_frames, tracklet_geometry]
-    if is_training:
-        # Create the GT detection bounding box inputs, which are needed for
-        # training.
-        detection_geometry_for_tracker = layers.Input(
-            geometry_input_shape,
-            ragged=True,
-            name=ModelInputs.DETECTION_GEOMETRY.value,
-        )
-        model_inputs.append(detection_geometry_for_tracker)
-    else:
-        # Just grab the bounding boxes from the detector.
-        detection_geometry_for_tracker = detection_bboxes
-        # Remove the confidence scores.
-        detection_geometry_for_tracker = detection_geometry_for_tracker[
-            :, :, :4
-        ]
+
+    # Indicates whether the model is in training mode, which impacts where we
+    # get the tracking ROIs from.
+    use_gt_detections = layers.Input(
+        shape=(),
+        dtype=tf.bool,
+        batch_size=1,
+        name=ModelInputs.USE_GT_DETECTIONS.value,
+    )
+
+    # Create the GT detection bounding box inputs, which are needed for
+    # training.
+    tracker_roi_input = layers.Input(
+        geometry_input_shape,
+        ragged=True,
+        name=ModelInputs.DETECTION_GEOMETRY.value,
+    )
+
+    # Remove the confidence value from the detected bboxes, since we don't
+    # need it for tracking.
+    detection_bboxes = detection_bboxes_with_conf[:, :, :4]
+    detection_geometry_for_tracker = _choose_rois_for_tracker(
+        detection_bboxes=detection_bboxes,
+        tracker_roi_input=tracker_roi_input,
+        use_gt_detections=use_gt_detections,
+    )
 
     # Extract the image features.
     current_frame_features = image_feature_extractor(current_frames)
@@ -191,11 +272,18 @@ def build_combined_model(
         config=config,
     )
     return tf.keras.Model(
-        inputs=model_inputs,
+        inputs=[
+            current_frames,
+            previous_frames,
+            tracklet_geometry,
+            tracker_roi_input,
+            use_gt_detections,
+            confidence_threshold,
+        ],
         outputs=[
             detection_heatmap,
             detection_dense_geometry,
-            detection_bboxes,
+            detection_bboxes_with_conf,
             sinkhorn,
             hungarian,
         ],

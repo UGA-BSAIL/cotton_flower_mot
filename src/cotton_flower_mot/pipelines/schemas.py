@@ -214,7 +214,9 @@ class ModelInputs(enum.Enum):
     DETECTION_GEOMETRY = "detection_geometry"
     """
     Corresponding geometric features for the detection crops. Should have the
-    form `[center_x, center_y, width, height]`.
+    form `[center_x, center_y, width, height]`. These are only used during 
+    training. During inference, the model will automatically use the results 
+    from the detector.
     """
     TRACKLET_GEOMETRY = "tracklet_geometry"
     """
@@ -225,6 +227,22 @@ class ModelInputs(enum.Enum):
     SEQUENCE_ID = "sequence_id"
     """
     The sequence ID of the clip.
+    """
+
+    USE_GT_DETECTIONS = "use_gt_detections"
+    """
+    This is a single boolean input. If true, it will use the DETECTION_GEOMETRY 
+    input to supply the ROIs for tracking. If false, the DETECTION_GEOMETRY 
+    input will be ignored, and it will instead use the detection results to 
+    supply the ROIs.
+    """
+    CONFIDENCE_THRESHOLD = "confidence_threshold"
+    """
+    This is a single float input. It supplies a confidence threshold to use 
+    for detections. Any detections with lower confidence than this will be 
+    discarded. This is mostly applicable when running in inference mode, 
+    as it allows the user to control which detections actually make it to 
+    the tracker.
     """
 
 

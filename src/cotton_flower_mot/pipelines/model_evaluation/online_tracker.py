@@ -3,7 +3,7 @@ Framework for online tracking.
 """
 
 
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Union
 
 import numpy as np
 import tensorflow as tf
@@ -109,9 +109,8 @@ class OnlineTracker:
         self.__model = model
         self.__death_window = death_window
 
-        # Stores the detections from the previous frame, which are the last
-        # observations of the current tracklets.
-        self.__previous_detections = np.empty((0,), dtype=np.float32)
+        # Stores the previous frame.
+        self.__previous_frame = None
         # Stores the detection geometry from the previous frame.
         self.__previous_geometry = np.empty((0, 4), dtype=np.float32)
 
@@ -126,36 +125,23 @@ class OnlineTracker:
         # Counter for the current frame.
         self.__frame_num = 0
 
-    def __maybe_init_state(
-        self, *, detections: np.ndarray, geometry: np.ndarray
-    ) -> bool:
+    def __maybe_init_state(self, *, frame: np.ndarray) -> bool:
         """
         Initializes the previous detection state from the current detections
         if necessary.
 
         Args:
-            detections: The current detections.
-            geometry: The associated detection geometry.
+            frame: The current frame image.
 
         Returns:
             True if the state was initialized with the detections.
 
         """
-        if len(self.__previous_detections) == 0:
+        if self.__previous_frame is None:
             logger.debug(
-                "Initializing tracker state with {} tracks.",
-                len(detections),
+                "Initializing tracker state.",
             )
-            self.__previous_detections = detections
-            self.__previous_geometry = geometry
-
-            # Add the new tracks.
-            for i in range(len(detections)):
-                track = Track()
-                track.add_new_detection(
-                    frame_num=self.__frame_num, detection_index=i
-                )
-                self.__active_tracks.add(track)
+            self.__previous_frame = frame
 
             return True
         return False
@@ -235,7 +221,7 @@ class OnlineTracker:
 
         """
         # Un-flatten the assignment matrix.
-        num_tracklets = len(self.__previous_detections)
+        num_tracklets = len(self.__previous_geometry)
         assignment_matrix = np.reshape(assignment_matrix, (num_tracklets, -1))
         logger.debug(
             "Expanding assignment matrix to {}.", assignment_matrix.shape
@@ -245,20 +231,19 @@ class OnlineTracker:
         self.__add_new_tracks(assignment_matrix)
 
     def __update_saved_state(
-        self, *, detections: np.ndarray, geometry: np.ndarray
+        self, *, frame: np.ndarray, geometry: np.ndarray
     ) -> None:
         """
-        Updates the saved detections that will be used for the next frame.
+        Updates the saved frames and detections that will be used as the
+        input tracks for the next frame.
 
         Args:
-            detections: The detections from the current frame.
-                Should be an array of shape
-                `[num_detections, height, width, channels]`.
+            frame: The current frame image. Should be an array of shape
+                `[height, width, channels]`.
             geometry: The geometry for the detections. Should be an array
                 of shape `[num_detections, 4]`.
 
         """
-        active_detections = []
         active_geometry = []
         self.__tracks_by_tracklet_index.clear()
 
@@ -266,15 +251,9 @@ class OnlineTracker:
             if track.last_detection_frame == self.__frame_num:
                 # One of our new detections got added to this track. Update
                 # it in the state.
-                active_detections.append(
-                    detections[track.last_detection_index]
-                )
                 active_geometry.append(geometry[track.last_detection_index])
             else:
                 # The track wasn't modified this iteration. Keep the old state.
-                active_detections.append(
-                    self.__previous_detections[track.last_detection_index]
-                )
                 active_geometry.append(
                     self.__previous_geometry[track.last_detection_index]
                 )
@@ -282,99 +261,73 @@ class OnlineTracker:
             # Save the track object corresponding to this tracklet.
             self.__tracks_by_tracklet_index[i] = track
 
-        self.__previous_detections = self.__previous_geometry = np.empty((0,))
-        if len(active_detections) > 0:
-            self.__previous_detections = np.stack(active_detections, axis=0)
+        self.__previous_frame = frame
+        self.__previous_geometry = np.empty((0,))
         if len(active_geometry) > 0:
             self.__previous_geometry = np.stack(active_geometry, axis=0)
 
     def __create_model_inputs(
-        self, *, detections: np.ndarray, geometry: np.ndarray
-    ) -> Dict[str, tf.RaggedTensor]:
+        self, *, frame: np.ndarray
+    ) -> Dict[str, Union[tf.RaggedTensor, tf.Tensor]]:
         """
         Creates an input dictionary for the model based on detections for
         a single frame.
 
         Args:
-            detections: The new detections. Should be an array of shape
-                `[num_detections, height, width, channels]`.
-            geometry: The geometry for the detections. Should be an array
-                of shape `[num_detections, 4]`.
+            frame: The current frame image. Should be an array of shape
+                `[width, height, num_channels]`.
 
         """
         # Expand dimensions since the model expects a batch.
-        detections = np.expand_dims(detections, axis=0)
-        geometry = np.expand_dims(geometry, axis=0)
-        previous_detections = np.expand_dims(
-            self.__previous_detections, axis=0
-        )
+        frame = np.expand_dims(frame, axis=0)
+        previous_frame = np.expand_dims(self.__previous_frame, axis=0)
         previous_geometry = np.expand_dims(self.__previous_geometry, axis=0)
 
         # Convert to ragged tensors.
-        detections = tf.RaggedTensor.from_tensor(detections)
-        geometry = tf.RaggedTensor.from_tensor(geometry)
-        previous_detections = tf.RaggedTensor.from_tensor(previous_detections)
         previous_geometry = tf.RaggedTensor.from_tensor(previous_geometry)
 
         return {
-            ModelInputs.DETECTIONS.value: detections,
-            ModelInputs.TRACKLETS.value: previous_detections,
-            ModelInputs.DETECTION_GEOMETRY.value: geometry,
+            ModelInputs.DETECTIONS_FRAME.value: frame,
+            ModelInputs.TRACKLETS_FRAME.value: previous_frame,
             ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
         }
 
-    def __match_frame_pair(
-        self, *, detections: np.ndarray, geometry: np.ndarray
-    ) -> None:
+    def __match_frame_pair(self, *, frame: np.ndarray) -> None:
         """
         Computes the assignment matrix between the current state and new
         detections, and updates the state.
 
         Args:
-            detections: The new detections. Should be an array of shape
-                `[num_detections, height, width, channels]`.
-            geometry: The geometry for the detections. Should be an array
-                of shape `[num_detections, 4]`.
+            frame: The current frame. Should be an array of shape
+                `[height, width, channels]`.
 
         """
-        # Default assignment matrix adds no new detections.
-        assignment = np.zeros(
-            (len(self.__previous_detections), 0), dtype=np.bool
-        )
-
-        if len(detections) > 0:
-            # Apply the model.
-            logger.info("Applying model to {} detections...", len(detections))
-            model_inputs = self.__create_model_inputs(
-                detections=detections, geometry=geometry
-            )
-            model_outputs = self.__model(model_inputs, training=False)
-            assignment = model_outputs[ModelTargets.ASSIGNMENT.value][
-                0
-            ].numpy()
+        # Apply the model.
+        logger.info("Applying model...")
+        model_inputs = self.__create_model_inputs(frame=frame)
+        model_outputs = self.__model(model_inputs, training=False)
+        assignment = model_outputs[ModelTargets.ASSIGNMENT.value][0].numpy()
+        detection_geometry = model_outputs[
+            ModelTargets.GEOMETRY_SPARSE_PRED.value
+        ][0].numpy()
 
         # Update the tracks.
         self.__update_tracks(assignment)
         # Update the state.
-        self.__update_saved_state(detections=detections, geometry=geometry)
+        self.__update_saved_state(frame=frame, geometry=detection_geometry)
 
-    def add_new_detections(
-        self, *, detections: np.ndarray, geometry: np.ndarray
-    ) -> None:
+    def process_frame(self, *, frame: np.ndarray) -> None:
         """
-        Adds a set of detections for a new frame to the tracker.
+        Use the tracker to process a new frame. It will detect objects in the
+        new frame and update the current tracks.
 
         Args:
-            detections: The new detections. Should be an array of shape
-                `[num_detections, height, width, channels]`.
-            geometry: The geometry for the detections. Should be an array
-                of shape `[num_detections, 4]`.
+            frame: The original image frame from the video. Should be an
+                array of shape `[height, width, channels]`.
 
         """
-        if not self.__maybe_init_state(
-            detections=detections, geometry=geometry
-        ):
-            self.__match_frame_pair(detections=detections, geometry=geometry)
+        if not self.__maybe_init_state(frame=frame):
+            self.__match_frame_pair(frame=frame)
 
         self.__frame_num += 1
 
