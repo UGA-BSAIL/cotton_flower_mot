@@ -58,7 +58,7 @@ learning_phases:
       m_mul: 1.0
       # How many epochs of no improvement we tolerate before reducing the LR,
       # if we are not using SGDR.
-      lr_patience_epochs: 20
+      lr_patience_epochs: 2
       # Minimum learning rate to hit.
       min_learning_rate: 0.000001
       # Number of LR warmup steps. Setting this to zero disables warmup.

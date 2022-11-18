@@ -304,11 +304,11 @@ class OnlineTracker:
             ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
             ModelInputs.DETECTION_GEOMETRY.value: current_geometry,
             # Put the model into inference mode.
-            ModelInputs.USE_GT_DETECTIONS.value: [False],
+            ModelInputs.USE_GT_DETECTIONS.value: np.array([False]),
             # Set the confidence threshold.
-            ModelInputs.CONFIDENCE_THRESHOLD.value: [
-                self.__confidence_threshold
-            ],
+            ModelInputs.CONFIDENCE_THRESHOLD.value: np.array(
+                [self.__confidence_threshold]
+            ),
         }
 
     def __match_frame_pair(self, *, frame: np.ndarray) -> None:
@@ -325,10 +325,10 @@ class OnlineTracker:
         logger.info("Applying model...")
         model_inputs = self.__create_model_inputs(frame=frame)
         model_outputs = self.__model(model_inputs, training=False)
-        assignment = model_outputs[ModelTargets.ASSIGNMENT.value][0].numpy()
-        detection_geometry = model_outputs[
-            ModelTargets.GEOMETRY_SPARSE_PRED.value
-        ][0].numpy()
+        print(model_outputs[2])
+        print(model_outputs[4])
+        assignment = model_outputs[4][0].numpy()
+        detection_geometry = model_outputs[2][0].numpy()
 
         # Update the tracks.
         self.__update_tracks(assignment)

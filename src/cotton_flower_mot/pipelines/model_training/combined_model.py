@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 import numpy as np
 import tensorflow as tf
 from keras import layers
+from loguru import logger
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
@@ -178,6 +179,8 @@ def build_combined_model(
         The model it created.
 
     """
+    logger.debug("Building the combined model...")
+
     # Build the detector/feature extractor.
     image_feature_extractor, detector = build_detection_model(
         config, encoder=encoder

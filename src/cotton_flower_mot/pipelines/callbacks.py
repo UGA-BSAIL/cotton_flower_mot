@@ -280,6 +280,13 @@ class KeepBest(callbacks.Callback):
             with tf.keras.utils.custom_object_scope(CUSTOM_LAYERS):
                 self.__best_model = tf.keras.models.clone_model(self.model)
 
+            # Copy the weights too.
+            assert len(self.__best_model.layers) == len(self.model.layers)
+            for layer, layer_copy in zip(
+                self.model.layers, self.__best_model.layers
+            ):
+                layer_copy.set_weights(layer.get_weights())
+
     @property
     def best_model(self) -> Optional[tf.keras.Model]:
         """
