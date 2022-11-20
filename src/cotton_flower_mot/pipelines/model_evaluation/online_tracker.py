@@ -218,7 +218,9 @@ class OnlineTracker:
 
                 self.__active_tracks.add(track)
 
-    def __update_tracks(self, assignment_matrix: np.ndarray) -> None:
+    def __update_tracks(
+        self, assignment_matrix: np.ndarray, *, num_detections: int
+    ) -> None:
         """
         Updates the current set of tracks based on the latest tracking result.
 
@@ -226,11 +228,14 @@ class OnlineTracker:
             assignment_matrix: The assignment matrix between the detections from
                 the previous frame and the current one. Should have a shape of
                 `[num_detections * num_tracklets]`.
+            num_detections: The total number of new detections.
 
         """
         # Un-flatten the assignment matrix.
         num_tracklets = len(self.__previous_geometry)
-        assignment_matrix = np.reshape(assignment_matrix, (num_tracklets, -1))
+        assignment_matrix = np.reshape(
+            assignment_matrix, (num_tracklets, num_detections)
+        )
         logger.debug(
             "Expanding assignment matrix to {}.", assignment_matrix.shape
         )
@@ -270,7 +275,7 @@ class OnlineTracker:
             self.__tracks_by_tracklet_index[i] = track
 
         self.__previous_frame = frame
-        self.__previous_geometry = np.empty((0,))
+        self.__previous_geometry = np.empty((0, 4))
         if len(active_geometry) > 0:
             self.__previous_geometry = np.stack(active_geometry, axis=0)
 
@@ -325,13 +330,16 @@ class OnlineTracker:
         logger.info("Applying model...")
         model_inputs = self.__create_model_inputs(frame=frame)
         model_outputs = self.__model(model_inputs, training=False)
-        print(model_outputs[2])
-        print(model_outputs[4])
         assignment = model_outputs[4][0].numpy()
         detection_geometry = model_outputs[2][0].numpy()
+        logger.debug("Got {} detections.", len(detection_geometry))
+        # Remove the confidence, since we don't use that for tracking.
+        detection_geometry = detection_geometry[:, :4]
 
         # Update the tracks.
-        self.__update_tracks(assignment)
+        self.__update_tracks(
+            assignment, num_detections=len(detection_geometry)
+        )
         # Update the state.
         self.__update_saved_state(frame=frame, geometry=detection_geometry)
 

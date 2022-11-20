@@ -31,7 +31,6 @@ def compute_tracks_for_clip(
         Mapping of sequence IDs to tracks from that clip.
 
     """
-    model.evaluate(clip_dataset, batch_size=8)
     logger.info("Computing tracks for clip...")
 
     # Remove batch dimension and feed inputs one-at-a-time.
