@@ -1,0 +1,2 @@
+# The confidence threshold to use for detection.
+conf_threshold: 0.3
