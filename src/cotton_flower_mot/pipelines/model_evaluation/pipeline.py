@@ -8,18 +8,26 @@ from .nodes import compute_counts, compute_tracks_for_clip, make_track_videos
 
 
 def create_pipeline(**kwargs):
+    tracking_params = dict(confidence_threshold="params:conf_threshold")
+
     return Pipeline(
         [
             # Compute online tracks.
             node(
                 compute_tracks_for_clip,
-                dict(model="trained_model", clip_dataset="testing_data_clips"),
+                dict(
+                    model="trained_model",
+                    clip_dataset="testing_data_clips",
+                    **tracking_params
+                ),
                 "testing_tracks",
             ),
             node(
                 compute_tracks_for_clip,
                 dict(
-                    model="trained_model", clip_dataset="validation_data_clips"
+                    model="trained_model",
+                    clip_dataset="validation_data_clips",
+                    **tracking_params
                 ),
                 "validation_tracks",
             ),

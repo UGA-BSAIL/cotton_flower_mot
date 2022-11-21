@@ -17,7 +17,10 @@ from .tracking_video_maker import draw_tracks
 
 
 def compute_tracks_for_clip(
-    *, model: tf.keras.Model, clip_dataset: tf.data.Dataset
+    *,
+    model: tf.keras.Model,
+    clip_dataset: tf.data.Dataset,
+    confidence_threshold: float = 0.5
 ) -> Dict[int, List[Track]]:
     """
     Computes the tracks for a given sequence of clips.
@@ -26,6 +29,7 @@ def compute_tracks_for_clip(
         model: The model to use for track computation.
         clip_dataset: The dataset containing detections for each frame in the
             clip.
+        confidence_threshold: The confidence threshold to use for detections.
 
     Returns:
         Mapping of sequence IDs to tracks from that clip.
@@ -50,7 +54,9 @@ def compute_tracks_for_clip(
             if tracker is not None:
                 tracks_from_clips[current_sequence_id] = tracker.tracks
             current_sequence_id = sequence_id
-            tracker = OnlineTracker(model)
+            tracker = OnlineTracker(
+                model, confidence_threshold=confidence_threshold
+            )
 
         tracker.process_frame(
             frame=inputs[ModelInputs.DETECTIONS_FRAME.value].numpy(),
