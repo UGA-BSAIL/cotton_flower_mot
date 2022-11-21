@@ -9,6 +9,7 @@ import tensorflow as tf
 from faker import Faker
 
 from src.cotton_flower_mot.pipelines import dataset_io
+from src.cotton_flower_mot.pipelines.dataset_io import DataAugmentationConfig
 from src.cotton_flower_mot.pipelines.dataset_io import HeatMapSource
 from src.cotton_flower_mot.pipelines.schemas import ModelInputs, ModelTargets
 
@@ -32,11 +33,29 @@ Number of elements that are in the test dataset.
     HeatMapSource,
     ids=[e.name for e in HeatMapSource],
 )
+@pytest.mark.parametrize(
+    "data_augmentation",
+    (
+        DataAugmentationConfig(),
+        DataAugmentationConfig(
+            max_brightness_delta=0.1,
+            max_hue_delta=0.1,
+            min_contrast=0.9,
+            max_contrast=1.1,
+            min_saturation=0.9,
+            max_saturation=1.1,
+            max_bbox_jitter=0.01,
+            false_positive_rate=0.1,
+        ),
+    ),
+    ids=["no_augmentation", "standard_augmentation"],
+)
 def test_inputs_and_targets_from_dataset_smoke(
     faker: Faker,
     include_frame: bool,
     random_drop: bool,
     heat_map_source: HeatMapSource,
+    data_augmentation: DataAugmentationConfig,
 ) -> None:
     """
     Attempts to load actual data and makes sure that it works.
@@ -46,6 +65,8 @@ def test_inputs_and_targets_from_dataset_smoke(
         include_frame: Whether to test including the full frame.
         random_drop: Whether to test dropping random examples.
         heat_map_source: Where to source heatmaps from during the test.
+        data_augmentation: The data augmentation parameters to use for the
+            test.
 
     """
     # Arrange.
@@ -65,6 +86,7 @@ def test_inputs_and_targets_from_dataset_smoke(
         include_frame=include_frame,
         heat_map_source=heat_map_source,
         batch_size=8,
+        augmentation_config=data_augmentation,
         **drop_kwargs
     )
 
@@ -76,6 +98,11 @@ def test_inputs_and_targets_from_dataset_smoke(
 
     # Make sure we have the right inputs and targets.
     expected_inputs = set(ModelInputs)
+    # Remove inputs used for dynamic configuration of the model.
+    expected_inputs -= {
+        ModelInputs.USE_GT_DETECTIONS,
+        ModelInputs.CONFIDENCE_THRESHOLD,
+    }
     expected_targets = set(ModelTargets)
     if not include_frame:
         # We won't have a frame input in this case.

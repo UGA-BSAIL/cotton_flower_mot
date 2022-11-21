@@ -1,20 +1,23 @@
 # Amount of random jitter to add to the bounding boxes when training, as
 # a fraction of the frame size.
-bbox_jitter_fraction: 0.01
+bbox_jitter_fraction: 0.02
 # Maximum amount to adjust brightness by.
-max_brightness_delta: 0.1
+max_brightness_delta: 0.2
 # Minimum contrast factor to use.
-min_contrast: 0.9
+min_contrast: 0.8
 # Maximum contrast factor to use.
-max_contrast: 1.1
+max_contrast: 1.2
 # Maximum amount to adjust hue by.
-max_hue_delta: 0.1
+max_hue_delta: 0.2
 # Minimum saturation factor to use.
-min_saturation: 0.9
+min_saturation: 0.8
 # Maximum saturation factor to use.
-max_saturation: 1.1
+max_saturation: 1.2
 # Whether to allow random flipping.
 flip: true
+# False positive rate to simulate for the tracker/
+false_positive_rate: 0.1
+
 # Number of batches to buffer when shuffling.
 shuffle_buffer_size: 5
 
