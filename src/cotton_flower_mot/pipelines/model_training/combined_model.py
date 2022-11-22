@@ -41,6 +41,14 @@ def _extract_appearance_features(
         dimension is ragged.
 
     """
+    image_features_res = layers.Dropout(0.5)(image_features)
+    image_features = BnActConv(128, 3, padding="same")(image_features)
+    image_features = BnActConv(256, 1, padding="same")(image_features)
+    image_features = BnActConv(256, 1, padding="same")(image_features)
+
+    image_features_res = BnActConv(256, 1, padding="same")(image_features_res)
+    image_features = layers.Add()((image_features_res, image_features))
+
     image_features = BnActConv(8, 1, activation="relu")(image_features)
     feature_crops = RoiPooling(config.roi_pooling_size)(
         (image_features, bbox_geometry)

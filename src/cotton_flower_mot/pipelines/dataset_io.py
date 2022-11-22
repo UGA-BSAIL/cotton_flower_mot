@@ -377,7 +377,7 @@ def _augment_with_false_positives(
         detections_bbox_coords: The bounding box coordinates for the detections.
         sinkhorn: The ground-truth sinkhorn matrix. Will be modified with any
             false positives. Should have a shape of
-            `[num_trackets, num_detections]`.
+            `[num_tracklets, num_detections]`.
         rate: The false-positive rate we would like to simulate.
 
     Returns:

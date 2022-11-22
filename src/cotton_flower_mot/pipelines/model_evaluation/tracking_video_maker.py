@@ -109,7 +109,7 @@ def _draw_bounding_box(
     # Choose a color.
     color = _color_for_track(track)
 
-    artist.rectangle([min_point, max_point], outline=color, width=5)
+    artist.rectangle((min_point, max_point), outline=color, width=5)
 
     # Draw a tag with the track ID.
     tag_pos = min_point
@@ -152,8 +152,12 @@ def draw_track_frame(
             # No detection for this track at this frame.
             continue
 
+        # Convert the bounding box to pixels.
+        bounding_box *= np.array(
+            [frame.width, frame.height, frame.width, frame.height]
+        )
         # Because the image is flipped, we have to flip our bounding boxes.
-        bounding_box[:, 1] = frame.height - bounding_box[:, 1]
+        bounding_box[1] = frame.height - bounding_box[1]
 
         # Draw the bounding box.
         _draw_bounding_box(draw, track=track, box=bounding_box)
@@ -182,8 +186,6 @@ def draw_tracks(
         # Flip the frame, because the input data is upside-down.
         frame = cv2.flip(frame, 0)
 
-        frame = draw_track_frame(
-            frame, frame_num=frame_num, tracks=tracks
-        )
+        frame = draw_track_frame(frame, frame_num=frame_num, tracks=tracks)
 
         yield frame

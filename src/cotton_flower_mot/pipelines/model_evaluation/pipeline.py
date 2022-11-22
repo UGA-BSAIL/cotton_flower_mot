@@ -12,25 +12,25 @@ def create_pipeline(**kwargs):
 
     return Pipeline(
         [
-            # Compute online tracks.
-            node(
-                compute_tracks_for_clip,
-                dict(
-                    model="trained_model",
-                    clip_dataset="testing_data_clips",
-                    **tracking_params
-                ),
-                "testing_tracks",
-            ),
-            node(
-                compute_tracks_for_clip,
-                dict(
-                    model="trained_model",
-                    clip_dataset="validation_data_clips",
-                    **tracking_params
-                ),
-                "validation_tracks",
-            ),
+            # # Compute online tracks.
+            # node(
+            #     compute_tracks_for_clip,
+            #     dict(
+            #         model="trained_model",
+            #         clip_dataset="testing_data_clips",
+            #         **tracking_params
+            #     ),
+            #     "testing_tracks",
+            # ),
+            # node(
+            #     compute_tracks_for_clip,
+            #     dict(
+            #         model="trained_model",
+            #         clip_dataset="validation_data_clips",
+            #         **tracking_params
+            #     ),
+            #     "validation_tracks",
+            # ),
             # Create count reports.
             node(
                 compute_counts,

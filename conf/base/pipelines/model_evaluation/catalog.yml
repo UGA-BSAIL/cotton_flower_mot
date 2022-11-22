@@ -27,6 +27,7 @@ tracking_videos_test:
   filepath: ${output_data_dir}/08_reporting/tracking_videos/test
   extension: .mp4
   bgr_color: false
+  resolution: [960, 540]
   versioned: True
 
 tracking_videos_valid:
@@ -35,4 +36,5 @@ tracking_videos_valid:
   filepath: ${output_data_dir}/08_reporting/tracking_videos/valid
   extension: .mp4
   bgr_color: false
+  resolution: [960, 540]
   versioned: True

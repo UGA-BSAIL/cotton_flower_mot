@@ -82,7 +82,9 @@ class Track:
             The index for that frame, or None if we don't have one.
 
         """
-        return np.array(self.__frames_to_detections.get(frame_num))
+        if frame_num not in self.__frames_to_detections:
+            return None
+        return np.array(self.__frames_to_detections[frame_num])
 
     @property
     def id(self) -> int:
