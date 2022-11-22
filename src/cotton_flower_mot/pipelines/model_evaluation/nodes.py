@@ -3,7 +3,7 @@ Nodes for model evaluation pipeline.
 """
 
 
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Any
 
 import numpy as np
 import pandas as pd
@@ -21,7 +21,7 @@ def compute_tracks_for_clip(
     model: tf.keras.Model,
     clip_dataset: tf.data.Dataset,
     confidence_threshold: float = 0.5
-) -> Dict[int, List[Track]]:
+) -> Dict[int, List[Dict[str, Any]]]:
     """
     Computes the tracks for a given sequence of clips.
 
@@ -64,11 +64,17 @@ def compute_tracks_for_clip(
     # Add the last one.
     tracks_from_clips[current_sequence_id] = tracker.tracks
 
+    # Serialize the tracks.
+    for sequence, tracks in tracks_from_clips.items():
+        tracks_from_clips[sequence] = [t.to_dict() for t in tracks]
+
     return tracks_from_clips
 
 
 def compute_counts(
-    *, tracks_from_clips: Dict[int, List[Track]], annotations: pd.DataFrame
+    *,
+    tracks_from_clips: Dict[int, List[Dict[str, Any]]],
+    annotations: pd.DataFrame
 ) -> List:
     """
     Computes counts from the tracks and the overall counting accuracy.
@@ -90,6 +96,9 @@ def compute_counts(
     )
 
     for sequence_id, tracks in tracks_from_clips.items():
+        # Deserialize the tracks.
+        tracks = [Track.from_dict(t) for t in tracks]
+
         # Calculate the ground-truth count.
         clip_annotations = annotations.iloc[annotations.index == sequence_id]
         gt_count = len(clip_annotations[Otf.OBJECT_ID.value].unique())
@@ -111,7 +120,9 @@ def compute_counts(
 
 
 def make_track_videos(
-    *, tracks_from_clips: Dict[int, List[Track]], clip_dataset: tf.data.Dataset
+    *,
+    tracks_from_clips: Dict[int, List[Dict[str, Any]]],
+    clip_dataset: tf.data.Dataset
 ) -> Iterable[Iterable[np.ndarray]]:
     """
     Creates track videos for all the tracks in a clip.
@@ -131,6 +142,9 @@ def make_track_videos(
     clip_dataset = clip_dataset.map(lambda i, _: i)
 
     for sequence_id, tracks in tracks_from_clips.items():
+        # Deserialize the tracks.
+        tracks = [Track.from_dict(t) for t in tracks]
+
         logger.info(
             "Generating tracking video for sequence {}...", sequence_id
         )

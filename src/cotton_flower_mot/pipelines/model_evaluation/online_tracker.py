@@ -3,13 +3,13 @@ Framework for online tracking.
 """
 
 
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union, Any
 
 import numpy as np
 import tensorflow as tf
 from loguru import logger
 
-from ..schemas import ModelInputs, ModelTargets
+from ..schemas import ModelInputs
 
 
 class Track:
@@ -28,8 +28,8 @@ class Track:
             indices: Initial indices into the detections array for each
                 frame that form the track.
         """
-        # Maps frame numbers to detection indices.
-        self.__frames_to_indices = {f: i for f, i in enumerate(indices)}
+        # Maps frame numbers to detection bounding boxes.
+        self.__frames_to_detections = {f: i for f, i in enumerate(indices)}
         # Keeps track of the last frame we have a detection for.
         self.__latest_frame = -1
 
@@ -37,28 +37,29 @@ class Track:
         Track._NEXT_ID += 1
 
     def add_new_detection(
-        self, *, frame_num: int, detection_index: int
+        self, *, frame_num: int, detection: np.ndarray
     ) -> None:
         """
         Adds a new detection to the end of the track.
 
         Args:
             frame_num: The frame number that this detection is for.
-            detection_index: The index of the new detection to add.
+            detection: The new detection to add, in the form
+                `[center_x, center_y, width, height]`.
 
         """
-        self.__frames_to_indices[frame_num] = detection_index
+        self.__frames_to_detections[frame_num] = detection.tolist()
         self.__latest_frame = max(self.__latest_frame, frame_num)
 
     @property
-    def last_detection_index(self) -> Optional[int]:
+    def last_detection(self) -> Optional[np.ndarray]:
         """
         Returns:
-            The index of the current last detection in this track, or None
-            if the track is empty.
+            The bounding box of the current last detection in this track,
+            or None if the track is empty.
 
         """
-        return self.__frames_to_indices.get(self.__latest_frame)
+        return self.detection_for_frame(self.__latest_frame)
 
     @property
     def last_detection_frame(self) -> Optional[int]:
@@ -69,9 +70,9 @@ class Track:
         """
         return self.__latest_frame
 
-    def index_for_frame(self, frame_num: int) -> Optional[int]:
+    def detection_for_frame(self, frame_num: int) -> Optional[np.ndarray]:
         """
-        Gets the corresponding detection index for a particular frame,
+        Gets the corresponding detection box for a particular frame,
         or None if we don't have a detection for that frame.
 
         Args:
@@ -81,7 +82,7 @@ class Track:
             The index for that frame, or None if we don't have one.
 
         """
-        return self.__frames_to_indices.get(frame_num)
+        return np.array(self.__frames_to_detections.get(frame_num))
 
     @property
     def id(self) -> int:
@@ -91,6 +92,41 @@ class Track:
 
         """
         return self.__id
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Gets a dictionary representation of the track that can be easily
+        serialized.
+
+        Returns:
+            A dictionary representing the track.
+
+        """
+        return dict(
+            frames_to_detections=self.__frames_to_detections,
+            latest_frame=self.__latest_frame,
+            track_id=self.__id,
+        )
+
+    @classmethod
+    def from_dict(cls, config: Dict[str, Any]) -> "Track":
+        """
+        Creates a new track based on a serialized representation.
+
+        Args:
+            config: The serialized representation.
+
+        Returns:
+            The track that it created.
+
+        """
+        track = cls()
+
+        track.__frames_to_detections = config["frames_to_detections"]
+        track.__latest_frame = config["latest_frame"]
+        track.__id = config["track_id"]
+
+        return track
 
 
 class OnlineTracker:
@@ -154,13 +190,17 @@ class OnlineTracker:
             return True
         return False
 
-    def __update_active_tracks(self, assignment_matrix: np.ndarray) -> None:
+    def __update_active_tracks(
+        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
+    ) -> None:
         """
         Updates the currently-active tracks with new detection information.
 
         Args:
             assignment_matrix: The assignment matrix for the current frame.
                 Should have shape `[num_tracklets, num_detections]`.
+            detections: The current detection boxes. Should have the shape
+                `[num_detections, 4]`.
 
         """
         # Figure out associations between tracklets and detections.
@@ -183,7 +223,7 @@ class OnlineTracker:
                 )
                 track.add_new_detection(
                     frame_num=self.__frame_num,
-                    detection_index=new_detection_index,
+                    detection=detections[new_detection_index],
                 )
 
         # Remove dead tracklets.
@@ -192,34 +232,34 @@ class OnlineTracker:
             self.__active_tracks.remove(track)
             self.__completed_tracks.append(track)
 
-    def __add_new_tracks(self, assignment_matrix: np.ndarray) -> None:
+    def __add_new_tracks(
+        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
+    ) -> None:
         """
         Adds any new tracks to the set of active tracks.
 
         Args:
             assignment_matrix: The assignment matrix for the current frame.
                 Should have shape `[num_tracklets, num_detections]`.
+            detections: The current detections corresponding to this
+                assignment matrix.
 
         """
-        num_detections = assignment_matrix.shape[1]
-
-        for detection_index in range(num_detections):
+        for detection_index, detection in enumerate(detections):
             detection_col = assignment_matrix[:, detection_index]
             if not np.any(detection_col):
                 # There is no associated tracklet with this detection,
                 # so it represents a new track.
                 track = Track()
-                logger.info(
-                    "Adding new track from detection {}.", detection_index
-                )
+                logger.info("Adding new track from detection {}.", detection)
                 track.add_new_detection(
-                    frame_num=self.__frame_num, detection_index=detection_index
+                    frame_num=self.__frame_num, detection=detection
                 )
 
                 self.__active_tracks.add(track)
 
     def __update_tracks(
-        self, assignment_matrix: np.ndarray, *, num_detections: int
+        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
     ) -> None:
         """
         Updates the current set of tracks based on the latest tracking result.
@@ -228,11 +268,13 @@ class OnlineTracker:
             assignment_matrix: The assignment matrix between the detections from
                 the previous frame and the current one. Should have a shape of
                 `[num_detections * num_tracklets]`.
-            num_detections: The total number of new detections.
+            detections: The current detection bounding boxes. Should have
+                shape `[num_detections, 4]`.
 
         """
         # Un-flatten the assignment matrix.
         num_tracklets = len(self.__previous_geometry)
+        num_detections = len(detections)
         assignment_matrix = np.reshape(
             assignment_matrix, (num_tracklets, num_detections)
         )
@@ -240,8 +282,12 @@ class OnlineTracker:
             "Expanding assignment matrix to {}.", assignment_matrix.shape
         )
 
-        self.__update_active_tracks(assignment_matrix)
-        self.__add_new_tracks(assignment_matrix)
+        self.__update_active_tracks(
+            assignment_matrix=assignment_matrix, detections=detections
+        )
+        self.__add_new_tracks(
+            assignment_matrix=assignment_matrix, detections=detections
+        )
 
     def __update_saved_state(
         self, *, frame: np.ndarray, geometry: np.ndarray
@@ -261,15 +307,7 @@ class OnlineTracker:
         self.__tracks_by_tracklet_index.clear()
 
         for i, track in enumerate(self.__active_tracks):
-            if track.last_detection_frame == self.__frame_num:
-                # One of our new detections got added to this track. Update
-                # it in the state.
-                active_geometry.append(geometry[track.last_detection_index])
-            else:
-                # The track wasn't modified this iteration. Keep the old state.
-                active_geometry.append(
-                    self.__previous_geometry[track.last_detection_index]
-                )
+            active_geometry.append(track.last_detection)
 
             # Save the track object corresponding to this tracklet.
             self.__tracks_by_tracklet_index[i] = track
@@ -338,7 +376,7 @@ class OnlineTracker:
 
         # Update the tracks.
         self.__update_tracks(
-            assignment, num_detections=len(detection_geometry)
+            assignment_matrix=assignment, detections=detection_geometry
         )
         # Update the state.
         self.__update_saved_state(frame=frame, geometry=detection_geometry)

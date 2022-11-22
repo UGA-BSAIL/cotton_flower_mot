@@ -127,7 +127,6 @@ def draw_track_frame(
     *,
     frame_num: int,
     tracks: List[Track],
-    geometry: np.ndarray,
 ) -> np.ndarray:
     """
     Draws the tracks on a single frame.
@@ -136,8 +135,6 @@ def draw_track_frame(
         frame: The frame to draw on. Will be modified in-place.
         frame_num: The frame number of this frame.
         tracks: The tracks to draw.
-        geometry: The associated detection geometry for this frame. Should
-            have shape `[num_detections, 4]`.
 
     Returns:
         The modified frame.
@@ -148,16 +145,15 @@ def draw_track_frame(
     frame = Image.fromarray(frame, mode="RGB")
     draw = ImageDraw.Draw(frame)
 
-    # Because the image is flipped, we have to flip our bounding boxes.
-    geometry[:, 1] = frame.height - geometry[:, 1]
-
     # Determine the associated bounding box for all the tracks.
     for track in tracks:
-        detection_index = track.index_for_frame(frame_num)
-        if detection_index is None:
+        bounding_box = track.detection_for_frame(frame_num)
+        if bounding_box is None:
             # No detection for this track at this frame.
             continue
-        bounding_box = geometry[detection_index]
+
+        # Because the image is flipped, we have to flip our bounding boxes.
+        bounding_box[:, 1] = frame.height - bounding_box[:, 1]
 
         # Draw the bounding box.
         _draw_bounding_box(draw, track=track, box=bounding_box)
@@ -182,13 +178,12 @@ def draw_tracks(
     """
     for frame_num, feature_dict in enumerate(inputs):
         frame = feature_dict[ModelInputs.DETECTIONS_FRAME.value].numpy()
-        geometry = feature_dict[ModelInputs.DETECTION_GEOMETRY.value].numpy()
 
         # Flip the frame, because the input data is upside-down.
         frame = cv2.flip(frame, 0)
 
         frame = draw_track_frame(
-            frame, frame_num=frame_num, tracks=tracks, geometry=geometry
+            frame, frame_num=frame_num, tracks=tracks
         )
 
         yield frame

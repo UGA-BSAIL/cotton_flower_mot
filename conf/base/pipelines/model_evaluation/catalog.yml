@@ -1,3 +1,14 @@
+# Raw tracks.
+testing_tracks:
+  type: yaml.YAMLDataSet
+  filepath: data/07_model_output/testing_tracks.yml
+  versioned: True
+
+validation_tracks:
+  type: yaml.YAMLDataSet
+  filepath: data/07_model_output/validation_tracks.yml
+  versioned: True
+
 # Reports on counting accuracy.
 count_report_test:
   type: yaml.YAMLDataSet
