@@ -261,7 +261,7 @@ def test_save_model_smoke(faker: Faker, tmp_path: Path) -> None:
     # Arrange.
     # Create the model.
     config = faker.model_config(image_shape=(100, 100, 3))
-    model = gcnn_model.build_model(config)
+    model = gcnn_model.build_tracking_model(config)
 
     save_path = tmp_path / "test_model.h5"
 

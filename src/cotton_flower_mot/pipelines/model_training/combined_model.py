@@ -5,7 +5,7 @@ Implements a combined detection + tracking model.
 
 from typing import Optional, Tuple
 
-import numpy as np
+import keras
 import tensorflow as tf
 from keras import layers
 from loguru import logger
@@ -13,62 +13,12 @@ from loguru import logger
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
 from .centernet_model import build_detection_model
-from .gcnn_model import compute_association
-from .layers.pooling import RoiPooling
-from .layers.utility import BnActConv
-
-
-def _extract_appearance_features(
-    *,
-    bbox_geometry: tf.RaggedTensor,
-    image_features: tf.Tensor,
-    config: ModelConfig
-) -> tf.RaggedTensor:
-    """
-    Extracts the appearance features for the detections or tracklets.
-
-    Args:
-        bbox_geometry: The bounding box information. Should have
-            shape `[batch_size, num_boxes, 4]`, where the second dimension is
-            ragged, and the third is ordered `[x, y, width, height]`.
-            tracklets.
-        image_features: The raw image features from the detector.
-        config: The model configuration to use.
-
-    Returns:
-        The extracted appearance features. They are a `RaggedTensor`
-        with the shape `[batch_size, n_nodes, n_features]`, where the second
-        dimension is ragged.
-
-    """
-    image_features_res = layers.Dropout(0.5)(image_features)
-    image_features = BnActConv(128, 3, padding="same")(image_features)
-    image_features = BnActConv(256, 1, padding="same")(image_features)
-    image_features = BnActConv(256, 1, padding="same")(image_features)
-
-    image_features_res = BnActConv(256, 1, padding="same")(image_features_res)
-    image_features = layers.Add()((image_features_res, image_features))
-
-    image_features = BnActConv(8, 1, activation="relu")(image_features)
-    feature_crops = RoiPooling(config.roi_pooling_size)(
-        (image_features, bbox_geometry)
-    )
-
-    # Coerce the features to the correct shape.
-    def _flatten_features(_features: tf.RaggedTensor) -> tf.RaggedTensor:
-        # We have to go through this annoying process to ensure that the
-        # static shape remains correct.
-        inner_shape = _features.shape[-3:]
-        num_flat_features = np.prod(inner_shape)
-        flat_features = tf.reshape(_features.values, (-1, num_flat_features))
-        return _features.with_values(flat_features)
-
-    features = layers.Lambda(_flatten_features)(feature_crops)
-    return features
+from .gcnn_model import build_tracking_model
+from .models_common import make_tracking_inputs
 
 
 def _apply_detector(
-    detector: tf.keras.Model,
+    detector: keras.Model,
     *,
     frames: tf.Tensor,
     confidence_threshold: float = 0.0
@@ -107,6 +57,49 @@ def _apply_detector(
     )(bboxes)
 
     return heatmap, dense_geometry, bboxes
+
+
+def _apply_tracker(
+    tracker: keras.Model,
+    *,
+    current_frames: tf.Tensor,
+    previous_frames: tf.Tensor,
+    tracklet_geometry: tf.RaggedTensor,
+    detection_geometry: tf.RaggedTensor
+) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
+    """
+    Applies the tracker model to an input.
+
+    Args:
+        tracker: The tracker model.
+        current_frames: The current input frames.
+        previous_frames: The previous input frames.
+        tracklet_geometry: The bounding boxes for the tracked objects.
+        detection_geometry: The bounding boxes for the new detections.
+
+    Returns:
+        The sinkhorn and assignment matrices.
+
+    """
+    sinkhorn, assignment = tracker(
+        {
+            ModelInputs.DETECTIONS_FRAME.value: current_frames,
+            ModelInputs.TRACKLETS_FRAME.value: previous_frames,
+            ModelInputs.DETECTION_GEOMETRY.value: detection_geometry,
+            ModelInputs.TRACKLET_GEOMETRY.value: tracklet_geometry,
+        }
+    )
+
+    # Ensure that the resulting layers have the correct names when we set
+    # them as outputs.
+    sinkhorn = layers.Activation(
+        "linear", name=ModelTargets.SINKHORN.value, dtype=tf.float32
+    )(sinkhorn)
+    assignment = layers.Activation(
+        "linear", name=ModelTargets.ASSIGNMENT.value, dtype=tf.float32
+    )(assignment)
+
+    return sinkhorn, assignment
 
 
 def _choose_rois_for_tracker(
@@ -171,12 +164,11 @@ def _choose_rois_for_tracker(
     )
 
 
-def build_combined_model(
-    config: ModelConfig,
-    encoder: Optional[tf.keras.Model] = None,
-) -> tf.keras.Model:
+def build_separate_models(
+    config: ModelConfig, encoder: Optional[tf.keras.Model] = None
+) -> Tuple[tf.keras.Model, tf.keras.Model]:
     """
-    Builds the combined detection + tracking model.
+    Builds compatible detection and tracking models.
 
     Args:
         config: The model configuration.
@@ -184,33 +176,47 @@ def build_combined_model(
             extraction.
 
     Returns:
-        The model it created.
+        The detection and tracking models.
 
     """
-    logger.debug("Building the combined model...")
+    logger.debug("Building detection model...")
 
     # Build the detector/feature extractor.
     image_feature_extractor, detector = build_detection_model(
         config, encoder=encoder
     )
 
-    # Input for the current video frame.
-    current_frames = layers.Input(
-        shape=config.detection_model_input_shape,
-        name=ModelInputs.DETECTIONS_FRAME.value,
+    logger.debug("Building tracking model...")
+    tracking_model = build_tracking_model(
+        config=config, feature_extractor=image_feature_extractor
     )
-    # Input for the previous video frame.
-    previous_frames = layers.Input(
-        shape=config.detection_model_input_shape,
-        name=ModelInputs.TRACKLETS_FRAME.value,
-    )
-    # Confidence threshold to use for filtering detections.
-    confidence_threshold = layers.Input(
-        shape=(),
-        dtype=tf.float32,
-        batch_size=1,
-        name=ModelInputs.CONFIDENCE_THRESHOLD.value,
-    )
+
+    return detector, tracking_model
+
+
+def build_combined_model(
+    config: ModelConfig, *, detector: keras.Model, tracker: keras.Model
+) -> tf.keras.Model:
+    """
+    Builds the combined detection + tracking model.
+
+    Args:
+        config: The model configuration.
+        detector: The detection model.
+        tracker: The tracking model.
+
+    Returns:
+        The combined model it created.
+
+    """
+    logger.debug("Building the combined model...")
+
+    (
+        current_frames_input,
+        last_frames_input,
+        tracklet_geometry_input,
+        detection_geometry_input,
+    ) = make_tracking_inputs(config)
 
     # Apply the detection model to the input frames.
     (
@@ -219,84 +225,30 @@ def build_combined_model(
         detection_bboxes_with_conf,
     ) = _apply_detector(
         detector,
-        frames=current_frames,
-        confidence_threshold=confidence_threshold[0],
+        frames=current_frames_input,
+    )
+    # Apply the tracking model.
+    sinkhorn, assignment = _apply_tracker(
+        tracker,
+        current_frames=current_frames_input,
+        previous_frames=last_frames_input,
+        tracklet_geometry=tracklet_geometry_input,
+        detection_geometry=detection_geometry_input,
     )
 
-    geometry_input_shape = (None, 4)
-    # In all cases, we need to manually provide the tracklet bounding boxes.
-    # These can either be the ground-truth, during training, or the
-    # detections from the previous frame, during online inference.
-    tracklet_geometry = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.TRACKLET_GEOMETRY.value,
-    )
-
-    # Indicates whether the model is in training mode, which impacts where we
-    # get the tracking ROIs from.
-    use_gt_detections = layers.Input(
-        shape=(),
-        dtype=tf.bool,
-        batch_size=1,
-        name=ModelInputs.USE_GT_DETECTIONS.value,
-    )
-
-    # Create the GT detection bounding box inputs, which are needed for
-    # training.
-    tracker_roi_input = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.DETECTION_GEOMETRY.value,
-    )
-
-    # Remove the confidence value from the detected bboxes, since we don't
-    # need it for tracking.
-    detection_bboxes = detection_bboxes_with_conf[:, :, :4]
-    detection_geometry_for_tracker = _choose_rois_for_tracker(
-        detection_bboxes=detection_bboxes,
-        tracker_roi_input=tracker_roi_input,
-        use_gt_detections=use_gt_detections,
-    )
-
-    # Extract the image features.
-    current_frame_features = image_feature_extractor(current_frames)
-    previous_frame_features = image_feature_extractor(previous_frames)
-
-    # Extract the appearance features.
-    detection_features = _extract_appearance_features(
-        bbox_geometry=detection_geometry_for_tracker,
-        image_features=current_frame_features,
-        config=config,
-    )
-    tracklet_features = _extract_appearance_features(
-        bbox_geometry=tracklet_geometry,
-        image_features=previous_frame_features,
-        config=config,
-    )
-
-    sinkhorn, hungarian = compute_association(
-        detections_app_features=detection_features,
-        tracklets_app_features=tracklet_features,
-        detections_geometry=detection_geometry_for_tracker,
-        tracklets_geometry=tracklet_geometry,
-        config=config,
-    )
     return tf.keras.Model(
         inputs=[
-            current_frames,
-            previous_frames,
-            tracklet_geometry,
-            tracker_roi_input,
-            use_gt_detections,
-            confidence_threshold,
+            current_frames_input,
+            last_frames_input,
+            tracklet_geometry_input,
+            detection_geometry_input,
         ],
         outputs=[
             detection_heatmap,
             detection_dense_geometry,
             detection_bboxes_with_conf,
             sinkhorn,
-            hungarian,
+            assignment,
         ],
         name="gcnnmatch_end_to_end",
     )

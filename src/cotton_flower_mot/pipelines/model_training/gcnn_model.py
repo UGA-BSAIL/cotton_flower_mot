@@ -9,9 +9,8 @@ from typing import Tuple
 import tensorflow as tf
 from loguru import logger
 from spektral.utils.convolution import line_graph
-from spektral.layers.convolutional import CensNetConv
 from keras import layers
-from keras.constraints import UnitNorm
+import numpy as np
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
@@ -24,9 +23,8 @@ from .graph_utils import (
 from .layers import (
     AssociationLayer,
     BnActConv,
-    HdaStage,
     ResidualCensNet,
-    TransitionLayer,
+    RoiPooling,
 )
 from .similarity_utils import (
     aspect_ratio_penalty,
@@ -34,91 +32,7 @@ from .similarity_utils import (
     cosine_similarity,
     distance_penalty,
 )
-
-
-def _build_appearance_feature_extractor(
-    normalized_input: tf.Tensor, *, config: ModelConfig
-) -> tf.Tensor:
-    """
-    Builds a CNN for extracting appearance features from detection images.
-
-    Args:
-        normalized_input: The normalized input detections.
-        config: Model configuration.
-
-    Returns:
-        A batch of corresponding appearance features.
-
-    """
-    logger.debug(
-        "Appearance features will have length {}.",
-        config.num_appearance_features,
-    )
-
-    stage1 = HdaStage(
-        agg_depth=1, num_channels=64, activation="relu", name="hda_stage_1"
-    )
-    stage2 = HdaStage(
-        agg_depth=2, num_channels=128, activation="relu", name="hda_stage_2"
-    )
-    stage3 = HdaStage(
-        agg_depth=2, num_channels=256, activation="relu", name="hda_stage_3"
-    )
-    stage4 = HdaStage(
-        agg_depth=1, num_channels=512, activation="relu", name="hda_stage_4"
-    )
-
-    hda1 = stage1(normalized_input)
-    transition1 = TransitionLayer()(hda1)
-    hda2 = stage2(transition1)
-    transition2 = TransitionLayer()(hda2)
-    hda3 = stage3(transition2)
-    transition3 = TransitionLayer()(hda3)
-    hda4 = stage4(transition3)
-
-    # Generate feature vector.
-    conv5_1 = BnActConv(config.num_appearance_features, 1, padding="same")(
-        hda4
-    )
-    conv5_2 = BnActConv(config.num_appearance_features, 1, padding="same")(
-        conv5_1
-    )
-    pool5_1 = layers.GlobalAvgPool2D()(conv5_2)
-
-    return pool5_1
-
-
-def _build_appearance_model(*, config: ModelConfig) -> tf.keras.Model:
-    """
-    Creates a sub-model that extracts appearance features.
-
-    Args:
-        config: Model configuration.
-
-    Returns:
-        The model that it created.
-
-    """
-    logger.debug(
-        "Using input shape {} for appearance feature extractor.",
-        config.image_input_shape,
-    )
-    images = layers.Input(shape=config.image_input_shape)
-
-    def _normalize(_images: tf.Tensor) -> tf.Tensor:
-        # Normalize the images before putting them through the model.
-        float_images = tf.cast(_images, tf.keras.backend.floatx())
-        return tf.image.per_image_standardization(float_images)
-
-    normalized = layers.Lambda(_normalize, name="normalize")(images)
-
-    # Apply the model layers.
-    features = _build_appearance_feature_extractor(normalized, config=config)
-
-    # Create the model.
-    return tf.keras.Model(
-        inputs=images, outputs=features, name="appearance_model"
-    )
+from .models_common import make_tracking_inputs
 
 
 def _build_edge_mlp(
@@ -492,51 +406,53 @@ def _preprocess_adjacency(
     )
 
 
-def extract_appearance_features(
+def _extract_appearance_features(
     *,
-    detections: tf.RaggedTensor,
-    tracklets: tf.RaggedTensor,
+    bbox_geometry: tf.RaggedTensor,
+    image_features: tf.Tensor,
     config: ModelConfig,
-) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
+) -> tf.RaggedTensor:
     """
-    Builds the portion of the system that extracts appearance features.
+    Extracts the appearance features for the detections or tracklets.
 
     Args:
-        detections: Extracted detection images. Should have the shape
-            `[batch_size, n_detections, height, width, channels]`, where the
-            second dimension is ragged.
-        tracklets: Extracted final images from each tracklet. Should have the
-            shape `[batch_size, n_tracklets, height, width, channels]`, where
-            the second dimension is ragged.
-        config: The model configuration.
+        bbox_geometry: The bounding box information. Should have
+            shape `[batch_size, num_boxes, 4]`, where the second dimension is
+            ragged, and the third is ordered `[x, y, width, height]`.
+            tracklets.
+        image_features: The raw image features from the detector.
+        config: The model configuration to use.
 
     Returns:
-        The extracted appearance features, for both the detections and
-        tracklets. Each set will have the shape
-        `[batch_size, n_nodes, n_features]`, where the second dimension
-        is ragged.
+        The extracted appearance features. They are a `RaggedTensor`
+        with the shape `[batch_size, n_nodes, n_features]`, where the second
+        dimension is ragged.
 
     """
-    # Convert detections and tracklets to a normal batch for appearance
-    # feature extraction.
-    merge_dims = layers.Lambda(lambda rt: rt.merge_dims(0, 1))
-    detections_flat = merge_dims(detections)
-    tracklets_flat = merge_dims(tracklets)
+    image_features_res = layers.Dropout(0.5)(image_features)
+    image_features = BnActConv(128, 3, padding="same")(image_features)
+    image_features = BnActConv(256, 1, padding="same")(image_features)
+    image_features = BnActConv(256, 1, padding="same")(image_features)
 
-    # Extract appearance features.
-    appearance_feature_extractor = _build_appearance_model(config=config)
-    detections_features_flat = appearance_feature_extractor(detections_flat)
-    tracklets_features_flat = appearance_feature_extractor(tracklets_flat)
+    image_features_res = BnActConv(256, 1, padding="same")(image_features_res)
+    image_features = layers.Add()((image_features_res, image_features))
 
-    # Add the flattened dimensions back.
-    to_ragged = layers.Lambda(
-        lambda t: tf.RaggedTensor.from_row_lengths(t[0], t[1].row_lengths())
+    image_features = BnActConv(8, 1, activation="relu")(image_features)
+    feature_crops = RoiPooling(config.roi_pooling_size)(
+        (image_features, bbox_geometry)
     )
-    detections_features_ragged = to_ragged(
-        (detections_features_flat, detections)
-    )
-    tracklets_features_ragged = to_ragged((tracklets_features_flat, tracklets))
-    return detections_features_ragged, tracklets_features_ragged
+
+    # Coerce the features to the correct shape.
+    def _flatten_features(_features: tf.RaggedTensor) -> tf.RaggedTensor:
+        # We have to go through this annoying process to ensure that the
+        # static shape remains correct.
+        inner_shape = _features.shape[-3:]
+        num_flat_features = np.prod(inner_shape)
+        flat_features = tf.reshape(_features.values, (-1, num_flat_features))
+        return _features.with_values(flat_features)
+
+    features = layers.Lambda(_flatten_features)(feature_crops)
+    return features
 
 
 def extract_interaction_features(
@@ -723,42 +639,43 @@ def _make_image_input(config: ModelConfig, *, name: str) -> layers.Input:
     return layers.Input(input_shape, ragged=True, name=name, dtype="uint8")
 
 
-def build_model(config: ModelConfig) -> tf.keras.Model:
+def build_tracking_model(
+    config: ModelConfig, *, feature_extractor: tf.keras.Model
+) -> tf.keras.Model:
     """
     Builds the complete Keras model.
 
     Args:
         config: The model configuration.
+        feature_extractor: The model to use for extracting image features.
+            It is expected to take only the images as input and output features.
 
     Returns:
         The model that it created.
 
     """
     # Create the inputs.
-    tracklet_input = _make_image_input(
-        config, name=ModelInputs.TRACKLETS.value
-    )
-    detection_input = _make_image_input(
-        config, name=ModelInputs.DETECTIONS.value
-    )
-
     (
-        detections_app_features,
-        tracklets_app_features,
-    ) = extract_appearance_features(
-        detections=detection_input, tracklets=tracklet_input, config=config
-    )
+        current_frames_input,
+        previous_frames_input,
+        tracklet_geometry_input,
+        detection_geometry_input,
+    ) = make_tracking_inputs(config)
 
-    geometry_input_shape = (None, 4)
-    detection_geometry_input = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.DETECTION_GEOMETRY.value,
+    # Extract appearance features for both frames.
+    current_frame_features = feature_extractor(current_frames_input)
+    previous_frame_features = feature_extractor(previous_frames_input)
+
+    # Perform ROI pooling to extract appearance features for each object.
+    detections_app_features = _extract_appearance_features(
+        bbox_geometry=detection_geometry_input,
+        image_features=current_frame_features,
+        config=config,
     )
-    tracklet_geometry_input = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.TRACKLET_GEOMETRY.value,
+    tracklets_app_features = _extract_appearance_features(
+        bbox_geometry=tracklet_geometry_input,
+        image_features=previous_frame_features,
+        config=config,
     )
 
     # Build the actual model.
@@ -771,8 +688,8 @@ def build_model(config: ModelConfig) -> tf.keras.Model:
     )
     return tf.keras.Model(
         inputs=[
-            detection_input,
-            tracklet_input,
+            current_frames_input,
+            previous_frames_input,
             detection_geometry_input,
             tracklet_geometry_input,
         ],

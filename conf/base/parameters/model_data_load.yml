@@ -1,6 +1,6 @@
 # Amount of random jitter to add to the bounding boxes when training, as
 # a fraction of the frame size.
-bbox_jitter_fraction: 0.02
+bbox_jitter_fraction: 0.005
 # Maximum amount to adjust brightness by.
 max_brightness_delta: 0.2
 # Minimum contrast factor to use.

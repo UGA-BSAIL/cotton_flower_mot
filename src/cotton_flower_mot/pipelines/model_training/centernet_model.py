@@ -309,10 +309,14 @@ def build_detection_model(
     )((confidence_mask, sizes, offsets))
 
     feature_extractor = tf.keras.Model(
-        inputs=images, outputs=[tracking_features]
+        inputs=images,
+        outputs=[tracking_features],
+        name="common_feature_extractor",
     )
     detection_model = tf.keras.Model(
-        inputs=images, outputs=[heatmap, geometry, bounding_boxes]
+        inputs=images,
+        outputs=[heatmap, geometry, bounding_boxes],
+        name="centernet_detector",
     )
 
     return feature_extractor, detection_model

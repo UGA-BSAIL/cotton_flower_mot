@@ -19,7 +19,7 @@ from ..training_utils import (
     make_common_callbacks,
     make_learning_rate,
 )
-from .combined_model import build_combined_model
+from .combined_model import build_combined_model, build_separate_models
 from .losses import make_losses
 from .metrics import make_metrics
 
@@ -104,13 +104,14 @@ def create_model(
             extraction.
 
     Returns:
-        The model that it created.
+        The end-to-end model.
 
     """
-    model = build_combined_model(config, encoder=encoder)
-    logger.info("Model has {} parameters.", model.count_params())
+    detector, tracker = build_separate_models(config, encoder=encoder)
+    combined = build_combined_model(config, detector=detector, tracker=tracker)
+    logger.info("Model has {} parameters.", combined.count_params())
 
-    return model
+    return combined
 
 
 def _make_callbacks(
@@ -218,7 +219,8 @@ def train_model(
     Trains a model.
 
     Args:
-        model: The model to train.
+        model: The end-to-end model. This should share weights with the
+            other two models.
         training_data: The `Dataset` containing pre-processed training data.
         testing_data: The `Dataset` containing pre-processed testing data.
         learning_phases: List of hyperparameter configurations for each training
