@@ -11,95 +11,9 @@ from keras import layers
 from loguru import logger
 
 from ..config import ModelConfig
-from ..schemas import ModelInputs, ModelTargets
 from .centernet_model import build_detection_model
 from .gcnn_model import build_tracking_model
-from .models_common import make_tracking_inputs
-
-
-def _apply_detector(
-    detector: keras.Model,
-    *,
-    frames: tf.Tensor,
-    confidence_threshold: float = 0.0
-) -> Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor]:
-    """
-    Applies the detector model to an input.
-
-    Args:
-        detector: The detector model.
-        frames: The input frames.
-        confidence_threshold: The minimum confidence of detections. Any
-            detections with lower confidence will be removed.
-
-    Returns:
-        The heatmaps, dense geometry predictions, and bounding boxes.
-
-    """
-    heatmap, dense_geometry, bboxes = detector(frames)
-
-    # Remove low-confidence detections.
-    confidence = bboxes[:, :, 4]
-    bboxes = tf.ragged.boolean_mask(bboxes, confidence >= confidence_threshold)
-
-    # Ensure that the resulting layers have the correct names when we set
-    # them as outputs.
-    heatmap = layers.Activation(
-        "linear", name=ModelTargets.HEATMAP.value, dtype=tf.float32
-    )(heatmap)
-    dense_geometry = layers.Activation(
-        "linear", name=ModelTargets.GEOMETRY_DENSE_PRED.value, dtype=tf.float32
-    )(dense_geometry)
-    bboxes = layers.Activation(
-        "linear",
-        name=ModelTargets.GEOMETRY_SPARSE_PRED.value,
-        dtype=tf.float32,
-    )(bboxes)
-
-    return heatmap, dense_geometry, bboxes
-
-
-def _apply_tracker(
-    tracker: keras.Model,
-    *,
-    current_frames: tf.Tensor,
-    previous_frames: tf.Tensor,
-    tracklet_geometry: tf.RaggedTensor,
-    detection_geometry: tf.RaggedTensor
-) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
-    """
-    Applies the tracker model to an input.
-
-    Args:
-        tracker: The tracker model.
-        current_frames: The current input frames.
-        previous_frames: The previous input frames.
-        tracklet_geometry: The bounding boxes for the tracked objects.
-        detection_geometry: The bounding boxes for the new detections.
-
-    Returns:
-        The sinkhorn and assignment matrices.
-
-    """
-    sinkhorn, assignment = tracker(
-        {
-            ModelInputs.DETECTIONS_FRAME.value: current_frames,
-            ModelInputs.TRACKLETS_FRAME.value: previous_frames,
-            ModelInputs.DETECTION_GEOMETRY.value: detection_geometry,
-            ModelInputs.TRACKLET_GEOMETRY.value: tracklet_geometry,
-        }
-    )
-
-    # Ensure that the resulting layers have the correct names when we set
-    # them as outputs.
-    sinkhorn = layers.Activation(
-        "linear", name=ModelTargets.SINKHORN.value, dtype=tf.float32
-    )(sinkhorn)
-    assignment = layers.Activation(
-        "linear", name=ModelTargets.ASSIGNMENT.value, dtype=tf.float32
-    )(assignment)
-
-    return sinkhorn, assignment
+from .models_common import make_tracking_inputs, apply_detector, apply_tracker
 
 
 def _choose_rois_for_tracker(
@@ -223,12 +137,12 @@ def build_combined_model(
         detection_heatmap,
         detection_dense_geometry,
         detection_bboxes_with_conf,
-    ) = _apply_detector(
+    ) = apply_detector(
         detector,
         frames=current_frames_input,
     )
     # Apply the tracking model.
-    sinkhorn, assignment = _apply_tracker(
+    sinkhorn, assignment = apply_tracker(
         tracker,
         current_frames=current_frames_input,
         previous_frames=last_frames_input,

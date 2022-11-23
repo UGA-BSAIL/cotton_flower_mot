@@ -17,7 +17,6 @@ from ..schemas import ModelInputs, ModelTargets
 from ..training_utils import (
     get_log_dir,
     make_common_callbacks,
-    make_learning_rate,
 )
 from .combined_model import build_combined_model, build_separate_models
 from .losses import make_losses
@@ -164,44 +163,6 @@ def _make_callbacks(
     return common_callbacks + [heatmap_callback]
 
 
-def _add_scalar_inputs(
-    dataset: tf.data.Dataset,
-    *,
-    use_gt_detections: bool,
-    confidence_threshold: float = 0.0,
-) -> tf.data.Dataset:
-    """
-    Adds the scalar inputs to a dataset, with the specified value. These
-    inputs are sort of a hack in order to allow dynamic configuration of the
-    model.
-
-    Args:
-        dataset: The dataset to add to.
-        use_gt_detections: Used to control whether the model takes the input
-            ROIs for the tracker from a specific input, or if it simply uses
-            the results of the detector.
-        confidence_threshold: The confidence threshold to use for detections.
-            Any detections with a lower confidence will be discarded.
-
-    Returns:
-        The same dataset with the extra input.
-
-    """
-
-    def _add_scalar_inputs_single(
-        inputs: Dict[str, tf.Tensor], targets: Dict[str, tf.Tensor]
-    ) -> Tuple[Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
-        inputs[ModelInputs.USE_GT_DETECTIONS.value] = tf.constant(
-            [use_gt_detections]
-        )
-        inputs[ModelInputs.CONFIDENCE_THRESHOLD.value] = tf.constant(
-            [confidence_threshold]
-        )
-        return inputs, targets
-
-    return dataset.map(_add_scalar_inputs_single)
-
-
 def train_model(
     model: tf.keras.Model,
     *,
@@ -237,9 +198,6 @@ def train_model(
         The trained model.
 
     """
-    training_data = _add_scalar_inputs(training_data, use_gt_detections=True)
-    testing_data = _add_scalar_inputs(testing_data, use_gt_detections=True)
-
     # Add a callback for keeping track of the best model.
     best_model_callback = KeepBest()
 

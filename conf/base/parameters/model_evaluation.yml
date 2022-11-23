@@ -1,2 +1,4 @@
 # The confidence threshold to use for detection.
 conf_threshold: 0.3
+# The IOU threshold to use for NMS.
+nms_iou_threshold: 0.5

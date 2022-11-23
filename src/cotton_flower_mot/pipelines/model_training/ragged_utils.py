@@ -15,6 +15,10 @@ def ragged_map_fn(function: Callable, elements: Any, **kwargs: Any) -> Any:
     implementation works around that by operating on a padded version of the
     input and cutting it down. Obviously, this is inefficient, so beware.
 
+    This is specifically designed to work with `RaggedTensors` that look like
+    `[batch_size, (row_len), ...]`. `function` will receive tensors of shape
+    `[row_len, ...]`, where `row_len` can vary between calls.
+
     Args:
         function: The function to apply to each row in the `RaggedTensor`.
         elements: The `RaggedTensor`. Only the second dimension should be

@@ -229,22 +229,6 @@ class ModelInputs(enum.Enum):
     The sequence ID of the clip.
     """
 
-    USE_GT_DETECTIONS = "use_gt_detections"
-    """
-    This is a single boolean input. If true, it will use the DETECTION_GEOMETRY 
-    input to supply the ROIs for tracking. If false, the DETECTION_GEOMETRY 
-    input will be ignored, and it will instead use the detection results to 
-    supply the ROIs.
-    """
-    CONFIDENCE_THRESHOLD = "confidence_threshold"
-    """
-    This is a single float input. It supplies a confidence threshold to use 
-    for detections. Any detections with lower confidence than this will be 
-    discarded. This is mostly applicable when running in inference mode, 
-    as it allows the user to control which detections actually make it to 
-    the tracker.
-    """
-
 
 @enum.unique
 class ModelTargets(enum.Enum):
