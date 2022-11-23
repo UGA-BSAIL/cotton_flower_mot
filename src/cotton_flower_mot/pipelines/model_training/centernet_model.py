@@ -100,7 +100,7 @@ def _build_decoder(
         kernel_regularizer=l2(5e-4),
     )(x)
     x = BatchNormalization()(x)
-    x = ReLU()(x)
+    scale2_merged = ReLU()(x)
 
     x = Conv2D(
         64,
@@ -109,7 +109,7 @@ def _build_decoder(
         use_bias=False,
         kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
-    )(UpSampling2D()(x))
+    )(UpSampling2D()(scale2_merged))
     x = BatchNormalization()(x)
     x = ReLU()(x)
     x = ZeroPadding2D(((1, 0), (0, 0)))(x)
@@ -123,7 +123,7 @@ def _build_decoder(
         kernel_regularizer=l2(5e-4),
     )(x)
     x = BatchNormalization()(x)
-    return ReLU()(x), scale3_merged
+    return ReLU()(x), scale2_merged
 
 
 def _build_prediction_head(
