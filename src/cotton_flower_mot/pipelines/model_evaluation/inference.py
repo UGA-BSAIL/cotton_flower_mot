@@ -3,18 +3,20 @@ Handles the details of inference with the GCNNMatch tracker system.
 """
 
 
-import tensorflow as tf
+from typing import Any
+
 import keras
+import tensorflow as tf
 from keras import layers
+from loguru import logger
+
+from ..config import ModelConfig
 from ..model_training.models_common import (
-    make_tracking_inputs,
     apply_detector,
     apply_tracker,
+    make_tracking_inputs,
 )
-from ..config import ModelConfig
 from ..model_training.ragged_utils import ragged_map_fn
-from typing import Any
-from loguru import logger
 
 
 def _filter_detections(
@@ -55,11 +57,11 @@ def _filter_detections(
         return tf.gather(detections_, nms_indices, axis=0)
 
     def _do_nms(detections_: tf.RaggedTensor) -> tf.RaggedTensor:
-        return ragged_map_fn(
+        return tf.map_fn(
             _single_frame_nms,
             detections_,
-            fn_output_signature=tf.TensorSpec(
-                shape=[None, 5], dtype=tf.float32
+            fn_output_signature=tf.RaggedTensorSpec(
+                shape=[None, 5], dtype=tf.float32, ragged_rank=0
             ),
         )
 
@@ -104,6 +106,8 @@ def build_inference_model(
         detector, frames=current_frames_input
     )
     detections = _filter_detections(detections, **kwargs)
+    # Ignore the confidence for the detections.
+    detections = detections[:, :, :4]
 
     # Apply the tracker using the detections.
     sinkhorn, assignment = apply_tracker(
