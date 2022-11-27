@@ -1,6 +1,6 @@
 import enum
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union, List
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import tensorflow as tf
@@ -245,7 +245,7 @@ def _random_flip(
     images: Iterable[tf.Tensor],
     heatmaps: Optional[Iterable[tf.Tensor]],
     geometry: Iterable[tf.Tensor],
-) -> Tuple[List[tf.Tensor], Optional[List[tf.Tensor]], List[tf.Tensor],]:
+) -> Tuple[List[tf.Tensor], Optional[List[tf.Tensor]], List[tf.Tensor]]:
     """
     Randomly flips input images vertically and horizontally,
     also transforming the corresponding geometry. It will apply the same
@@ -324,7 +324,9 @@ def _add_bbox_jitter(
     )
 
     # Apply the jitters.
-    return bbox_coords + jitter_magnitude
+    jittered_coords = bbox_coords + jitter_magnitude
+    # Make sure we don't go out of range.
+    return tf.clip_by_value(jittered_coords, 0.0, 1.0)
 
 
 def _add_random_bboxes(
@@ -686,7 +688,7 @@ def _get_geometric_features(
 
         # Compute the offset.
         center_points_px = tf.stack([center_x, center_y], axis=1)
-        down_sample_factor = tf.constant(2**config.num_reduction_stages)
+        down_sample_factor = tf.constant(2 ** config.num_reduction_stages)
         offsets = (
             tf.cast(tf.round(center_points_px), tf.int32) % down_sample_factor
         )

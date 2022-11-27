@@ -1,6 +1,6 @@
 # Amount of random jitter to add to the bounding boxes when training, as
 # a fraction of the frame size.
-bbox_jitter_fraction: 0.005
+bbox_jitter_fraction: 0.015
 # Maximum amount to adjust brightness by.
 max_brightness_delta: 0.2
 # Minimum contrast factor to use.
@@ -22,6 +22,6 @@ false_positive_rate: 0.1
 shuffle_buffer_size: 5
 
 # Probability of dropping a particular example to use.
-drop_probability: 0.75
+drop_probability: 0.0
 # Number of times to repeat the dataset to make up for dropped examples.
-repeats: 4
+repeats: 1
