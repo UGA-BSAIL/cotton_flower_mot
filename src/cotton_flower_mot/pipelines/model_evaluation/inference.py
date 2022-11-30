@@ -48,7 +48,7 @@ def _filter_detections(
         nms_indices = tf.image.non_max_suppression(
             boxes,
             confidence,
-            max_output_size=1,
+            max_output_size=15,
             iou_threshold=nms_iou_threshold,
             score_threshold=confidence_threshold,
         )
