@@ -39,7 +39,11 @@ def convnext(
         input_shape=input_shape,
         weights="imagenet" if pretrained else None,
     )
-    model.trainable = not pretrained
+
+    for layer in model.layers[:-20]:
+        layer.trainable = False
+    for layer in model.layers[-20:]:
+        layer.trainable = True
 
     stage0 = model.get_layer(index=26).get_output_at(0)
     stage1 = model.get_layer(index=51).get_output_at(0)

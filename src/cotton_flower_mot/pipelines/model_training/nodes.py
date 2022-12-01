@@ -175,7 +175,7 @@ def train_model(
     geometry_loss_weight: float = 1.0,
     sinkhorn_loss_weight: float = 1.0,
     **kwargs: Any,
-) -> tf.keras.Model:
+) -> Tuple[tf.keras.Model, tf.keras.Model]:
     """
     Trains a model.
 
@@ -195,7 +195,7 @@ def train_model(
         **kwargs: Will be forwarded to `_make_callbacks()`.
 
     Returns:
-        The trained model.
+        The trained model from the best epoch and from the last epoch.
 
     """
     # Add a callback for keeping track of the best model.
@@ -234,4 +234,4 @@ def train_model(
             validation_freq=validation_frequency,
         )
 
-    return best_model_callback.best_model
+    return best_model_callback.best_model, model

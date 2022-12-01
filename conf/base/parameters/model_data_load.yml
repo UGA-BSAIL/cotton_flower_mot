@@ -22,6 +22,6 @@ false_positive_rate: 0.1
 shuffle_buffer_size: 5
 
 # Probability of dropping a particular example to use.
-drop_probability: 0.0
+drop_probability: 0.75
 # Number of times to repeat the dataset to make up for dropped examples.
-repeats: 1
+repeats: 4

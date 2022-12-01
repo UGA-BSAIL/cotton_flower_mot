@@ -92,7 +92,7 @@ def create_pipeline(model_init: ModelInit = ModelInit.IMAGENET):
                     num_heatmap_batches="params:num_heatmap_batches",
                     num_heatmap_images="params:num_heatmap_images",
                 ),
-                "trained_model",
+                ["best_model", "last_model"],
             ),
         ],
     )
