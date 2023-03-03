@@ -16,6 +16,7 @@ import re  # noqa: F401
 
 # python 2 and python 3 compatibility library
 import six
+
 from swagger_client.api_client import ApiClient
 
 
@@ -46,15 +47,11 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_login_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_login_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_login_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_login_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
     def auth_login_create_with_http_info(self, body, **kwargs):  # noqa: E501
@@ -73,26 +70,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_login_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_login_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_login_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -106,40 +102,34 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
-        header_params["Accept"] = self.api_client.select_header_accept(
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['application/json'])  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/login",
-            "POST",
+            '/auth/login', 'POST',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type="Login",  # noqa: E501
+            response_type='Login',  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_logout_create(self, **kwargs):  # noqa: E501
         """Calls Django logout method and delete the Token object assigned to the current User object.  # noqa: E501
@@ -155,15 +145,11 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_logout_create_with_http_info(
-                **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_logout_create_with_http_info(**kwargs)  # noqa: E501
         else:
-            (data) = self.auth_logout_create_with_http_info(
-                **kwargs
-            )  # noqa: E501
+            (data) = self.auth_logout_create_with_http_info(**kwargs)  # noqa: E501
             return data
 
     def auth_logout_create_with_http_info(self, **kwargs):  # noqa: E501
@@ -182,20 +168,20 @@ class AuthApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_logout_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
 
         collection_formats = {}
 
@@ -210,11 +196,10 @@ class AuthApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/logout",
-            "POST",
+            '/auth/logout', 'POST',
             path_params,
             query_params,
             header_params,
@@ -223,12 +208,11 @@ class AuthApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_logout_list(self, **kwargs):  # noqa: E501
         """Calls Django logout method and delete the Token object assigned to the current User object.  # noqa: E501
@@ -244,13 +228,11 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
             return self.auth_logout_list_with_http_info(**kwargs)  # noqa: E501
         else:
-            (data) = self.auth_logout_list_with_http_info(
-                **kwargs
-            )  # noqa: E501
+            (data) = self.auth_logout_list_with_http_info(**kwargs)  # noqa: E501
             return data
 
     def auth_logout_list_with_http_info(self, **kwargs):  # noqa: E501
@@ -269,20 +251,20 @@ class AuthApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_logout_list" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
 
         collection_formats = {}
 
@@ -297,11 +279,10 @@ class AuthApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/logout",
-            "GET",
+            '/auth/logout', 'GET',
             path_params,
             query_params,
             header_params,
@@ -310,12 +291,11 @@ class AuthApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_password_change_create(self, body, **kwargs):  # noqa: E501
         """Calls Django Auth SetPasswordForm save method.  # noqa: E501
@@ -332,20 +312,14 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_password_change_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_password_change_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_password_change_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_password_change_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
-    def auth_password_change_create_with_http_info(
-        self, body, **kwargs
-    ):  # noqa: E501
+    def auth_password_change_create_with_http_info(self, body, **kwargs):  # noqa: E501
         """Calls Django Auth SetPasswordForm save method.  # noqa: E501
 
         Accepts the following POST parameters: new_password1, new_password2 Returns the success/fail message.  # noqa: E501
@@ -361,26 +335,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_password_change_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_password_change_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_password_change_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -394,40 +367,34 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
-        header_params["Accept"] = self.api_client.select_header_accept(
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['application/json'])  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/password/change",
-            "POST",
+            '/auth/password/change', 'POST',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type="PasswordChange",  # noqa: E501
+            response_type='PasswordChange',  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_password_reset_confirm_create(self, body, **kwargs):  # noqa: E501
         """Password reset e-mail link is confirmed, therefore this resets the user's password.  # noqa: E501
@@ -444,20 +411,14 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_password_reset_confirm_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_password_reset_confirm_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_password_reset_confirm_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_password_reset_confirm_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
-    def auth_password_reset_confirm_create_with_http_info(
-        self, body, **kwargs
-    ):  # noqa: E501
+    def auth_password_reset_confirm_create_with_http_info(self, body, **kwargs):  # noqa: E501
         """Password reset e-mail link is confirmed, therefore this resets the user's password.  # noqa: E501
 
         Accepts the following POST parameters: token, uid,     new_password1, new_password2 Returns the success/fail message.  # noqa: E501
@@ -473,26 +434,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_password_reset_confirm_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_password_reset_confirm_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_password_reset_confirm_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -506,40 +466,34 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
-        header_params["Accept"] = self.api_client.select_header_accept(
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['application/json'])  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/password/reset/confirm",
-            "POST",
+            '/auth/password/reset/confirm', 'POST',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type="PasswordResetConfirm",  # noqa: E501
+            response_type='PasswordResetConfirm',  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_password_reset_create(self, body, **kwargs):  # noqa: E501
         """Calls Django Auth PasswordResetForm save method.  # noqa: E501
@@ -556,20 +510,14 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_password_reset_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_password_reset_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_password_reset_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_password_reset_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
-    def auth_password_reset_create_with_http_info(
-        self, body, **kwargs
-    ):  # noqa: E501
+    def auth_password_reset_create_with_http_info(self, body, **kwargs):  # noqa: E501
         """Calls Django Auth PasswordResetForm save method.  # noqa: E501
 
         Accepts the following POST parameters: email Returns the success/fail message.  # noqa: E501
@@ -585,26 +533,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_password_reset_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_password_reset_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_password_reset_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -618,40 +565,34 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
-        header_params["Accept"] = self.api_client.select_header_accept(
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['application/json'])  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/password/reset",
-            "POST",
+            '/auth/password/reset', 'POST',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type="PasswordResetSerializerEx",  # noqa: E501
+            response_type='PasswordResetSerializerEx',  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_register_create(self, body, **kwargs):  # noqa: E501
         """auth_register_create  # noqa: E501
@@ -667,20 +608,14 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_register_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_register_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_register_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_register_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
-    def auth_register_create_with_http_info(
-        self, body, **kwargs
-    ):  # noqa: E501
+    def auth_register_create_with_http_info(self, body, **kwargs):  # noqa: E501
         """auth_register_create  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
@@ -695,26 +630,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_register_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_register_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_register_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -728,40 +662,34 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Accept`
-        header_params["Accept"] = self.api_client.select_header_accept(
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Accept'] = self.api_client.select_header_accept(
+            ['application/json'])  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/register",
-            "POST",
+            '/auth/register', 'POST',
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type="RestrictedRegister",  # noqa: E501
+            response_type='RestrictedRegister',  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def auth_signing_create(self, body, **kwargs):  # noqa: E501
         """This method signs URL for access to the server.  # noqa: E501
@@ -778,15 +706,11 @@ class AuthApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.auth_signing_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.auth_signing_create_with_http_info(body, **kwargs)  # noqa: E501
         else:
-            (data) = self.auth_signing_create_with_http_info(
-                body, **kwargs
-            )  # noqa: E501
+            (data) = self.auth_signing_create_with_http_info(body, **kwargs)  # noqa: E501
             return data
 
     def auth_signing_create_with_http_info(self, body, **kwargs):  # noqa: E501
@@ -805,26 +729,25 @@ class AuthApi(object):
                  returns the request thread.
         """
 
-        all_params = ["body"]  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params = ['body']  # noqa: E501
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method auth_signing_create" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
         # verify the required parameter 'body' is set
-        if "body" not in params or params["body"] is None:
-            raise ValueError(
-                "Missing the required parameter `body` when calling `auth_signing_create`"
-            )  # noqa: E501
+        if ('body' not in params or
+                params['body'] is None):
+            raise ValueError("Missing the required parameter `body` when calling `auth_signing_create`")  # noqa: E501
 
         collection_formats = {}
 
@@ -838,21 +761,17 @@ class AuthApi(object):
         local_var_files = {}
 
         body_params = None
-        if "body" in params:
-            body_params = params["body"]
+        if 'body' in params:
+            body_params = params['body']
         # HTTP header `Content-Type`
-        header_params[
-            "Content-Type"
-        ] = self.api_client.select_header_content_type(  # noqa: E501
-            ["application/json"]
-        )  # noqa: E501
+        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
+            ['application/json'])  # noqa: E501
 
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/auth/signing",
-            "POST",
+            '/auth/signing', 'POST',
             path_params,
             query_params,
             header_params,
@@ -861,9 +780,8 @@ class AuthApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)

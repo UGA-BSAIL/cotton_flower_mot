@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+# flake8: noqa
+
 # import apis into api package
 from swagger_client.api.auth_api import AuthApi
 from swagger_client.api.cloud_storages_api import CloudStoragesApi
@@ -14,5 +16,3 @@ from swagger_client.api.reviews_api import ReviewsApi
 from swagger_client.api.server_api import ServerApi
 from swagger_client.api.tasks_api import TasksApi
 from swagger_client.api.users_api import UsersApi
-
-# flake8: noqa

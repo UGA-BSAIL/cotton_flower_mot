@@ -69,3 +69,7 @@
 ### v0.9.1 (2022-05-29)
 
 - Correctly lazy-initialize CVAT connection.
+
+### v0.9.2 (2023-03-03)
+
+- Support newer Python versions.

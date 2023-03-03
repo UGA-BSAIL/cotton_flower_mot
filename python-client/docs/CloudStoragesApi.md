@@ -46,8 +46,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this cloud storage. |
- **manifest_path** | **str**| Path to the manifest file in a cloud storage | [optional]
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
+ **manifest_path** | **str**| Path to the manifest file in a cloud storage | [optional] 
 
 ### Return type
 
@@ -83,7 +83,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.CloudStoragesApi(swagger_client.ApiClient(configuration))
-body = swagger_client.CloudStorage() # CloudStorage |
+body = swagger_client.CloudStorage() # CloudStorage | 
 
 try:
     # Method creates a cloud storage with a specified characteristics
@@ -96,7 +96,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**CloudStorage**](CloudStorage.md)|  |
+ **body** | [**CloudStorage**](CloudStorage.md)|  | 
 
 ### Return type
 
@@ -145,7 +145,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this cloud storage. |
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
 
 ### Return type
 
@@ -205,17 +205,17 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **search** | **str**| A search term. | [optional]
- **id** | **float**|  | [optional]
- **display_name** | **str**| A display name of storage | [optional]
- **provider_type** | **str**| A supported provider of cloud storages | [optional]
- **resource** | **str**| A name of bucket or container | [optional]
- **credentials_type** | **str**| A type of a granting access | [optional]
- **description** | **str**|  | [optional]
- **owner** | **str**| A resource owner | [optional]
- **ordering** | **str**| Which field to use when ordering the results. | [optional]
- **page** | **int**| A page number within the paginated result set. | [optional]
- **page_size** | **int**| Number of results to return per page. | [optional]
+ **search** | **str**| A search term. | [optional] 
+ **id** | **float**|  | [optional] 
+ **display_name** | **str**| A display name of storage | [optional] 
+ **provider_type** | **str**| A supported provider of cloud storages | [optional] 
+ **resource** | **str**| A name of bucket or container | [optional] 
+ **credentials_type** | **str**| A type of a granting access | [optional] 
+ **description** | **str**|  | [optional] 
+ **owner** | **str**| A resource owner | [optional] 
+ **ordering** | **str**| Which field to use when ordering the results. | [optional] 
+ **page** | **int**| A page number within the paginated result set. | [optional] 
+ **page_size** | **int**| Number of results to return per page. | [optional] 
 
 ### Return type
 
@@ -251,7 +251,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.CloudStoragesApi(swagger_client.ApiClient(configuration))
-body = swagger_client.CloudStorage() # CloudStorage |
+body = swagger_client.CloudStorage() # CloudStorage | 
 id = 56 # int | A unique integer value identifying this cloud storage.
 
 try:
@@ -266,8 +266,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**CloudStorage**](CloudStorage.md)|  |
- **id** | **int**| A unique integer value identifying this cloud storage. |
+ **body** | [**CloudStorage**](CloudStorage.md)|  | 
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
 
 ### Return type
 
@@ -316,7 +316,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this cloud storage. |
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
 
 ### Return type
 
@@ -365,7 +365,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this cloud storage. |
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
 
 ### Return type
 
@@ -414,7 +414,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this cloud storage. |
+ **id** | **int**| A unique integer value identifying this cloud storage. | 
 
 ### Return type
 
@@ -430,3 +430,4 @@ void (empty response body)
  - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

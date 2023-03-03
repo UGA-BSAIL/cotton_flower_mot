@@ -4,7 +4,7 @@ All URIs are relative to *http://bsailn1.engr.uga.edu/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**restrictions_terms_of_use**](RestrictionsApi.md#restrictions_terms_of_use) | **GET** /restrictions/terms-of-use |
+[**restrictions_terms_of_use**](RestrictionsApi.md#restrictions_terms_of_use) | **GET** /restrictions/terms-of-use | 
 [**restrictions_user_agreements**](RestrictionsApi.md#restrictions_user_agreements) | **GET** /restrictions/user-agreements | Method provides user agreements that the user must accept to register
 
 # **restrictions_terms_of_use**
@@ -96,3 +96,4 @@ This endpoint does not need any parameter.
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

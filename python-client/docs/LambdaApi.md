@@ -4,12 +4,12 @@ All URIs are relative to *http://bsailn1.engr.uga.edu/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**lambda_functions_create**](LambdaApi.md#lambda_functions_create) | **POST** /lambda/functions/{func_id} |
-[**lambda_functions_list**](LambdaApi.md#lambda_functions_list) | **GET** /lambda/functions |
-[**lambda_functions_read**](LambdaApi.md#lambda_functions_read) | **GET** /lambda/functions/{func_id} |
-[**lambda_requests_create**](LambdaApi.md#lambda_requests_create) | **POST** /lambda/requests |
-[**lambda_requests_list**](LambdaApi.md#lambda_requests_list) | **GET** /lambda/requests |
-[**lambda_requests_read**](LambdaApi.md#lambda_requests_read) | **GET** /lambda/requests/{id} |
+[**lambda_functions_create**](LambdaApi.md#lambda_functions_create) | **POST** /lambda/functions/{func_id} | 
+[**lambda_functions_list**](LambdaApi.md#lambda_functions_list) | **GET** /lambda/functions | 
+[**lambda_functions_read**](LambdaApi.md#lambda_functions_read) | **GET** /lambda/functions/{func_id} | 
+[**lambda_requests_create**](LambdaApi.md#lambda_requests_create) | **POST** /lambda/requests | 
+[**lambda_requests_list**](LambdaApi.md#lambda_requests_list) | **GET** /lambda/requests | 
+[**lambda_requests_read**](LambdaApi.md#lambda_requests_read) | **GET** /lambda/requests/{id} | 
 
 # **lambda_functions_create**
 > lambda_functions_create(func_id)
@@ -30,7 +30,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.LambdaApi(swagger_client.ApiClient(configuration))
-func_id = 'func_id_example' # str |
+func_id = 'func_id_example' # str | 
 
 try:
     api_instance.lambda_functions_create(func_id)
@@ -42,7 +42,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **func_id** | **str**|  |
+ **func_id** | **str**|  | 
 
 ### Return type
 
@@ -122,7 +122,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.LambdaApi(swagger_client.ApiClient(configuration))
-func_id = 'func_id_example' # str |
+func_id = 'func_id_example' # str | 
 
 try:
     api_instance.lambda_functions_read(func_id)
@@ -134,7 +134,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **func_id** | **str**|  |
+ **func_id** | **str**|  | 
 
 ### Return type
 
@@ -258,7 +258,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.LambdaApi(swagger_client.ApiClient(configuration))
-id = 'id_example' # str |
+id = 'id_example' # str | 
 
 try:
     api_instance.lambda_requests_read(id)
@@ -270,7 +270,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **str**|  |
+ **id** | **str**|  | 
 
 ### Return type
 
@@ -286,3 +286,4 @@ void (empty response body)
  - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

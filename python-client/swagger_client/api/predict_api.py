@@ -16,6 +16,7 @@ import re  # noqa: F401
 
 # python 2 and python 3 compatibility library
 import six
+
 from swagger_client.api_client import ApiClient
 
 
@@ -44,15 +45,11 @@ class PredictApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.predict_predict_image_with_http_info(
-                **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.predict_predict_image_with_http_info(**kwargs)  # noqa: E501
         else:
-            (data) = self.predict_predict_image_with_http_info(
-                **kwargs
-            )  # noqa: E501
+            (data) = self.predict_predict_image_with_http_info(**kwargs)  # noqa: E501
             return data
 
     def predict_predict_image_with_http_info(self, **kwargs):  # noqa: E501
@@ -70,20 +67,20 @@ class PredictApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method predict_predict_image" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
 
         collection_formats = {}
 
@@ -98,11 +95,10 @@ class PredictApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/predict/frame",
-            "GET",
+            '/predict/frame', 'GET',
             path_params,
             query_params,
             header_params,
@@ -111,12 +107,11 @@ class PredictApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
 
     def predict_predict_status(self, **kwargs):  # noqa: E501
         """Returns information of the tasks of the project with the selected id  # noqa: E501
@@ -131,15 +126,11 @@ class PredictApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs["_return_http_data_only"] = True
-        if kwargs.get("async_req"):
-            return self.predict_predict_status_with_http_info(
-                **kwargs
-            )  # noqa: E501
+        kwargs['_return_http_data_only'] = True
+        if kwargs.get('async_req'):
+            return self.predict_predict_status_with_http_info(**kwargs)  # noqa: E501
         else:
-            (data) = self.predict_predict_status_with_http_info(
-                **kwargs
-            )  # noqa: E501
+            (data) = self.predict_predict_status_with_http_info(**kwargs)  # noqa: E501
             return data
 
     def predict_predict_status_with_http_info(self, **kwargs):  # noqa: E501
@@ -157,20 +148,20 @@ class PredictApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append("async_req")
-        all_params.append("_return_http_data_only")
-        all_params.append("_preload_content")
-        all_params.append("_request_timeout")
+        all_params.append('async_req')
+        all_params.append('_return_http_data_only')
+        all_params.append('_preload_content')
+        all_params.append('_request_timeout')
 
         params = locals()
-        for key, val in six.iteritems(params["kwargs"]):
+        for key, val in six.iteritems(params['kwargs']):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method predict_predict_status" % key
                 )
             params[key] = val
-        del params["kwargs"]
+        del params['kwargs']
 
         collection_formats = {}
 
@@ -185,11 +176,10 @@ class PredictApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ["Basic"]  # noqa: E501
+        auth_settings = ['Basic']  # noqa: E501
 
         return self.api_client.call_api(
-            "/predict/status",
-            "GET",
+            '/predict/status', 'GET',
             path_params,
             query_params,
             header_params,
@@ -198,9 +188,8 @@ class PredictApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get("async_req"),
-            _return_http_data_only=params.get("_return_http_data_only"),
-            _preload_content=params.get("_preload_content", True),
-            _request_timeout=params.get("_request_timeout"),
-            collection_formats=collection_formats,
-        )
+            async_req=params.get('async_req'),
+            _return_http_data_only=params.get('_return_http_data_only'),
+            _preload_content=params.get('_preload_content', True),
+            _request_timeout=params.get('_request_timeout'),
+            collection_formats=collection_formats)
