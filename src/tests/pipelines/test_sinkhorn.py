@@ -11,7 +11,7 @@ import tensorflow as tf
 import yaml
 from pytest_snapshot.plugin import Snapshot
 
-from src.cotton_flower_mot.pipelines import sinkhorn
+from src.cotton_flower_mot.pipelines import assignment
 
 
 def test_solve_optimal_transport_obvious() -> None:
@@ -26,7 +26,7 @@ def test_solve_optimal_transport_obvious() -> None:
     cost = tf.expand_dims(cost, axis=0)
 
     # Act.
-    transport, dist = sinkhorn.solve_optimal_transport(cost, lamb=100)
+    transport, dist = assignment.solve_optimal_transport(cost, lamb=100)
     transport = transport.numpy()
     dist = dist.numpy()
 
@@ -49,13 +49,13 @@ def test_solve_optimal_transport_entropy() -> None:
     cost = tf.expand_dims(cost, axis=0)
 
     # Act.
-    transport_good, dist_good = sinkhorn.solve_optimal_transport(
+    transport_good, dist_good = assignment.solve_optimal_transport(
         cost, lamb=100
     )
     transport_good = transport_good.numpy()
     dist_good = dist_good.numpy()
 
-    transport_homogeneous, dist_homogeneous = sinkhorn.solve_optimal_transport(
+    transport_homogeneous, dist_homogeneous = assignment.solve_optimal_transport(
         cost, lamb=0.1
     )
     transport_homogeneous = transport_homogeneous.numpy()
@@ -100,7 +100,7 @@ def test_solve_optimal_transport_deserts(snapshot: Snapshot) -> None:
     desert_amounts = tf.constant([[4.0, 2.0, 6.0, 4.0, 4.0]])
 
     # Act.
-    transport, dist = sinkhorn.solve_optimal_transport(
+    transport, dist = assignment.solve_optimal_transport(
         -preferences,
         lamb=10,
         row_sums=portions,
@@ -159,7 +159,7 @@ def test_construct_gt_sinkhorn_matrix(
     tracklet_ids = tf.constant(tracklet_ids)
 
     # Act.
-    got_matrix = sinkhorn.construct_gt_sinkhorn_matrix(
+    got_matrix = assignment.construct_gt_sinkhorn_matrix(
         detection_ids=detection_ids, tracklet_ids=tracklet_ids
     ).numpy()
 
