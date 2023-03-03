@@ -48,10 +48,10 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this project. |
- **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats |
- **filename** | **str**| Desired output file name | [optional]
- **action** | **str**| Used to start downloading process after annotation file had been created | [optional]
+ **id** | **int**| A unique integer value identifying this project. | 
+ **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats | 
+ **filename** | **str**| Desired output file name | [optional] 
+ **action** | **str**| Used to start downloading process after annotation file had been created | [optional] 
 
 ### Return type
 
@@ -87,7 +87,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.ProjectsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Project() # Project |
+body = swagger_client.Project() # Project | 
 
 try:
     # Method creates a new project
@@ -101,7 +101,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Project**](Project.md)|  |
+ **body** | [**Project**](Project.md)|  | 
 
 ### Return type
 
@@ -153,10 +153,10 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this project. |
- **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats |
- **filename** | **str**| Desired output file name | [optional]
- **action** | **str**| Used to start downloading process after annotation file had been created | [optional]
+ **id** | **int**| A unique integer value identifying this project. | 
+ **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats | 
+ **filename** | **str**| Desired output file name | [optional] 
+ **action** | **str**| Used to start downloading process after annotation file had been created | [optional] 
 
 ### Return type
 
@@ -205,7 +205,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this project. |
+ **id** | **int**| A unique integer value identifying this project. | 
 
 ### Return type
 
@@ -265,17 +265,17 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **search** | **str**| A search term. | [optional]
- **id** | **float**| A unique number value identifying this project | [optional]
- **name** | **str**| Find all projects where name contains a parameter value | [optional]
- **owner** | **str**| Find all project where owner name contains a parameter value | [optional]
- **status** | **str**| Find all projects with a specific status | [optional]
- **assignee** | **str**|  | [optional]
- **ordering** | **str**| Which field to use when ordering the results. | [optional]
- **page** | **int**| A page number within the paginated result set. | [optional]
- **page_size** | **int**| Number of results to return per page. | [optional]
- **names_only** | **bool**| Returns only names and id&#x27;s of projects. | [optional]
- **without_tasks** | **bool**| Returns only projects entities without related tasks | [optional]
+ **search** | **str**| A search term. | [optional] 
+ **id** | **float**| A unique number value identifying this project | [optional] 
+ **name** | **str**| Find all projects where name contains a parameter value | [optional] 
+ **owner** | **str**| Find all project where owner name contains a parameter value | [optional] 
+ **status** | **str**| Find all projects with a specific status | [optional] 
+ **assignee** | **str**|  | [optional] 
+ **ordering** | **str**| Which field to use when ordering the results. | [optional] 
+ **page** | **int**| A page number within the paginated result set. | [optional] 
+ **page_size** | **int**| Number of results to return per page. | [optional] 
+ **names_only** | **bool**| Returns only names and id&#x27;s of projects. | [optional] 
+ **without_tasks** | **bool**| Returns only projects entities without related tasks | [optional] 
 
 ### Return type
 
@@ -311,7 +311,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.ProjectsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Project() # Project |
+body = swagger_client.Project() # Project | 
 id = 56 # int | A unique integer value identifying this project.
 
 try:
@@ -326,8 +326,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Project**](Project.md)|  |
- **id** | **int**| A unique integer value identifying this project. |
+ **body** | [**Project**](Project.md)|  | 
+ **id** | **int**| A unique integer value identifying this project. | 
 
 ### Return type
 
@@ -377,7 +377,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this project. |
+ **id** | **int**| A unique integer value identifying this project. | 
 
 ### Return type
 
@@ -427,7 +427,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this project. |
+ **id** | **int**| A unique integer value identifying this project. | 
 
 ### Return type
 
@@ -443,3 +443,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

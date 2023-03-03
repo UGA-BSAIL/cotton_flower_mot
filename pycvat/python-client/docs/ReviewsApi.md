@@ -26,7 +26,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.ReviewsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.CombinedReview() # CombinedReview |
+body = swagger_client.CombinedReview() # CombinedReview | 
 
 try:
     # Submit a review for a job
@@ -40,7 +40,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**CombinedReview**](CombinedReview.md)|  |
+ **body** | [**CombinedReview**](CombinedReview.md)|  | 
 
 ### Return type
 
@@ -89,7 +89,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this review. |
+ **id** | **int**| A unique integer value identifying this review. | 
 
 ### Return type
 
@@ -105,3 +105,4 @@ void (empty response body)
  - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

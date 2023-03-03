@@ -46,7 +46,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this job. |
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -82,8 +82,8 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.JobsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.LabeledData() # LabeledData |
-action = 'action_example' # str |
+body = swagger_client.LabeledData() # LabeledData | 
+action = 'action_example' # str | 
 id = 56 # int | A unique integer value identifying this job.
 
 try:
@@ -98,9 +98,9 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**LabeledData**](LabeledData.md)|  |
- **action** | **str**|  |
- **id** | **int**| A unique integer value identifying this job. |
+ **body** | [**LabeledData**](LabeledData.md)|  | 
+ **action** | **str**|  | 
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -150,7 +150,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this job. |
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -186,7 +186,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.JobsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.LabeledData() # LabeledData |
+body = swagger_client.LabeledData() # LabeledData | 
 id = 56 # int | A unique integer value identifying this job.
 
 try:
@@ -201,8 +201,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**LabeledData**](LabeledData.md)|  |
- **id** | **int**| A unique integer value identifying this job. |
+ **body** | [**LabeledData**](LabeledData.md)|  | 
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -252,7 +252,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this job. |
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -288,7 +288,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.JobsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Job() # Job |
+body = swagger_client.Job() # Job | 
 id = 56 # int | A unique integer value identifying this job.
 
 try:
@@ -303,8 +303,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Job**](Job.md)|  |
- **id** | **int**| A unique integer value identifying this job. |
+ **body** | [**Job**](Job.md)|  | 
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -354,7 +354,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this job. |
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -404,7 +404,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this job. |
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -440,7 +440,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.JobsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Job() # Job |
+body = swagger_client.Job() # Job | 
 id = 56 # int | A unique integer value identifying this job.
 
 try:
@@ -455,8 +455,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Job**](Job.md)|  |
- **id** | **int**| A unique integer value identifying this job. |
+ **body** | [**Job**](Job.md)|  | 
+ **id** | **int**| A unique integer value identifying this job. | 
 
 ### Return type
 
@@ -472,3 +472,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

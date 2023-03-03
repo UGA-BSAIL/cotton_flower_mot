@@ -4,7 +4,7 @@ All URIs are relative to *http://bsailn1.engr.uga.edu/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**comments_create**](CommentsApi.md#comments_create) | **POST** /comments |
+[**comments_create**](CommentsApi.md#comments_create) | **POST** /comments | 
 [**comments_delete**](CommentsApi.md#comments_delete) | **DELETE** /comments/{id} | Method removes a comment from an issue
 [**comments_partial_update**](CommentsApi.md#comments_partial_update) | **PATCH** /comments/{id} | Method updates comment in an issue
 
@@ -27,7 +27,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.CommentsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Comment() # Comment |
+body = swagger_client.Comment() # Comment | 
 
 try:
     api_response = api_instance.comments_create(body)
@@ -40,7 +40,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Comment**](Comment.md)|  |
+ **body** | [**Comment**](Comment.md)|  | 
 
 ### Return type
 
@@ -89,7 +89,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this comment. |
+ **id** | **int**| A unique integer value identifying this comment. | 
 
 ### Return type
 
@@ -125,7 +125,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.CommentsApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Comment() # Comment |
+body = swagger_client.Comment() # Comment | 
 id = 56 # int | A unique integer value identifying this comment.
 
 try:
@@ -140,8 +140,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Comment**](Comment.md)|  |
- **id** | **int**| A unique integer value identifying this comment. |
+ **body** | [**Comment**](Comment.md)|  | 
+ **id** | **int**| A unique integer value identifying this comment. | 
 
 ### Return type
 
@@ -157,3 +157,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

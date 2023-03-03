@@ -42,7 +42,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this user. |
+ **id** | **int**| A unique integer value identifying this user. | 
 
 ### Return type
 
@@ -97,12 +97,12 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **search** | **str**| A search term. | [optional]
- **id** | **float**| A unique number value identifying this user | [optional]
- **is_active** | **bool**| Returns only active users | [optional]
- **ordering** | **str**| Which field to use when ordering the results. | [optional]
- **page** | **int**| A page number within the paginated result set. | [optional]
- **page_size** | **int**| Number of results to return per page. | [optional]
+ **search** | **str**| A search term. | [optional] 
+ **id** | **float**| A unique number value identifying this user | [optional] 
+ **is_active** | **bool**| Returns only active users | [optional] 
+ **ordering** | **str**| Which field to use when ordering the results. | [optional] 
+ **page** | **int**| A page number within the paginated result set. | [optional] 
+ **page_size** | **int**| Number of results to return per page. | [optional] 
 
 ### Return type
 
@@ -138,7 +138,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.UsersApi(swagger_client.ApiClient(configuration))
-body = swagger_client.User() # User |
+body = swagger_client.User() # User | 
 id = 56 # int | A unique integer value identifying this user.
 
 try:
@@ -153,8 +153,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**User**](User.md)|  |
- **id** | **int**| A unique integer value identifying this user. |
+ **body** | [**User**](User.md)|  | 
+ **id** | **int**| A unique integer value identifying this user. | 
 
 ### Return type
 
@@ -204,7 +204,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this user. |
+ **id** | **int**| A unique integer value identifying this user. | 
 
 ### Return type
 
@@ -261,12 +261,12 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **search** | **str**| A search term. | [optional]
- **id** | **float**|  | [optional]
- **is_active** | **str**|  | [optional]
- **ordering** | **str**| Which field to use when ordering the results. | [optional]
- **page** | **int**| A page number within the paginated result set. | [optional]
- **page_size** | **int**| Number of results to return per page. | [optional]
+ **search** | **str**| A search term. | [optional] 
+ **id** | **float**|  | [optional] 
+ **is_active** | **str**|  | [optional] 
+ **ordering** | **str**| Which field to use when ordering the results. | [optional] 
+ **page** | **int**| A page number within the paginated result set. | [optional] 
+ **page_size** | **int**| Number of results to return per page. | [optional] 
 
 ### Return type
 
@@ -282,3 +282,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

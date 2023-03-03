@@ -28,11 +28,9 @@ from swagger_client.api.reviews_api import ReviewsApi
 from swagger_client.api.server_api import ServerApi
 from swagger_client.api.tasks_api import TasksApi
 from swagger_client.api.users_api import UsersApi
-
 # import ApiClient
 from swagger_client.api_client import ApiClient
 from swagger_client.configuration import Configuration
-
 # import models into sdk package
 from swagger_client.models.about import About
 from swagger_client.models.attribute import Attribute
@@ -67,9 +65,7 @@ from swagger_client.models.login import Login
 from swagger_client.models.manifest import Manifest
 from swagger_client.models.password_change import PasswordChange
 from swagger_client.models.password_reset_confirm import PasswordResetConfirm
-from swagger_client.models.password_reset_serializer_ex import (
-    PasswordResetSerializerEx,
-)
+from swagger_client.models.password_reset_serializer_ex import PasswordResetSerializerEx
 from swagger_client.models.plugins import Plugins
 from swagger_client.models.project import Project
 from swagger_client.models.remote_file import RemoteFile

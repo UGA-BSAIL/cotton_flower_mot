@@ -124,7 +124,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.ServerApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Exception() # Exception |
+body = swagger_client.Exception() # Exception | 
 
 try:
     # Saves an exception from a client on the server
@@ -138,7 +138,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Exception**](Exception.md)|  |
+ **body** | [**Exception**](Exception.md)|  | 
 
 ### Return type
 
@@ -176,7 +176,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.ServerApi(swagger_client.ApiClient(configuration))
-body = [swagger_client.LogEvent()] # list[LogEvent] |
+body = [swagger_client.LogEvent()] # list[LogEvent] | 
 
 try:
     # Saves logs from a client on the server
@@ -190,7 +190,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**list[LogEvent]**](LogEvent.md)|  |
+ **body** | [**list[LogEvent]**](LogEvent.md)|  | 
 
 ### Return type
 
@@ -286,7 +286,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **directory** | **str**| Directory to browse | [optional]
+ **directory** | **str**| Directory to browse | [optional] 
 
 ### Return type
 
@@ -302,3 +302,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

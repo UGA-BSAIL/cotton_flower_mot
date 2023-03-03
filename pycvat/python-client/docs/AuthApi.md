@@ -4,13 +4,13 @@ All URIs are relative to *http://bsailn1.engr.uga.edu/api/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**auth_login_create**](AuthApi.md#auth_login_create) | **POST** /auth/login |
+[**auth_login_create**](AuthApi.md#auth_login_create) | **POST** /auth/login | 
 [**auth_logout_create**](AuthApi.md#auth_logout_create) | **POST** /auth/logout | Calls Django logout method and delete the Token object assigned to the current User object.
 [**auth_logout_list**](AuthApi.md#auth_logout_list) | **GET** /auth/logout | Calls Django logout method and delete the Token object assigned to the current User object.
 [**auth_password_change_create**](AuthApi.md#auth_password_change_create) | **POST** /auth/password/change | Calls Django Auth SetPasswordForm save method.
 [**auth_password_reset_confirm_create**](AuthApi.md#auth_password_reset_confirm_create) | **POST** /auth/password/reset/confirm | Password reset e-mail link is confirmed, therefore this resets the user&#x27;s password.
 [**auth_password_reset_create**](AuthApi.md#auth_password_reset_create) | **POST** /auth/password/reset | Calls Django Auth PasswordResetForm save method.
-[**auth_register_create**](AuthApi.md#auth_register_create) | **POST** /auth/register |
+[**auth_register_create**](AuthApi.md#auth_register_create) | **POST** /auth/register | 
 [**auth_signing_create**](AuthApi.md#auth_signing_create) | **POST** /auth/signing | This method signs URL for access to the server.
 
 # **auth_login_create**
@@ -34,7 +34,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Login() # Login |
+body = swagger_client.Login() # Login | 
 
 try:
     api_response = api_instance.auth_login_create(body)
@@ -47,7 +47,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Login**](Login.md)|  |
+ **body** | [**Login**](Login.md)|  | 
 
 ### Return type
 
@@ -179,7 +179,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.PasswordChange() # PasswordChange |
+body = swagger_client.PasswordChange() # PasswordChange | 
 
 try:
     # Calls Django Auth SetPasswordForm save method.
@@ -193,7 +193,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**PasswordChange**](PasswordChange.md)|  |
+ **body** | [**PasswordChange**](PasswordChange.md)|  | 
 
 ### Return type
 
@@ -231,7 +231,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.PasswordResetConfirm() # PasswordResetConfirm |
+body = swagger_client.PasswordResetConfirm() # PasswordResetConfirm | 
 
 try:
     # Password reset e-mail link is confirmed, therefore this resets the user's password.
@@ -245,7 +245,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**PasswordResetConfirm**](PasswordResetConfirm.md)|  |
+ **body** | [**PasswordResetConfirm**](PasswordResetConfirm.md)|  | 
 
 ### Return type
 
@@ -283,7 +283,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.PasswordResetSerializerEx() # PasswordResetSerializerEx |
+body = swagger_client.PasswordResetSerializerEx() # PasswordResetSerializerEx | 
 
 try:
     # Calls Django Auth PasswordResetForm save method.
@@ -297,7 +297,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**PasswordResetSerializerEx**](PasswordResetSerializerEx.md)|  |
+ **body** | [**PasswordResetSerializerEx**](PasswordResetSerializerEx.md)|  | 
 
 ### Return type
 
@@ -333,7 +333,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.RestrictedRegister() # RestrictedRegister |
+body = swagger_client.RestrictedRegister() # RestrictedRegister | 
 
 try:
     api_response = api_instance.auth_register_create(body)
@@ -346,7 +346,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**RestrictedRegister**](RestrictedRegister.md)|  |
+ **body** | [**RestrictedRegister**](RestrictedRegister.md)|  | 
 
 ### Return type
 
@@ -384,7 +384,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.AuthApi(swagger_client.ApiClient(configuration))
-body = swagger_client.AuthSigningBody() # AuthSigningBody |
+body = swagger_client.AuthSigningBody() # AuthSigningBody | 
 
 try:
     # This method signs URL for access to the server.
@@ -397,7 +397,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**AuthSigningBody**](AuthSigningBody.md)|  |
+ **body** | [**AuthSigningBody**](AuthSigningBody.md)|  | 
 
 ### Return type
 
@@ -413,3 +413,4 @@ void (empty response body)
  - **Accept**: Not defined
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

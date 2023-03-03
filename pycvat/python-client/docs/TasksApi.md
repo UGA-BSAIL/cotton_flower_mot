@@ -53,7 +53,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -89,8 +89,8 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.LabeledData() # LabeledData |
-action = 'action_example' # str |
+body = swagger_client.LabeledData() # LabeledData | 
+action = 'action_example' # str | 
 id = 56 # int | A unique integer value identifying this task.
 
 try:
@@ -105,9 +105,9 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**LabeledData**](LabeledData.md)|  |
- **action** | **str**|  |
- **id** | **int**| A unique integer value identifying this task. |
+ **body** | [**LabeledData**](LabeledData.md)|  | 
+ **action** | **str**|  | 
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -159,10 +159,10 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
- **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats | [optional]
- **filename** | **str**| Desired output file name | [optional]
- **action** | **str**| Used to start downloading process after annotation file had been created | [optional]
+ **id** | **int**| A unique integer value identifying this task. | 
+ **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats | [optional] 
+ **filename** | **str**| Desired output file name | [optional] 
+ **action** | **str**| Used to start downloading process after annotation file had been created | [optional] 
 
 ### Return type
 
@@ -198,7 +198,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.LabeledData() # LabeledData |
+body = swagger_client.LabeledData() # LabeledData | 
 id = 56 # int | A unique integer value identifying this task.
 format = 'format_example' # str | Input format name You can get the list of supported formats at: /server/annotation/formats (optional)
 
@@ -213,9 +213,9 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**LabeledData**](LabeledData.md)|  |
- **id** | **int**| A unique integer value identifying this task. |
- **format** | **str**| Input format name You can get the list of supported formats at: /server/annotation/formats | [optional]
+ **body** | [**LabeledData**](LabeledData.md)|  | 
+ **id** | **int**| A unique integer value identifying this task. | 
+ **format** | **str**| Input format name You can get the list of supported formats at: /server/annotation/formats | [optional] 
 
 ### Return type
 
@@ -251,7 +251,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Task() # Task |
+body = swagger_client.Task() # Task | 
 
 try:
     # Method creates a new task in a database without any attached images and videos
@@ -265,7 +265,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Task**](Task.md)|  |
+ **body** | [**Task**](Task.md)|  | 
 
 ### Return type
 
@@ -301,7 +301,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Data() # Data |
+body = swagger_client.Data() # Data | 
 id = 56 # int | A unique integer value identifying this task.
 
 try:
@@ -316,8 +316,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Data**](Data.md)|  |
- **id** | **int**| A unique integer value identifying this task. |
+ **body** | [**Data**](Data.md)|  | 
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -367,7 +367,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -420,10 +420,10 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
- **type** | **str**| Specifies the type of the requested data |
- **quality** | **str**| Specifies the quality level of the requested data, doesn&#x27;t matter for &#x27;preview&#x27; type |
- **number** | **float**| A unique number value identifying chunk or frame, doesn&#x27;t matter for &#x27;preview&#x27; type |
+ **id** | **int**| A unique integer value identifying this task. | 
+ **type** | **str**| Specifies the type of the requested data | 
+ **quality** | **str**| Specifies the quality level of the requested data, doesn&#x27;t matter for &#x27;preview&#x27; type | 
+ **number** | **float**| A unique number value identifying chunk or frame, doesn&#x27;t matter for &#x27;preview&#x27; type | 
 
 ### Return type
 
@@ -475,10 +475,10 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
- **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats |
- **filename** | **str**| Desired output file name | [optional]
- **action** | **str**| Used to start downloading process after annotation file had been created | [optional]
+ **id** | **int**| A unique integer value identifying this task. | 
+ **format** | **str**| Desired output format name You can get the list of supported formats at: /server/annotation/formats | 
+ **filename** | **str**| Desired output file name | [optional] 
+ **action** | **str**| Used to start downloading process after annotation file had been created | [optional] 
 
 ### Return type
 
@@ -527,7 +527,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -577,7 +577,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -636,16 +636,16 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **search** | **str**| A search term. | [optional]
- **id** | **float**| A unique number value identifying this task | [optional]
- **name** | **str**| Find all tasks where name contains a parameter value | [optional]
- **owner** | **str**| Find all tasks where owner name contains a parameter value | [optional]
- **mode** | **str**| Find all tasks with a specific mode | [optional]
- **status** | **str**| Find all tasks with a specific status | [optional]
- **assignee** | **str**| Find all tasks where assignee name contains a parameter value | [optional]
- **ordering** | **str**| Which field to use when ordering the results. | [optional]
- **page** | **int**| A page number within the paginated result set. | [optional]
- **page_size** | **int**| Number of results to return per page. | [optional]
+ **search** | **str**| A search term. | [optional] 
+ **id** | **float**| A unique number value identifying this task | [optional] 
+ **name** | **str**| Find all tasks where name contains a parameter value | [optional] 
+ **owner** | **str**| Find all tasks where owner name contains a parameter value | [optional] 
+ **mode** | **str**| Find all tasks with a specific mode | [optional] 
+ **status** | **str**| Find all tasks with a specific status | [optional] 
+ **assignee** | **str**| Find all tasks where assignee name contains a parameter value | [optional] 
+ **ordering** | **str**| Which field to use when ordering the results. | [optional] 
+ **page** | **int**| A page number within the paginated result set. | [optional] 
+ **page_size** | **int**| Number of results to return per page. | [optional] 
 
 ### Return type
 
@@ -681,7 +681,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Task() # Task |
+body = swagger_client.Task() # Task | 
 id = 56 # int | A unique integer value identifying this task.
 
 try:
@@ -696,8 +696,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Task**](Task.md)|  |
- **id** | **int**| A unique integer value identifying this task. |
+ **body** | [**Task**](Task.md)|  | 
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -747,7 +747,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -797,7 +797,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this task. |
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -833,7 +833,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.TasksApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Task() # Task |
+body = swagger_client.Task() # Task | 
 id = 56 # int | A unique integer value identifying this task.
 
 try:
@@ -848,8 +848,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Task**](Task.md)|  |
- **id** | **int**| A unique integer value identifying this task. |
+ **body** | [**Task**](Task.md)|  | 
+ **id** | **int**| A unique integer value identifying this task. | 
 
 ### Return type
 
@@ -865,3 +865,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

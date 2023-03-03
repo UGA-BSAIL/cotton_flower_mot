@@ -41,7 +41,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this issue. |
+ **id** | **int**| A unique integer value identifying this issue. | 
 
 ### Return type
 
@@ -90,7 +90,7 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **id** | **int**| A unique integer value identifying this issue. |
+ **id** | **int**| A unique integer value identifying this issue. | 
 
 ### Return type
 
@@ -126,7 +126,7 @@ configuration.password = 'YOUR_PASSWORD'
 
 # create an instance of the API class
 api_instance = swagger_client.IssuesApi(swagger_client.ApiClient(configuration))
-body = swagger_client.Issue() # Issue |
+body = swagger_client.Issue() # Issue | 
 id = 56 # int | A unique integer value identifying this issue.
 
 try:
@@ -141,8 +141,8 @@ except ApiException as e:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **body** | [**Issue**](Issue.md)|  |
- **id** | **int**| A unique integer value identifying this issue. |
+ **body** | [**Issue**](Issue.md)|  | 
+ **id** | **int**| A unique integer value identifying this issue. | 
 
 ### Return type
 
@@ -158,3 +158,4 @@ Name | Type | Description  | Notes
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
