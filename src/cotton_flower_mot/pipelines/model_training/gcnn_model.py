@@ -7,11 +7,11 @@ from functools import partial
 from typing import Tuple
 
 import keras.backend
+import numpy as np
 import tensorflow as tf
+from keras import layers
 from loguru import logger
 from spektral.utils.convolution import line_graph
-from keras import layers
-import numpy as np
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
@@ -21,19 +21,14 @@ from .graph_utils import (
     gcn_filter,
     make_complete_bipartite_adjacency_matrices,
 )
-from .layers import (
-    AssociationLayer,
-    BnActConv,
-    ResidualCensNet,
-    RoiPooling,
-)
+from .layers import AssociationLayer, BnActConv, ResidualCensNet, RoiPooling
+from .models_common import make_tracking_inputs
 from .similarity_utils import (
     aspect_ratio_penalty,
     compute_ious,
     cosine_similarity,
     distance_penalty,
 )
-from .models_common import make_tracking_inputs
 
 
 def _build_edge_mlp(
@@ -235,13 +230,12 @@ def _build_gnn(
     node_features = layers.BatchNormalization()(node_features)
     edge_features = layers.BatchNormalization()(edge_features)
 
-    l2 = keras.regularizers.L2(0.01)
+    l2 = partial(keras.regularizers.L2, 0.01)
     regularizers = dict(
-        kernel_regularizer=l2,
-        node_regularizer=l2,
-        edge_regularizer=l2,
-        bias_regularizer=l2,
-        activity_regularizer=l2
+        kernel_regularizer=l2(),
+        node_regularizer=l2(),
+        edge_regularizer=l2(),
+        bias_regularizer=l2(),
     )
     nodes1_1, edges1_1 = ResidualCensNet(
         config.num_node_features,
@@ -250,9 +244,7 @@ def _build_gnn(
         **regularizers,
     )((node_features, graph_structure, edge_features))
 
-    edges1_1 = keras.backend.print_tensor(
-        edges1_1, summarize=-1
-    )
+    edges1_1 = keras.backend.print_tensor(edges1_1, summarize=-1)
     nodes1_1 = tf.debugging.assert_all_finite(nodes1_1, "nodes1_1")
     edges1_1 = tf.debugging.assert_all_finite(edges1_1, "edges1_1")
 
