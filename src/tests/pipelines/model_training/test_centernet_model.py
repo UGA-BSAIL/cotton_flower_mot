@@ -88,7 +88,7 @@ def test_save_model_smoke(faker: Faker, tmp_path: Path) -> None:
     # Arrange.
     # Create the model.
     config = faker.model_config(detection_input_shape=(540, 960, 3))
-    model = centernet_model.build_detection_model(config)
+    _, model = centernet_model.build_detection_model(config)
 
     save_path = tmp_path / "test_model.h5"
 

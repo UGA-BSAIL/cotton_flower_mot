@@ -9,14 +9,17 @@ import tensorflow as tf
 from faker import Faker
 
 from src.cotton_flower_mot.pipelines.model_training import combined_model
+from src.cotton_flower_mot.pipelines.model_training.centernet_model import (
+    build_detection_model,
+)
+from src.cotton_flower_mot.pipelines.model_training.gcnn_model import (
+    build_tracking_model,
+)
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "is_training", [True, False], ids=["training", "inference"]
-)
-def test_build_combined_model_smoke(faker: Faker, is_training: bool) -> None:
+def test_build_combined_model_smoke(faker: Faker) -> None:
     """
     Tests that we can build and use the combined model.
 
@@ -39,14 +42,21 @@ def test_build_combined_model_smoke(faker: Faker, is_training: bool) -> None:
     config = faker.model_config(detection_input_shape=detection_shape)
 
     # Act.
+    feature_extractor, detection_model = build_detection_model(config)
+    tracking_model = build_tracking_model(
+        config, feature_extractor=feature_extractor
+    )
     model = combined_model.build_combined_model(
-        config, is_training=is_training
+        config, detector=detection_model, tracker=tracking_model
     )
 
     # Test the model.
-    model_inputs = [current_frames, previous_frames, tracklet_geometry]
-    if is_training:
-        model_inputs.append(detection_geometry)
+    model_inputs = [
+        current_frames,
+        previous_frames,
+        detection_geometry,
+        tracklet_geometry,
+    ]
     heatmap, dense_geometry, bboxes, sinkhorn, assignment = model(model_inputs)
 
     # Assert.
@@ -66,9 +76,6 @@ def test_build_combined_model_smoke(faker: Faker, is_training: bool) -> None:
     # Make sure the association matrices are the expected size.
     row_sizes = tracklet_geometry.row_lengths().numpy()
     col_sizes = detection_geometry.row_lengths().numpy()
-    if not is_training:
-        # In this case, we instead used the detections from the model.
-        col_sizes = bboxes.row_lengths().numpy()
     expected_lengths = row_sizes * col_sizes
     np.testing.assert_array_equal(
         sinkhorn.row_lengths().numpy(), expected_lengths

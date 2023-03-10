@@ -98,11 +98,6 @@ def test_inputs_and_targets_from_dataset_smoke(
 
     # Make sure we have the right inputs and targets.
     expected_inputs = set(ModelInputs)
-    # Remove inputs used for dynamic configuration of the model.
-    expected_inputs -= {
-        ModelInputs.USE_GT_DETECTIONS,
-        ModelInputs.CONFIDENCE_THRESHOLD,
-    }
     expected_targets = set(ModelTargets)
     if not include_frame:
         # We won't have a frame input in this case.
