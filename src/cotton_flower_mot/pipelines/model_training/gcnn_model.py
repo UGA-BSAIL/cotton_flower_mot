@@ -244,7 +244,6 @@ def _build_gnn(
         **regularizers,
     )((node_features, graph_structure, edge_features))
 
-    edges1_1 = keras.backend.print_tensor(edges1_1, summarize=-1)
     nodes1_1 = tf.debugging.assert_all_finite(nodes1_1, "nodes1_1")
     edges1_1 = tf.debugging.assert_all_finite(edges1_1, "edges1_1")
 
