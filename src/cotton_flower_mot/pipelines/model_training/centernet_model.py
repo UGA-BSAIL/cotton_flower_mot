@@ -59,8 +59,6 @@ def _build_decoder(
         256,
         1,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(UpSampling2D()(x))
     x = BatchNormalization()(x)
@@ -72,8 +70,6 @@ def _build_decoder(
         256,
         3,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(x)
     x = BatchNormalization()(x)
@@ -83,8 +79,6 @@ def _build_decoder(
         128,
         1,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(UpSampling2D()(scale3_merged))
     x = BatchNormalization()(x)
@@ -95,8 +89,6 @@ def _build_decoder(
         128,
         3,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(x)
     x = BatchNormalization()(x)
@@ -106,8 +98,6 @@ def _build_decoder(
         64,
         1,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(UpSampling2D()(scale2_merged))
     x = BatchNormalization()(x)
@@ -118,8 +108,6 @@ def _build_decoder(
         64,
         3,
         padding="same",
-        use_bias=False,
-        kernel_initializer="he_normal",
         kernel_regularizer=l2(5e-4),
     )(x)
     x = BatchNormalization()(x)

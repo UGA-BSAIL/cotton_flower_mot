@@ -1,5 +1,5 @@
 # Batch size to use for training.
-batch_size: 32
+batch_size: 128
 # Batch size to use for training RotNet
 rot_net_batch_size: 8
 # Batch size to use for training colorization.
