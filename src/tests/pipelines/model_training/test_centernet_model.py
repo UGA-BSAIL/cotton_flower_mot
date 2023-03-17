@@ -94,9 +94,9 @@ def test_save_model_smoke(faker: Faker, tmp_path: Path) -> None:
 
     # Act.
     # Save and load the model.
-    model.save(save_path, save_format="h5")
+    model.save(save_path, save_format="h5", include_optimizer=False)
     loaded_model = tf.keras.models.load_model(
-        save_path, custom_objects=CUSTOM_LAYERS
+        save_path, custom_objects=CUSTOM_LAYERS, compile=False
     )
 
     # Assert.
