@@ -67,6 +67,30 @@ def set_check_numerics(enable: bool) -> None:
         tf.debugging.disable_check_numerics()
 
 
+def bound_numerics(features: tf.Tensor) -> tf.Tensor:
+    """
+    Enforces numeric limits, by replacing NaNs with zeros, and bounding
+    infinite values to near the maximum and minimum float values.
+
+    Args:
+        features: The features to check.
+
+    Returns:
+        The bounded features.
+
+    """
+    if tf.reduce_any(
+        tf.logical_or(tf.math.is_nan(features), tf.math.is_inf(features))
+    ):
+        logger.warning("Tensor {} has NaN or infinite values.", features.name)
+
+    dtype = features.dtype
+    features = tf.clip_by_value(features, dtype.min * 0.9, dtype.max * 0.9)
+    features = tf.where(tf.math.is_nan(features), tf.zeros_like(features))
+
+    return features
+
+
 def set_mixed_precision(enable: bool) -> None:
     """
     Sets whether to enable mixed-precision training.

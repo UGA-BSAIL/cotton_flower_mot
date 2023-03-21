@@ -5,6 +5,7 @@ Utilities for computing similarity metrics.
 
 import math
 from typing import Callable, Tuple
+from ..training_utils import bound_numerics
 
 import tensorflow as tf
 
@@ -235,18 +236,8 @@ def cosine_similarity(features1: tf.Tensor, features2: tf.Tensor) -> tf.Tensor:
     original_dtype = features1.dtype
     features1 = tf.cast(features1, tf.float32)
     features2 = tf.cast(features2, tf.float32)
-    features1 = tf.clip_by_value(
-        features1, original_dtype.min, original_dtype.max
-    )
-    features2 = tf.clip_by_value(
-        features2, original_dtype.min, original_dtype.max
-    )
-    features1 = tf.where(
-        tf.math.is_nan(features1), tf.zeros_like(features1), features1
-    )
-    features2 = tf.where(
-        tf.math.is_nan(features2), tf.zeros_like(features2), features2
-    )
+    features1 = bound_numerics(features1)
+    features2 = bound_numerics(features2)
 
     feature_dot = tf.reduce_sum(features1 * features2, axis=-1)
     feature1_mag = tf.norm(features1, axis=-1)

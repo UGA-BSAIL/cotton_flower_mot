@@ -6,11 +6,9 @@ https://arxiv.org/pdf/2010.00067.pdf
 from functools import partial
 from typing import Tuple
 
-import keras.backend
 import numpy as np
 import tensorflow as tf
 from keras import layers
-from loguru import logger
 from spektral.utils.convolution import line_graph
 
 from ..config import ModelConfig
@@ -29,6 +27,7 @@ from .similarity_utils import (
     cosine_similarity,
     distance_penalty,
 )
+from ..training_utils import bound_numerics
 
 
 def _build_edge_mlp(
@@ -220,32 +219,17 @@ def _build_gnn(
         `[batch_size, n_nodes, n_gcn_channels]`.
 
     """
-    node_features = tf.debugging.assert_all_finite(
-        node_features, "node_features"
-    )
-    edge_features = tf.debugging.assert_all_finite(
-        edge_features, "edge_features"
-    )
+    node_features = bound_numerics(node_features)
+    edge_features = bound_numerics(edge_features)
 
     node_features = layers.BatchNormalization()(node_features)
     edge_features = layers.BatchNormalization()(edge_features)
 
-    l2 = partial(keras.regularizers.L2, 0.01)
-    regularizers = dict(
-        kernel_regularizer=l2(),
-        node_regularizer=l2(),
-        edge_regularizer=l2(),
-        bias_regularizer=l2(),
-    )
     nodes1_1, edges1_1 = ResidualCensNet(
         config.num_node_features,
         config.num_edge_features,
         activation="relu",
-        **regularizers,
     )((node_features, graph_structure, edge_features))
-
-    nodes1_1 = tf.debugging.assert_all_finite(nodes1_1, "nodes1_1")
-    edges1_1 = tf.debugging.assert_all_finite(edges1_1, "edges1_1")
 
     nodes1_1 = layers.BatchNormalization()(nodes1_1)
     edges1_1 = layers.BatchNormalization()(edges1_1)
@@ -253,7 +237,6 @@ def _build_gnn(
         config.num_node_features,
         config.num_edge_features,
         activation="relu",
-        **regularizers,
     )((nodes1_1, graph_structure, edges1_1))
 
     return nodes1_2
@@ -513,9 +496,7 @@ def extract_interaction_features(
         appearance_features=(detections_app_features, tracklets_app_features),
         config=config,
     )
-    edge_features = tf.debugging.assert_all_finite(
-        edge_features, "edge_features"
-    )
+    edge_features = bound_numerics(edge_features)
 
     # Create the adjacency matrix and build the GCN.
     num_detections = detections_geometry.row_lengths()
@@ -542,15 +523,7 @@ def extract_interaction_features(
         edge_features=edge_features,
         config=config,
     )
-
-    # Limit the range on the interaction features. Otherwise, I tend to get
-    # issues with infinite values.
-    final_node_features = tf.clip_by_value(final_node_features, -100, 100)
-    final_node_features = tf.where(
-        tf.math.is_nan(final_node_features),
-        tf.zeros_like(final_node_features),
-        final_node_features,
-    )
+    final_node_features = bound_numerics(final_node_features)
 
     # Split back into separate tracklets and detections.
     max_num_tracklets = tf.shape(tracklets_app_features)[1]
