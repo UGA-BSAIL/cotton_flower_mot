@@ -79,16 +79,38 @@ def bound_numerics(features: tf.Tensor) -> tf.Tensor:
         The bounded features.
 
     """
-    if tf.reduce_any(
-        tf.logical_or(tf.math.is_nan(features), tf.math.is_inf(features))
-    ):
-        logger.warning("Tensor {} has NaN or infinite values.", features.name)
 
-    dtype = features.dtype
-    features = tf.clip_by_value(features, dtype.min * 0.9, dtype.max * 0.9)
-    features = tf.where(tf.math.is_nan(features), tf.zeros_like(features))
+    def _do_bound_numerics(_features: tf.Tensor) -> tf.Tensor:
+        numeric_problems = tf.reduce_any(
+            tf.logical_or(tf.math.is_nan(_features), tf.math.is_inf(_features))
+        )
+        checked_numerics = tf.cond(
+            numeric_problems,
+            lambda: tf.print(
+                "Tensor",
+                _features.name,
+                "has NaN or infinite values:",
+                _features,
+            ),
+            lambda: tf.constant(True),
+        )
 
-    return features
+        with tf.control_dependencies([checked_numerics]):
+            dtype = _features.dtype
+            _features = tf.clip_by_value(
+                _features, dtype.min * 0.9, dtype.max * 0.9
+            )
+            _features = tf.where(
+                tf.math.is_nan(_features), tf.zeros_like(_features), _features
+            )
+
+        return _features
+
+    if tf.keras.backend.is_keras_tensor(features):
+        # Wrap it in a layer.
+        return tf.keras.layers.Lambda(_do_bound_numerics)(features)
+    else:
+        return _do_bound_numerics(features)
 
 
 def set_mixed_precision(enable: bool) -> None:

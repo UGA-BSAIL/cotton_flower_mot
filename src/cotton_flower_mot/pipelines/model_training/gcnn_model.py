@@ -65,7 +65,7 @@ def _build_edge_mlp(
         tracklet_features = input_edge_features[:, :, :, 0, :]
         detection_features = input_edge_features[:, :, :, 1, :]
         fused_features = tf.concat(
-            (tracklet_features, detection_features), axis=3
+            (tracklet_features, detection_features), axis=3, name="edge_concat"
         )
 
         # We should know this statically.
@@ -443,7 +443,12 @@ def _extract_appearance_features(
         # static shape remains correct.
         inner_shape = _features.shape[-3:]
         num_flat_features = np.prod(inner_shape)
-        flat_features = tf.reshape(_features.values, (-1, num_flat_features))
+        flat_features = tf.reshape(
+            _features.values,
+            (-1, num_flat_features),
+            name="appearance_flatten",
+        )
+        flat_features = bound_numerics(flat_features)
         return _features.with_values(flat_features)
 
     features = layers.Lambda(_flatten_features)(feature_crops)
