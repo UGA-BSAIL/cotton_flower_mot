@@ -221,6 +221,7 @@ def _build_gnn(
     """
     node_features = bound_numerics(node_features)
     edge_features = bound_numerics(edge_features)
+    graph_structure = [bound_numerics(g) for g in graph_structure]
 
     node_features = layers.BatchNormalization()(node_features)
     edge_features = layers.BatchNormalization()(edge_features)
@@ -424,6 +425,8 @@ def _extract_appearance_features(
         dimension is ragged.
 
     """
+    image_features = bound_numerics(image_features)
+
     image_features_res = layers.Dropout(0.5)(image_features)
     image_features = BnActConv(128, 3, padding="same")(image_features)
     image_features = BnActConv(256, 1, padding="same")(image_features)
@@ -666,7 +669,9 @@ def build_tracking_model(
 
     # Extract appearance features for both frames.
     current_frame_features = feature_extractor(current_frames_input)
-    previous_frame_features = feature_extractor(previous_frames_input)
+    previous_frame_features = tf.stop_gradient(
+        feature_extractor(previous_frames_input)
+    )
 
     # Perform ROI pooling to extract appearance features for each object.
     detections_app_features = _extract_appearance_features(
