@@ -13,6 +13,7 @@ from spektral.utils.convolution import line_graph
 
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
+from ..training_utils import bound_numerics
 from .graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,
@@ -27,7 +28,6 @@ from .similarity_utils import (
     cosine_similarity,
     distance_penalty,
 )
-from ..training_utils import bound_numerics
 
 
 def _build_edge_mlp(
@@ -425,6 +425,7 @@ def _extract_appearance_features(
         dimension is ragged.
 
     """
+    image_features = tf.stop_gradient(image_features)
     image_features = bound_numerics(image_features)
 
     image_features_res = layers.Dropout(0.5)(image_features)

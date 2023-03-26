@@ -6,10 +6,11 @@ Builds pre-trained feature extractors that are useful for transfer learning.
 from typing import Tuple
 
 import tensorflow as tf
+from keras import layers
 from keras.applications.efficientnet_v2 import EfficientNetV2S
 from keras.applications.resnet_v2 import ResNet101V2
+
 from .future.convnext import ConvNeXtBase
-from keras import layers
 
 
 def convnext(
@@ -40,10 +41,9 @@ def convnext(
         weights="imagenet" if pretrained else None,
     )
 
-    for layer in model.layers[:-20]:
-        layer.trainable = False
-    for layer in model.layers[-20:]:
-        layer.trainable = True
+    if pretrained:
+        for layer in model.layers:
+            layer.trainable = False
 
     stage0 = model.get_layer(index=26).get_output_at(0)
     stage1 = model.get_layer(index=51).get_output_at(0)

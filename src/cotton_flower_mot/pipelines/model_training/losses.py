@@ -136,6 +136,7 @@ class HeatMapFocalLoss(tf.keras.losses.Loss):
         mean_loss = -tf.reduce_sum(pixel_wise_loss)
         # Normalize by the number of keypoints.
         num_points = tf.experimental.numpy.count_nonzero(positive_mask)
+        num_points = tf.stop_gradient(num_points)
         return tf.cond(
             num_points > 0,
             lambda: mean_loss / tf.cast(num_points, tf.float32),
@@ -213,6 +214,7 @@ class GeometryL1Loss(tf.keras.losses.Loss):
         point_mask = make_point_annotation_map(
             center_points, map_size=map_size
         )
+        point_mask = tf.stop_gradient(point_mask)
         point_mask = tf.cast(point_mask, tf.bool)
         sparse_l1 = tf.boolean_mask(dense_l1, point_mask)
 

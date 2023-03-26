@@ -6,7 +6,7 @@ Implementation of the CenterNet detector model.
 from typing import Optional, Tuple
 
 import tensorflow as tf
-from keras import layers
+from keras import backend, layers
 from keras.layers import (
     BatchNormalization,
     Concatenate,
