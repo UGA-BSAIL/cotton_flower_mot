@@ -77,6 +77,7 @@ class WeightedBinaryCrossEntropy(tf.keras.losses.Loss):
             positive_samples + negative_weights * negative_samples
         )
         num_samples = tf.cast(tf.size(positive_samples), tf.float32)
+        num_samples = tf.stop_gradient(num_samples)
         return -tf.reduce_sum(weighted_losses) / num_samples
 
 

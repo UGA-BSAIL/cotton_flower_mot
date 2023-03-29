@@ -425,7 +425,6 @@ def _extract_appearance_features(
         dimension is ragged.
 
     """
-    image_features = tf.stop_gradient(image_features)
     image_features = bound_numerics(image_features)
 
     image_features_res = layers.Dropout(0.5)(image_features)
