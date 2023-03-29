@@ -12,7 +12,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:a100:1
-#SBATCH --time=32:00:00
+#SBATCH --time=48:00:00
 #SBATCH --mem=64gb
 #SBATCH --mail-user=djpetti@gmail.com
 #SBATCH --mail-type=END,FAIL
