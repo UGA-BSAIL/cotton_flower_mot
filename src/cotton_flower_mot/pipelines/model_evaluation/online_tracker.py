@@ -355,6 +355,9 @@ class OnlineTracker:
         # Apply the model.
         logger.info("Applying model...")
         model_inputs = self.__create_model_inputs(frame=frame)
+        for name, model_input in model_inputs.items():
+            print(f"{name}: {model_input.shape}")
+        self.__model.summary(expand_nested=True)
         model_outputs = self.__model(model_inputs, training=False)
         assignment = model_outputs[4][0].numpy()
         detection_geometry = model_outputs[2][0].numpy()

@@ -20,7 +20,7 @@ num_heatmap_images: 3
 enable_numeric_checks: false
 # Whether to enable mixed precision training, which can save memory and run
 # faster on newer hardware.
-enable_mixed_precision: true
+enable_mixed_precision: false
 
 loss_params:
   # Alpha constant for heatmap focal loss.
