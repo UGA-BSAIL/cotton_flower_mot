@@ -138,18 +138,21 @@ class OnlineTracker:
 
     def __init__(
         self,
-        model: tf.keras.Model,
         *,
+        tracking_model: tf.keras.Model,
+        detection_model: tf.keras.Model,
         death_window: int = 10,
     ):
         """
         Args:
-            model: The model to use for tracking.
+            tracking_model: The model to use for tracking.
+            detection_model: The model to use for tracking.
             death_window: How many consecutive frames we have to not observe
                 a tracklet for before we consider it dead.
 
         """
-        self.__model = model
+        self.__tracking_model = tracking_model
+        self.__detection_model = detection_model
         self.__death_window = death_window
 
         # Stores the previous frame.
@@ -342,6 +345,27 @@ class OnlineTracker:
             ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
         }
 
+    @staticmethod
+    def __add_detection_input(
+        inputs: Dict[str, Union[tf.RaggedTensor, tf.Tensor]],
+        *,
+        detections: np.ndarray,
+    ) -> None:
+        """
+        Adds an input for the current detections to the model inputs.
+
+        Args:
+            inputs: The dictionary of model inputs.
+            detections: The detections to add.
+
+        """
+        # Expand dimensions since the model expects a batch.
+        detections = np.expand_dims(detections, axis=0)
+        # Convert to ragged tensors.
+        detections = tf.RaggedTensor.from_tensor(detections)
+
+        inputs[ModelInputs.DETECTION_GEOMETRY.value] = detections
+
     def __match_frame_pair(self, *, frame: np.ndarray) -> None:
         """
         Computes the assignment matrix between the current state and new
@@ -352,15 +376,29 @@ class OnlineTracker:
                 `[height, width, channels]`.
 
         """
-        # Apply the model.
-        logger.info("Applying model...")
+        # Apply the detector first.
+        logger.info("Applying detection model...")
         model_inputs = self.__create_model_inputs(frame=frame)
-        for name, model_input in model_inputs.items():
-            print(f"{name}: {model_input.shape}")
-        self.__model.summary(expand_nested=True)
-        model_outputs = self.__model(model_inputs, training=False)
-        assignment = model_outputs[4][0].numpy()
-        detection_geometry = model_outputs[2][0].numpy()
+
+        model_outputs = self.__detection_model(model_inputs, training=False)
+        detection_geometry = model_outputs[0].numpy()
+
+        if (
+            self.__previous_geometry.shape[0] == 0
+            or detection_geometry.shape[0] == 0
+        ):
+            # Don't bother running the tracker.
+            logger.debug("No tracks or no detections, not running tracker.")
+            assignment = np.empty((0,))
+        else:
+            logger.info("Applying tracking model...")
+            self.__add_detection_input(
+                model_inputs, detections=detection_geometry
+            )
+            model_outputs = self.__tracking_model(model_inputs, training=False)
+            assignment = model_outputs[4][0].numpy()
+            detection_geometry = model_outputs[2][0].numpy()
+
         logger.debug("Got {} detections.", len(detection_geometry))
         # Remove the confidence, since we don't use that for tracking.
         detection_geometry = detection_geometry[:, :4]

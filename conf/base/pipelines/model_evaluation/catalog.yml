@@ -1,5 +1,9 @@
-# Model used for inference.
-inference_model:
+# Models used for inference.
+inference_tracking_model:
+  type: MemoryDataSet
+  copy_mode: assign
+
+inference_detection_model:
   type: MemoryDataSet
   copy_mode: assign
 

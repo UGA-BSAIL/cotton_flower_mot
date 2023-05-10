@@ -3,7 +3,7 @@ Handles the details of inference with the GCNNMatch tracker system.
 """
 
 
-from typing import Any
+from typing import Any, Tuple, Dict
 
 import keras
 import tensorflow as tf
@@ -16,7 +16,7 @@ from ..model_training.models_common import (
     apply_tracker,
     make_tracking_inputs,
 )
-from ..model_training.ragged_utils import ragged_map_fn
+from ..model_training.layers import CUSTOM_LAYERS
 
 
 def _filter_detections(
@@ -68,9 +68,34 @@ def _filter_detections(
     return layers.Lambda(_do_nms, name="detections_nms")(detections)
 
 
+def _config_to_float32(config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Converts a configuration dictionary to use float32 instead of mixed
+    precision.
+
+    Args:
+        config: The configuration dictionary to convert.
+
+    Returns:
+        The converted dictionary.
+
+    """
+    config = config.copy()
+
+    if "dtype" in config:
+        # Set it directly.
+        config["dtype"] = "float32"
+    if "layers" in config:
+        # Otherwise, it's nested.
+        for child_layer in config["layers"]:
+            child_layer["config"] = _config_to_float32(child_layer["config"])
+
+    return config
+
+
 def build_inference_model(
     training_model: keras.Model, *, config: ModelConfig, **kwargs: Any
-) -> keras.Model:
+) -> Tuple[keras.Model, keras.Model]:
     """
     Constructs a specialized model that can be used for inference. This
     differs from the training model in that:
@@ -85,16 +110,33 @@ def build_inference_model(
         **kwargs: Will be forwarded to `_filter_detections`.
 
     Returns:
-        The model that it created.
+        The full tracking model, as well as the detection-only model.
 
     """
     logger.debug("Building inference model...")
+
+    # Re-create the model in case we saved in mixed precision and want
+    # to infer with float32.
+    def _clone_layer(layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
+        # Ensure that it uses float32.
+        layer_config = _config_to_float32(layer.get_config())
+
+        layer_copy = layer.__class__.from_config(layer_config)
+        # Set the weights.
+        layer_copy.set_weights(layer.get_weights())
+
+        return layer_copy
+
+    with tf.keras.utils.custom_object_scope(CUSTOM_LAYERS):
+        training_model = tf.keras.models.clone_model(
+            training_model, clone_function=_clone_layer
+        )
 
     (
         current_frames_input,
         last_frames_input,
         tracklet_geometry_input,
-        _,
+        detection_geometry_input,
     ) = make_tracking_inputs(config=config)
 
     # Extract the individual detection and tracking models.
@@ -115,15 +157,28 @@ def build_inference_model(
         current_frames=current_frames_input,
         previous_frames=last_frames_input,
         tracklet_geometry=tracklet_geometry_input,
-        detection_geometry=detections,
+        detection_geometry=detection_geometry_input,
     )
 
-    return keras.Model(
+    tracking_model = keras.Model(
         inputs=[
             current_frames_input,
             last_frames_input,
             tracklet_geometry_input,
+            detection_geometry_input,
         ],
         outputs=[heatmap, dense_geometry, detections, sinkhorn, assignment],
         name="end_to_end_inference",
     )
+    detection_model = keras.Model(
+        inputs=[current_frames_input],
+        outputs=[detections],
+        name="detector_inference",
+    )
+    return tracking_model, detection_model
+
+
+class InferenceModel:
+    """
+    Represents an end-to-end model that can be used for inference.
+    """

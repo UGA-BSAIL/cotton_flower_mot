@@ -18,14 +18,16 @@ from .tracking_video_maker import draw_tracks
 
 def compute_tracks_for_clip(
     *,
-    model: tf.keras.Model,
+    tracking_model: tf.keras.Model,
+    detection_model: tf.keras.Model,
     clip_dataset: tf.data.Dataset,
 ) -> Dict[int, List[Dict[str, Any]]]:
     """
     Computes the tracks for a given sequence of clips.
 
     Args:
-        model: The model to use for track computation.
+        tracking_model: The model to use for track computation.
+        detection_model: The model to use for detection.
         clip_dataset: The dataset containing detections for each frame in the
             clip.
 
@@ -52,7 +54,9 @@ def compute_tracks_for_clip(
             if tracker is not None:
                 tracks_from_clips[current_sequence_id] = tracker.tracks
             current_sequence_id = sequence_id
-            tracker = OnlineTracker(model)
+            tracker = OnlineTracker(
+                tracking_model=tracking_model, detection_model=detection_model
+            )
 
         tracker.process_frame(
             frame=inputs[ModelInputs.DETECTIONS_FRAME.value].numpy(),

@@ -22,13 +22,14 @@ def create_pipeline(**kwargs):
                     confidence_threshold="params:conf_threshold",
                     nms_iou_threshold="params:nms_iou_threshold",
                 ),
-                "inference_model",
+                ["inference_tracking_model", "inference_detection_model"],
             ),
             # Compute online tracks.
             node(
                 compute_tracks_for_clip,
                 dict(
-                    model="inference_model",
+                    tracking_model="inference_tracking_model",
+                    detection_model="inference_detection_model",
                     clip_dataset="testing_data_clips",
                 ),
                 "testing_tracks",
@@ -36,7 +37,8 @@ def create_pipeline(**kwargs):
             node(
                 compute_tracks_for_clip,
                 dict(
-                    model="inference_model",
+                    tracking_model="inference_tracking_model",
+                    detection_model="inference_detection_model",
                     clip_dataset="validation_data_clips",
                 ),
                 "validation_tracks",
