@@ -61,7 +61,7 @@ def _filter_detections(
             _single_frame_nms,
             detections_,
             fn_output_signature=tf.RaggedTensorSpec(
-                shape=[None, 5], dtype=tf.float32, ragged_rank=0
+                shape=[None, 5], dtype=detections_.dtype, ragged_rank=0
             ),
         )
 
@@ -149,7 +149,7 @@ def build_inference_model(
     )
     detections = _filter_detections(detections, **kwargs)
     # Ignore the confidence for the detections.
-    detections = detections[:, :, :4]
+    detections = tf.cast(detections[:, :, :4], tf.float32)
 
     # Apply the tracker using the detections.
     sinkhorn, assignment = apply_tracker(

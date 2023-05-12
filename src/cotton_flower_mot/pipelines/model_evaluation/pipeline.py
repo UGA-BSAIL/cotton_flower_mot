@@ -4,7 +4,11 @@ Model evaluation pipeline.
 
 from kedro.pipeline import Pipeline, node
 
-from .nodes import compute_counts, compute_tracks_for_clip, make_track_videos
+from .nodes import (
+    compute_counts,
+    compute_tracks_for_clip,
+    make_track_videos,
+)
 from .inference import build_inference_model
 from ..training_utils import set_mixed_precision
 

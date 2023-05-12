@@ -3,12 +3,13 @@ Nodes for model evaluation pipeline.
 """
 
 
-from typing import Dict, Iterable, List, Any
+from typing import Dict, Callable, Iterable, List, Any
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from loguru import logger
+from functools import partial
 
 from ..schemas import ModelInputs
 from ..schemas import ObjectTrackingFeatures as Otf
@@ -123,7 +124,7 @@ def make_track_videos(
     *,
     tracks_from_clips: Dict[int, List[Dict[str, Any]]],
     clip_dataset: tf.data.Dataset,
-) -> Iterable[Iterable[np.ndarray]]:
+) -> Dict[str, Callable[[], Iterable[np.ndarray]]]:
     """
     Creates track videos for all the tracks in a clip.
 
@@ -141,18 +142,28 @@ def make_track_videos(
     # Remove the targets and only keep the inputs.
     clip_dataset = clip_dataset.map(lambda i, _: i)
 
-    for sequence_id, tracks in tracks_from_clips.items():
+    def _draw_tracks(
+        sequence_id_: int, tracks_: List[Dict[str, Any]]
+    ) -> Iterable[np.ndarray]:
         # Deserialize the tracks.
-        tracks = [Track.from_dict(t) for t in tracks]
+        tracks_ = [Track.from_dict(t) for t in tracks_]
 
         logger.info(
-            "Generating tracking video for sequence {}...", sequence_id
+            "Generating tracking video for sequence {}...", sequence_id_
         )
 
         # Filter the data to only this sequence.
         single_clip = clip_dataset.filter(
             lambda inputs: inputs[ModelInputs.SEQUENCE_ID.value][0]
-            == sequence_id
+            == sequence_id_
         )
 
-        yield draw_tracks(single_clip, tracks=tracks)
+        return draw_tracks(single_clip, tracks=tracks_)
+
+    partitions = {}
+    for sequence_id, tracks in tracks_from_clips.items():
+        partitions[f"sequence_{sequence_id}"] = partial(
+            _draw_tracks, sequence_id, tracks
+        )
+
+    return partitions

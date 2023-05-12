@@ -56,6 +56,8 @@ class MultiFileDataSet(AbstractVersionedDataSet):
 
         # The internal datasets that we use for saving and loading.
         self.__datasets = []
+        # Default base path to use.
+        self.__default_base_path = self._get_save_path()
 
     def __create_dataset(
         self, index: int, *, base_path: Path
@@ -116,7 +118,7 @@ class MultiFileDataSet(AbstractVersionedDataSet):
         yield from self.__datasets
 
         if base_path is None:
-            base_path = self._get_save_path()
+            base_path = self.__default_base_path
 
         # At this point, we need to start adding new ones.
         while True:
