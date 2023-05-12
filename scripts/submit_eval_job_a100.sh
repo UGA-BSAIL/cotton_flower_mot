@@ -7,7 +7,7 @@
 # `poetry install`.
 
 #SBATCH --partition=gpu
-#SBATCH -J cotton_mot_model_train
+#SBATCH -J cotton_mot_model_eval
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -16,8 +16,8 @@
 #SBATCH --mem=64gb
 #SBATCH --mail-user=djpetti@gmail.com
 #SBATCH --mail-type=END,FAIL
-#SBATCH --output=cotton_mot_model_train.%j.out    # Standard output log
-#SBATCH --error=cotton_mot_model_train.%j.err     # Standard error log
+#SBATCH --output=cotton_mot_model_eval.%j.out    # Standard output log
+#SBATCH --error=cotton_mot_model_eval.%j.err     # Standard error log
 
 set -e
 

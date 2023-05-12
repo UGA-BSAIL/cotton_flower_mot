@@ -54,6 +54,7 @@ def create_pipeline(**_):
                     max_saturation="params:max_saturation",
                     flip="params:flip",
                     max_bbox_jitter="params:bbox_jitter_fraction",
+                    false_positive_rate="params:false_positive_rate",
                 ),
                 "data_augmentation_config",
             ),

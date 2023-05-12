@@ -56,7 +56,9 @@ def compute_tracks_for_clip(
                 tracks_from_clips[current_sequence_id] = tracker.tracks
             current_sequence_id = sequence_id
             tracker = OnlineTracker(
-                tracking_model=tracking_model, detection_model=detection_model
+                tracking_model=tracking_model,
+                detection_model=detection_model,
+                death_window=3,
             )
 
         tracker.process_frame(
