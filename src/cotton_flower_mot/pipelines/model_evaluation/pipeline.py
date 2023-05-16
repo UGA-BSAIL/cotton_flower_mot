@@ -48,22 +48,22 @@ def create_pipeline(**kwargs):
                 "validation_tracks",
             ),
             # Create count reports.
-            node(
-                compute_counts,
-                dict(
-                    tracks_from_clips="testing_tracks",
-                    annotations="annotations_pandas",
-                ),
-                "count_report_test",
-            ),
-            node(
-                compute_counts,
-                dict(
-                    tracks_from_clips="validation_tracks",
-                    annotations="annotations_pandas",
-                ),
-                "count_report_valid",
-            ),
+            # node(
+            #     compute_counts,
+            #     dict(
+            #         tracks_from_clips="testing_tracks",
+            #         annotations="annotations_pandas",
+            #     ),
+            #     "count_report_test",
+            # ),
+            # node(
+            #     compute_counts,
+            #     dict(
+            #         tracks_from_clips="validation_tracks",
+            #         annotations="annotations_pandas",
+            #     ),
+            #     "count_report_valid",
+            # ),
             # Create tracking videos.
             node(
                 make_track_videos,

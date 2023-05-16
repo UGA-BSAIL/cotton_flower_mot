@@ -58,7 +58,7 @@ def compute_tracks_for_clip(
             tracker = OnlineTracker(
                 tracking_model=tracking_model,
                 detection_model=detection_model,
-                death_window=3,
+                death_window=10,
             )
 
         tracker.process_frame(
