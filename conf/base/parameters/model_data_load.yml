@@ -1,6 +1,6 @@
 # Amount of random jitter to add to the bounding boxes when training, as
 # a fraction of the frame size.
-bbox_jitter_fraction: 0.015
+bbox_jitter_fraction: 0.02
 # Maximum amount to adjust brightness by.
 max_brightness_delta: 0.2
 # Minimum contrast factor to use.
@@ -15,13 +15,15 @@ min_saturation: 0.8
 max_saturation: 1.2
 # Whether to allow random flipping.
 flip: true
-# False positive rate to simulate for the tracker/
-false_positive_rate: 0.6
+# False positive rate to simulate for the tracker.
+false_positive_rate: 0.8
+# Rate at which to add duplicate bounding boxes for the tracker.
+duplicate_rate: 0.1
 
 # Number of batches to buffer when shuffling.
 shuffle_buffer_size: 5
 
 # Probability of dropping a particular example to use.
-drop_probability: 0.0
+drop_probability: 0.2
 # Number of times to repeat the dataset to make up for dropped examples.
 repeats: 1

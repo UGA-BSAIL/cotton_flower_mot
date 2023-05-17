@@ -182,6 +182,7 @@ class DataAugmentationConfig:
             fractions of a frame.
         false_positive_rate: The (simulated) false-positive rate to use for
             tracking.
+        duplicate_rate: Rate at which to duplicate bounding boxes.
 
         flip: Whether to allow horizontal and vertical flipping.
     """
@@ -197,6 +198,7 @@ class DataAugmentationConfig:
 
     max_bbox_jitter: float = 0.0
     false_positive_rate: float = 0.0
+    duplicate_rate: float = 0.0
 
     flip: bool = False
 
@@ -329,6 +331,32 @@ def _add_bbox_jitter(
     return tf.clip_by_value(jittered_coords, 0.0, 1.0)
 
 
+def _add_duplicate_bboxes(bbox_coords: tf.Tensor, *, rate: float) -> tf.Tensor:
+    """
+    Simulates the kind of duplicate bounding boxes that might result from an
+    NMS failure.
+
+    Args:
+        bbox_coords: The bounding box coordinates. Should have the shape
+            `[N, 4]`, where each row takes the form
+            `[min_y, min_x, max_y, max_x]`, in pixels.
+        rate: The rate at which to add duplicates.
+
+    Returns:
+        The same bounding boxes, with any duplicates appended.
+
+    """
+    # Determine whether to add duplicates.
+    num_boxes = tf.shape(bbox_coords)[0]
+    add_duplicate = tf.less(tf.random.uniform((num_boxes,)), rate)
+
+    # Generate duplicates.
+    duplicates = _add_bbox_jitter(bbox_coords, max_fractional_change=0.05)
+    duplicates = tf.boolean_mask(duplicates, add_duplicate)
+
+    return tf.concat((bbox_coords, duplicates), axis=0)
+
+
 def _add_random_bboxes(
     bbox_coords: tf.Tensor,
     *,
@@ -344,8 +372,7 @@ def _add_random_bboxes(
         rate: The false-positive rate we would like to simulate.
 
     Returns:
-        The same bounding boxes, with any false positives appended, and the
-        modified Sinkhorn matrix.
+        The same bounding boxes, with any false positives appended.
 
     """
     # Determine number of false positives.
@@ -365,7 +392,8 @@ def _augment_with_false_positives(
     tracklets_bbox_coords: tf.Tensor,
     detections_bbox_coords: tf.Tensor,
     sinkhorn: tf.Tensor,
-    rate: float,
+    fp_rate: float,
+    duplicate_rate: float,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """
     Adds (simulated) false positives to the input data for tracking. This can
@@ -380,7 +408,9 @@ def _augment_with_false_positives(
         sinkhorn: The ground-truth sinkhorn matrix. Will be modified with any
             false positives. Should have a shape of
             `[num_tracklets, num_detections]`.
-        rate: The false-positive rate we would like to simulate.
+        fp_rate: The false-positive rate we would like to simulate.
+        duplicate_rate: The rate at which we want to add duplicate bounding
+            boxes.
 
     Returns:
         The tracklet bounding boxes, the detection bounding boxes, and the
@@ -389,10 +419,18 @@ def _augment_with_false_positives(
     """
     # Add random bounding boxes.
     tracklets_bbox_coords = _add_random_bboxes(
-        tracklets_bbox_coords, rate=rate
+        tracklets_bbox_coords, rate=fp_rate
     )
     detections_bbox_coords = _add_random_bboxes(
-        detections_bbox_coords, rate=rate
+        detections_bbox_coords, rate=fp_rate
+    )
+
+    # Add duplicate bounding boxes.
+    tracklets_bbox_coords = _add_duplicate_bboxes(
+        tracklets_bbox_coords, rate=duplicate_rate
+    )
+    detections_bbox_coords = _add_duplicate_bboxes(
+        detections_bbox_coords, rate=duplicate_rate
     )
 
     # Pad the Sinkhorn matrix to reflect the false positives.
@@ -402,7 +440,7 @@ def _augment_with_false_positives(
             tf.shape(detections_bbox_coords)[0],
         )
     )
-    needed_padding = tf.shape(sinkhorn) - padded_size
+    needed_padding = padded_size - tf.shape(sinkhorn)
     sinkhorn = tf.pad(
         sinkhorn, ((0, needed_padding[0]), (0, needed_padding[1]))
     )
@@ -938,7 +976,8 @@ def _load_pair_features(
             tracklets_bbox_coords=tracklet_geometry[:, :4],
             detections_bbox_coords=detection_geometry[:, :4],
             sinkhorn=sinkhorn,
-            rate=augmentation_config.false_positive_rate,
+            fp_rate=augmentation_config.false_positive_rate,
+            duplicate_rate=augmentation_config.duplicate_rate
         )
 
         # The sinkhorn matrix produced by the model is flattened.

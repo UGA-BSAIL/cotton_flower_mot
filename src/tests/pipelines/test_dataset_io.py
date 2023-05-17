@@ -46,6 +46,7 @@ Number of elements that are in the test dataset.
             max_saturation=1.1,
             max_bbox_jitter=0.01,
             false_positive_rate=0.1,
+            duplicate_rate=0.1,
         ),
     ),
     ids=["no_augmentation", "standard_augmentation"],
@@ -154,10 +155,20 @@ def test_inputs_and_targets_from_dataset_smoke(
     assert len(sinkhorn_shape) == 2
     assert sinkhorn_shape[0] == expected_batch_size
     # Sinkhorn matrix should have an entry for each detection/tracklet pair.
-    assert (
-        sinkhorn_shape[1]
-        == detection_geometry_shape[1] * tracklet_geometry_shape[1]
-    )
+    if (
+        data_augmentation.duplicate_rate == 0
+        and data_augmentation.false_positive_rate == 0
+    ):
+        assert (
+            sinkhorn_shape[1]
+            == detection_geometry_shape[1] * tracklet_geometry_shape[1]
+        )
+    else:
+        # We might have extra entries due to FPs.
+        assert (
+            sinkhorn_shape[1]
+            <= detection_geometry_shape[1] * tracklet_geometry_shape[1]
+        )
 
     # Hard assignment matrix should be equivalent to the Sinkhorn matrix.
     sinkhorn = targets[ModelTargets.SINKHORN.value].numpy()
