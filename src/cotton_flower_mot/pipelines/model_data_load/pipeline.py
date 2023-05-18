@@ -54,7 +54,10 @@ def create_pipeline(**_):
                     max_saturation="params:max_saturation",
                     flip="params:flip",
                     max_bbox_jitter="params:bbox_jitter_fraction",
-                    false_positive_rate="params:false_positive_rate",
+                    tracklet_false_positive_rate="params"
+                    ":tracklet_false_positive_rate",
+                    detection_false_positive_rate="params"
+                    ":detection_false_positive_rate",
                     duplicate_rate="params:duplicate_rate",
                 ),
                 "data_augmentation_config",

@@ -180,8 +180,10 @@ class DataAugmentationConfig:
 
         max_bbox_jitter: Maximum amount of bounding box jitter to add, in
             fractions of a frame.
-        false_positive_rate: The (simulated) false-positive rate to use for
-            tracking.
+        detection_false_positive_rate: The (simulated) false-positive rate to
+            use for the detections.
+        tracklet_false_positive_rate: The (simulated) false-positive rate to
+            use for the tracklets.
         duplicate_rate: Rate at which to duplicate bounding boxes.
 
         flip: Whether to allow horizontal and vertical flipping.
@@ -197,7 +199,8 @@ class DataAugmentationConfig:
     max_saturation: Optional[float] = None
 
     max_bbox_jitter: float = 0.0
-    false_positive_rate: float = 0.0
+    tracklet_false_positive_rate: float = 0.0
+    detection_false_positive_rate: float = 0.0
     duplicate_rate: float = 0.0
 
     flip: bool = False
@@ -392,7 +395,8 @@ def _augment_with_false_positives(
     tracklets_bbox_coords: tf.Tensor,
     detections_bbox_coords: tf.Tensor,
     sinkhorn: tf.Tensor,
-    fp_rate: float,
+    tracklet_fp_rate: float,
+    detection_fp_rate: float,
     duplicate_rate: float,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """
@@ -408,7 +412,10 @@ def _augment_with_false_positives(
         sinkhorn: The ground-truth sinkhorn matrix. Will be modified with any
             false positives. Should have a shape of
             `[num_tracklets, num_detections]`.
-        fp_rate: The false-positive rate we would like to simulate.
+        tracklet_fp_rate: The false-positive rate we would like to simulate
+            for the tracklets.
+        detection_fp_rate: The false-positive rate we would like to simulate
+            for the detections.
         duplicate_rate: The rate at which we want to add duplicate bounding
             boxes.
 
@@ -419,10 +426,10 @@ def _augment_with_false_positives(
     """
     # Add random bounding boxes.
     tracklets_bbox_coords = _add_random_bboxes(
-        tracklets_bbox_coords, rate=fp_rate
+        tracklets_bbox_coords, rate=tracklet_fp_rate
     )
     detections_bbox_coords = _add_random_bboxes(
-        detections_bbox_coords, rate=fp_rate
+        detections_bbox_coords, rate=detection_fp_rate
     )
 
     # Add duplicate bounding boxes.
@@ -976,7 +983,8 @@ def _load_pair_features(
             tracklets_bbox_coords=tracklet_geometry[:, :4],
             detections_bbox_coords=detection_geometry[:, :4],
             sinkhorn=sinkhorn,
-            fp_rate=augmentation_config.false_positive_rate,
+            tracklet_fp_rate=augmentation_config.tracklet_false_positive_rate,
+            detection_fp_rate=augmentation_config.detection_false_positive_rate,
             duplicate_rate=augmentation_config.duplicate_rate
         )
 

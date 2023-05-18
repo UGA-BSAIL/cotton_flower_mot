@@ -45,7 +45,8 @@ Number of elements that are in the test dataset.
             min_saturation=0.9,
             max_saturation=1.1,
             max_bbox_jitter=0.01,
-            false_positive_rate=0.1,
+            tracklet_false_positive_rate=1.0,
+            detection_false_positive_rate=0.1,
             duplicate_rate=0.1,
         ),
     ),
@@ -157,7 +158,7 @@ def test_inputs_and_targets_from_dataset_smoke(
     # Sinkhorn matrix should have an entry for each detection/tracklet pair.
     if (
         data_augmentation.duplicate_rate == 0
-        and data_augmentation.false_positive_rate == 0
+        and data_augmentation.detection_false_positive_rate == 0
     ):
         assert (
             sinkhorn_shape[1]
