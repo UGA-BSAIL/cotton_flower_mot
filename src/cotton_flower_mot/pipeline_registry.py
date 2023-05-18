@@ -57,6 +57,7 @@ def register_pipelines() -> Dict[str, Pipeline]:
 
     return {
         "__default__": eda_pipeline + training_pipeline,
+        "data_load": data_load_pipeline,
         "build_tfrecords": tfrecord_pipeline,
         "build_unannotated_tfrecords": unannotated_pipeline,
         "eda": eda_pipeline,

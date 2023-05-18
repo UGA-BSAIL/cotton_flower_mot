@@ -311,21 +311,20 @@ def _add_bbox_jitter(
     Args:
         bbox_coords: The bounding box coordinates. Should have the shape
             `[N, 4]`, where each row takes the form
-            `[min_y, min_x, max_y, max_x]`, in pixels.
+            `[center_x, center_y, width, height]`, in normalized coordinates.
         max_fractional_change: The maximum absolute amount that a coordinate
             can change, as a fraction of the original coordinate value.
     Returns:
         The bounding box coordinates with jitter.
     """
-    # The maximum change will be the same for the center x, center y,
-    # width and height dimensions.
-    max_fractional_change = tf.constant([max_fractional_change] * 4)
+    # Calculate the maximum change based on the coordinates.
+    coordinate_change = bbox_coords * tf.constant(max_fractional_change)
 
     # Generate random jitters.
     jitter_magnitude = tf.random.uniform(
         tf.shape(bbox_coords),
-        minval=-max_fractional_change,
-        maxval=max_fractional_change,
+        minval=-coordinate_change,
+        maxval=coordinate_change,
     )
 
     # Apply the jitters.
@@ -342,7 +341,7 @@ def _add_duplicate_bboxes(bbox_coords: tf.Tensor, *, rate: float) -> tf.Tensor:
     Args:
         bbox_coords: The bounding box coordinates. Should have the shape
             `[N, 4]`, where each row takes the form
-            `[min_y, min_x, max_y, max_x]`, in pixels.
+            `[center_x, center_y, width, height]`, in normalized coordinates.
         rate: The rate at which to add duplicates.
 
     Returns:
@@ -354,7 +353,7 @@ def _add_duplicate_bboxes(bbox_coords: tf.Tensor, *, rate: float) -> tf.Tensor:
     add_duplicate = tf.less(tf.random.uniform((num_boxes,)), rate)
 
     # Generate duplicates.
-    duplicates = _add_bbox_jitter(bbox_coords, max_fractional_change=0.05)
+    duplicates = _add_bbox_jitter(bbox_coords, max_fractional_change=0.5)
     duplicates = tf.boolean_mask(duplicates, add_duplicate)
 
     return tf.concat((bbox_coords, duplicates), axis=0)
@@ -371,7 +370,7 @@ def _add_random_bboxes(
     Args:
         bbox_coords: The bounding box coordinates. Should have the shape
             `[N, 4]`, where each row takes the form
-            `[min_y, min_x, max_y, max_x]`, in pixels.
+            `[center_x, center_y, width, height]`, in normalized coordinates.
         rate: The false-positive rate we would like to simulate.
 
     Returns:
@@ -382,11 +381,25 @@ def _add_random_bboxes(
     num_false_positives = tf.random.poisson((1,), rate, dtype=tf.int32)
 
     # Generate random bounding boxes.
-    fp_shape = tf.concat((num_false_positives, [4]), axis=0)
-    fp_boxes = tf.random.uniform(
+    fp_shape = tf.concat((num_false_positives, [2]), axis=0)
+    fp_centers = tf.random.uniform(
         fp_shape, minval=0.0, maxval=1.0, dtype=bbox_coords.dtype
     )
 
+    # Choose sizes that are similar to the sizes of existing bounding boxes.
+    average_size = tf.reduce_mean(bbox_coords[:, 2:])
+    # If we don't have any bounding boxes, just use a reasonable value for this.
+    average_size = tf.where(
+        tf.math.is_nan(average_size),
+        tf.ones_like(average_size) * 0.5,
+        average_size,
+    )
+    fp_sizes = tf.random.normal(
+        fp_shape, mean=average_size, stddev=average_size * 0.5
+    )
+    fp_sizes = tf.clip_by_value(fp_sizes, 0, 1.0)
+
+    fp_boxes = tf.concat((fp_centers, fp_sizes), axis=1)
     return tf.concat((bbox_coords, fp_boxes), axis=0)
 
 
@@ -985,7 +998,7 @@ def _load_pair_features(
             sinkhorn=sinkhorn,
             tracklet_fp_rate=augmentation_config.tracklet_false_positive_rate,
             detection_fp_rate=augmentation_config.detection_false_positive_rate,
-            duplicate_rate=augmentation_config.duplicate_rate
+            duplicate_rate=augmentation_config.duplicate_rate,
         )
 
         # The sinkhorn matrix produced by the model is flattened.
@@ -1373,7 +1386,9 @@ def _inputs_and_targets_from_dataset(
         single_image_features.window(2, shift=1, drop_remainder=True)
     )
     image_pairs = _filter_out_of_order(image_pairs)
-    pair_features = _load_pair_features(image_pairs)
+    pair_features = _load_pair_features(
+        image_pairs, augmentation_config=augmentation_config
+    )
 
     # Remove empty examples.
     if not include_empty:
