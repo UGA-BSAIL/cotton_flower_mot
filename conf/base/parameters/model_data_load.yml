@@ -14,15 +14,15 @@ min_saturation: 0.8
 # Maximum saturation factor to use.
 max_saturation: 1.2
 # Whether to allow random flipping.
-flip: true
+flip: false
 # False positive rate to simulate for the tracklets. This is much higher
 # than the detection rate in order to more accurately simulate how the online
 # tracking process operates.
-tracklet_false_positive_rate: 2.0
+tracklet_false_positive_rate: 0.2
 # False positive rate to simulate for the detections.
-detection_false_positive_rate: 0.8
+detection_false_positive_rate: 0.1
 # Rate at which to add duplicate bounding boxes for the tracker.
-duplicate_rate: 0.1
+duplicate_rate: 0.0
 
 # Number of batches to buffer when shuffling.
 shuffle_buffer_size: 5

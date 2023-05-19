@@ -366,7 +366,12 @@ class OnlineTracker:
 
         inputs[ModelInputs.DETECTION_GEOMETRY.value] = detections
 
-    def __match_frame_pair(self, *, frame: np.ndarray) -> None:
+    def __match_frame_pair(
+        self,
+        *,
+        frame: np.ndarray,
+        detection_geometry: Optional[np.ndarray] = None,
+    ) -> None:
         """
         Computes the assignment matrix between the current state and new
         detections, and updates the state.
@@ -374,14 +379,18 @@ class OnlineTracker:
         Args:
             frame: The current frame. Should be an array of shape
                 `[height, width, channels]`.
+            detection_geometry: Optional detections to use, of shape
+                `[num_boxes, 4]`. Otherwise, the detection model will be used.
 
         """
-        # Apply the detector first.
-        logger.info("Applying detection model...")
         model_inputs = self.__create_model_inputs(frame=frame)
-
-        model_outputs = self.__detection_model(model_inputs, training=False)
-        detection_geometry = model_outputs[0].numpy()
+        if detection_geometry is None:
+            # Apply the detector first.
+            logger.info("Applying detection model...")
+            model_outputs = self.__detection_model(
+                model_inputs, training=False
+            )
+            detection_geometry = model_outputs[0].numpy()
 
         if (
             self.__previous_geometry.shape[0] == 0
@@ -396,8 +405,7 @@ class OnlineTracker:
                 model_inputs, detections=detection_geometry
             )
             model_outputs = self.__tracking_model(model_inputs, training=False)
-            assignment = model_outputs[4][0].numpy()
-            detection_geometry = model_outputs[2][0].numpy()
+            assignment = model_outputs[1][0].numpy()
 
         logger.debug("Got {} detections.", len(detection_geometry))
         # Remove the confidence, since we don't use that for tracking.
@@ -410,7 +418,9 @@ class OnlineTracker:
         # Update the state.
         self.__update_saved_state(frame=frame, geometry=detection_geometry)
 
-    def process_frame(self, *, frame: np.ndarray) -> None:
+    def process_frame(
+        self, *, frame: np.ndarray, detections: Optional[np.ndarray] = None
+    ) -> None:
         """
         Use the tracker to process a new frame. It will detect objects in the
         new frame and update the current tracks.
@@ -418,10 +428,12 @@ class OnlineTracker:
         Args:
             frame: The original image frame from the video. Should be an
                 array of shape `[height, width, channels]`.
+            detections: Optionally, provide detections instead of using the
+                detector model. Should have shape `[num_boxes, 4]`.
 
         """
         if not self.__maybe_init_state(frame=frame):
-            self.__match_frame_pair(frame=frame)
+            self.__match_frame_pair(frame=frame, detection_geometry=detections)
 
         self.__frame_num += 1
 

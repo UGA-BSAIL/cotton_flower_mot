@@ -167,7 +167,7 @@ def build_inference_model(
             tracklet_geometry_input,
             detection_geometry_input,
         ],
-        outputs=[heatmap, dense_geometry, detections, sinkhorn, assignment],
+        outputs=[sinkhorn, assignment],
         name="end_to_end_inference",
     )
     detection_model = keras.Model(

@@ -96,6 +96,7 @@ def create_pipeline(**_):
                 load_clips,
                 dict(
                     raw_datasets="tfrecord_test",
+                    augmentation_config="data_augmentation_config",
                     config="model_config",
                 ),
                 "testing_data_clips",
@@ -104,6 +105,7 @@ def create_pipeline(**_):
                 load_clips,
                 dict(
                     raw_datasets="tfrecord_valid",
+                    augmentation_config="data_augmentation_config",
                     config="model_config",
                 ),
                 "validation_data_clips",
