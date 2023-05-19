@@ -15,8 +15,9 @@ min_saturation: 0.8
 max_saturation: 1.2
 # Whether to allow random flipping.
 flip: true
-# False positive rate to simulate for the tracklets. This is much higher in
-# to more accurately simulate how the online tracking process operates.
+# False positive rate to simulate for the tracklets. This is much higher
+# than the detection rate in order to more accurately simulate how the online
+# tracking process operates.
 tracklet_false_positive_rate: 2.0
 # False positive rate to simulate for the detections.
 detection_false_positive_rate: 0.8
@@ -26,7 +27,7 @@ duplicate_rate: 0.1
 # Number of batches to buffer when shuffling.
 shuffle_buffer_size: 5
 
+# Native number of examples in the dataset without frame dropping.
+num_dataset_examples: 7040
 # Probability of dropping a particular example to use.
 drop_probability: 0.2
-# Number of times to repeat the dataset to make up for dropped examples.
-repeats: 1

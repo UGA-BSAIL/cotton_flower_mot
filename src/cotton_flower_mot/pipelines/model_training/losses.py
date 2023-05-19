@@ -219,7 +219,13 @@ class GeometryL1Loss(tf.keras.losses.Loss):
         point_mask = tf.cast(point_mask, tf.bool)
         sparse_l1 = tf.boolean_mask(dense_l1, point_mask)
 
-        return tf.reduce_mean(sparse_l1)
+        # It's possible that we have no points here. In that case, the L1
+        # loss should be zero.
+        return tf.cond(
+            tf.size(sparse_l1) > 0,
+            lambda: tf.reduce_mean(sparse_l1),
+            lambda: 0.0,
+        )
 
     @classmethod
     def _batch_sparse_l1_loss(

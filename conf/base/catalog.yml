@@ -60,6 +60,11 @@ tfrecord_unannotated_all:
   type: MemoryDataSet
   copy_mode: assign
 
+# Intermediate TF Datasets without repeats.
+training_data_no_repeats:
+  type: MemoryDataSet
+  copy_mode: assign
+
 # Intermediate TF Datasets containing pre-processed data.
 training_data:
   type: MemoryDataSet

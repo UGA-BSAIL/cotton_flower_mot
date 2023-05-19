@@ -13,7 +13,7 @@ from ..dataset_io import (
     inputs_and_targets_from_datasets,
     rot_net_inputs_and_targets_from_dataset,
 )
-from .nodes import concat_datasets
+from .nodes import concat_datasets, fix_dataset_length
 
 
 def create_pipeline(**_):
@@ -38,7 +38,6 @@ def create_pipeline(**_):
         config="model_config",
         batch_size="params:batch_size",
         drop_probability="params:drop_probability",
-        repeats="params:repeats",
     )
 
     return Pipeline(
@@ -70,6 +69,15 @@ def create_pipeline(**_):
                     augmentation_config="data_augmentation_config",
                     shuffle_buffer_size="params:shuffle_buffer_size",
                     **loading_config
+                ),
+                "training_data_no_repeats",
+            ),
+            node(
+                fix_dataset_length,
+                dict(
+                    dataset="training_data_no_repeats",
+                    batch_size="params:batch_size",
+                    num_dataset_examples="params:num_dataset_examples",
                 ),
                 "training_data",
             ),
