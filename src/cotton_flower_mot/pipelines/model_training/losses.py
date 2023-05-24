@@ -53,6 +53,10 @@ class WeightedBinaryCrossEntropy(tf.keras.losses.Loss):
         y_true = self._flatten(y_true)
         y_pred = self._flatten(y_pred)
 
+        # Because of how Sinkhorn works, we could get some values > 1.
+        y_true = tf.minimum(1.0, y_true)
+        y_pred = tf.minimum(1.0, y_pred)
+
         # Calculate the fraction of samples that are positive.
         num_positive = tf.reduce_sum(y_true, axis=1)
         if type(y_true) == tf.RaggedTensor:

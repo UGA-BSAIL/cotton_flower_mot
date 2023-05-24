@@ -184,7 +184,21 @@ def construct_gt_sinkhorn_matrix(
         )
 
     # Convert booleans to floats.
-    return tf.cast(sinkhorn_matrix, tf.float32)
+    sinkhorn_matrix = tf.cast(sinkhorn_matrix, tf.float32)
+
+    # Add births/deaths.
+    births = 1.0 - tf.reduce_sum(sinkhorn_matrix, axis=0)
+    deaths = 1.0 - tf.reduce_sum(sinkhorn_matrix, axis=1)
+    max_objects = tf.cast(tf.reduce_max(tf.shape(sinkhorn_matrix)), tf.float32)
+    expanded_sinkhorn = tf.concat(
+        (sinkhorn_matrix, tf.expand_dims(births, 0)), axis=0
+    )
+    deaths = tf.concat((deaths, tf.expand_dims(max_objects, 0)), axis=0)
+    expanded_sinkhorn = tf.concat(
+        (expanded_sinkhorn, tf.expand_dims(deaths, 1)), axis=1
+    )
+
+    return expanded_sinkhorn
 
 
 def do_hard_assignment(
@@ -210,19 +224,60 @@ def do_hard_assignment(
         sinkhorn >= threshold, tf.ones_like(sinkhorn), tf.zeros_like(sinkhorn)
     )
 
+    # This implementation of the Hungarian algorithm can't handle
+    # births/deaths directly, so we have to pad with a bunch of "dummy"
+    # birth/death nodes so that it has one to match every possible track to.
+    num_tracklets = tf.shape(binarized)[0]
+    num_detections = tf.shape(binarized)[1]
+    binarized_padded = tf.pad(
+        binarized,
+        [(0, num_detections), (0, num_tracklets)],
+        constant_values=1.0,
+    )
+
     # Apply Hungarian matching.
     maximize_affinity = partial(optimize.linear_sum_assignment, maximize=True)
     row_indices, col_indices = tf.numpy_function(
-        maximize_affinity, [binarized], (tf.int64, tf.int64), name="hungarian"
+        maximize_affinity,
+        [binarized_padded],
+        (tf.int64, tf.int64),
+        name="hungarian",
     )
 
     # Create the assignment matrix.
     sparse_indices = tf.stack((row_indices, col_indices), axis=1)
     num_assignments = tf.shape(row_indices)[0]
     values = tf.ones((num_assignments,), dtype=tf.bool)
-    dense_shape = tf.cast(tf.shape(sinkhorn), tf.int64)
+    dense_shape = tf.cast(tf.shape(binarized_padded), tf.int64)
 
     sparse_assignment = tf.sparse.SparseTensor(
         sparse_indices, values, dense_shape
     )
-    return tf.sparse.to_dense(sparse_assignment)
+    return tf.sparse.to_dense(sparse_assignment)[
+        :num_tracklets, :num_detections
+    ]
+
+
+def add_births_and_deaths_to_assignment(
+    assignment: tf.Tensor,
+) -> tf.Tensor:
+    """
+    Adds a birth row and death column to an assignment matrix without them.
+
+    Args:
+        assignment: The assignment matrix, with shape
+          `[num_tracklets, num_detections]`
+
+    Returns:
+        The assignment matrix, with the added row and column.
+
+    """
+    births = tf.logical_not(tf.reduce_any(assignment, axis=0, keepdims=True))
+    deaths = tf.logical_not(tf.reduce_any(assignment, axis=1, keepdims=True))
+    # Add the bottom right corner.
+    births = tf.concat((births, tf.constant([[True]])), axis=1)
+
+    assignment_expanded = tf.concat((assignment, deaths), axis=1)
+    assignment_expanded = tf.concat((assignment_expanded, births), axis=0)
+
+    return assignment_expanded

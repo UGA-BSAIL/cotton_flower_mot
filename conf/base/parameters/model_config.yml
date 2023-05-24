@@ -21,7 +21,7 @@ num_node_features: 128
 # Number of edge features to use in the CensNet layers.
 num_edge_features: 128
 # Sinkhorn normalization Lambda value.
-sinkhorn_lambda: 10.0
+sinkhorn_lambda: 5.0
 # Number of reduction stages to include in the detection model.
 num_reduction_stages: 2
 # Sigma to use for density maps.

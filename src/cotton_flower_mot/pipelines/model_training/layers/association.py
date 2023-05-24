@@ -3,7 +3,11 @@ from typing import Any, Dict, Optional, Tuple
 
 import tensorflow as tf
 
-from ...assignment import do_hard_assignment, solve_optimal_transport
+from ...assignment import (
+    do_hard_assignment,
+    solve_optimal_transport,
+    add_births_and_deaths_to_assignment,
+)
 
 
 class AssociationLayer(tf.keras.layers.Layer):
@@ -65,7 +69,7 @@ class AssociationLayer(tf.keras.layers.Layer):
             The normalized optimal transport matrix, and the corresponding hard
             assignment matrix. These will be`RaggedTensor`s where the second
             dimension is ragged, so it will have the shape
-            `[batch_size, n_tracklets * n_detections]`.
+            `[batch_size, (n_tracklets + 1) * (n_detections + 1)]`.
 
         """
         affinity_scores, num_detections, num_tracklets = inputs
@@ -74,22 +78,24 @@ class AssociationLayer(tf.keras.layers.Layer):
             element: Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
         ) -> Tuple[tf.Tensor, tf.Tensor]:
             affinity_matrix, _num_detections, _num_tracklets = element
-            affinity_flat_length = tf.math.reduce_prod(
-                tf.shape(affinity_matrix)
+            # For the output, will add an extra row and column for
+            # births/deaths.
+            affinity_shape = tf.shape(affinity_matrix)
+            output_flat_length = tf.math.reduce_prod(
+                affinity_shape + tf.ones_like(affinity_shape)
             )
-            affinity_flat_length = tf.cast(affinity_flat_length, tf.int64)
+            output_flat_length = tf.cast(output_flat_length, tf.int64)
 
-            def _trim_and_flatten(association: tf.Tensor) -> tf.Tensor:
-                # Remove births/deaths row/column.
-                association = association[:-1, :-1]
+            def _pad_and_flatten(association: tf.Tensor) -> tf.Tensor:
                 # Flatten.
                 transport_flat = tf.reshape(association, (-1,))
                 # Re-pad so the outputs all have the same size.
+                ones = tf.constant(1, dtype=tf.int64)
                 padding = tf.stack(
                     (
                         0,
-                        affinity_flat_length
-                        - _num_tracklets * _num_detections,
+                        output_flat_length
+                        - (_num_tracklets + ones) * (_num_detections + ones),
                     )
                 )
                 return tf.pad(transport_flat, tf.expand_dims(padding, 0))
@@ -119,13 +125,14 @@ class AssociationLayer(tf.keras.layers.Layer):
             )
             # Remove extraneous batch dimension.
             transport = transport[0]
-            assignment = do_hard_assignment(transport)
+            assignment = do_hard_assignment(transport[:-1, :-1])
+            assignment = add_births_and_deaths_to_assignment(assignment)
 
-            return _trim_and_flatten(transport), _trim_and_flatten(assignment)
+            return _pad_and_flatten(transport), _pad_and_flatten(assignment)
 
         # Unfortunately, we can't have padding for the affinity scores, because
         # it affects the optimization. Therefore, this process has to be done
-        # with map_fn instead of vectorized.
+        # with map_fn instead of vectorized.gg
         sinkhorn_dense, assignment_dense = tf.map_fn(
             _normalize,
             (affinity_scores, num_detections, num_tracklets),

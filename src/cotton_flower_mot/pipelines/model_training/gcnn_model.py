@@ -186,7 +186,7 @@ def _build_affinity_mlp(
 
     # Apply the MLP. 1x1 convolution is an efficient way to apply the same MLP
     # to every detection/tracklet pair.
-    conv1_1 = BnActConv(128, 1, name="affinity_conv_1")(similarity_input)
+    conv1_1 = layers.Conv2D(128, 1, name="affinity_conv_1")(similarity_input)
     conv1_2 = BnActConv(128, 1, name="affinity_conv_2")(conv1_1)
     conv1_3 = BnActConv(1, 1, name="affinity_conv_3")(conv1_2)
 
