@@ -278,8 +278,10 @@ class OnlineTracker:
         num_tracklets = len(self.__previous_geometry)
         num_detections = len(detections)
         assignment_matrix = np.reshape(
-            assignment_matrix, (num_tracklets, num_detections)
+            assignment_matrix, (num_tracklets + 1, num_detections + 1)
         )
+        # Get rid of the births and deaths, since those are superfluous.
+        assignment_matrix = assignment_matrix[:-1, :-1]
         logger.debug(
             "Expanding assignment matrix to {}.", assignment_matrix.shape
         )
@@ -392,13 +394,14 @@ class OnlineTracker:
             )
             detection_geometry = model_outputs[0].numpy()
 
-        if (
-            self.__previous_geometry.shape[0] == 0
-            or detection_geometry.shape[0] == 0
-        ):
+        num_tracklets = self.__previous_geometry.shape[0]
+        num_detections = detection_geometry.shape[0]
+        if num_tracklets == 0 or num_detections == 0:
             # Don't bother running the tracker.
             logger.debug("No tracks or no detections, not running tracker.")
-            assignment = np.empty((0,))
+            assignment = np.ones(
+                (num_tracklets + 1, num_detections + 1), dtype=np.bool
+            )
         else:
             logger.info("Applying tracking model...")
             self.__add_detection_input(

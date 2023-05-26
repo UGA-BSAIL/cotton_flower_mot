@@ -63,9 +63,6 @@ def compute_tracks_for_clip(
 
         tracker.process_frame(
             frame=inputs[ModelInputs.DETECTIONS_FRAME.value].numpy(),
-            detections=inputs[ModelInputs.DETECTION_GEOMETRY.value].numpy()[
-                :, :4
-            ],
         )
     # Add the last one.
     tracks_from_clips[current_sequence_id] = tracker.tracks

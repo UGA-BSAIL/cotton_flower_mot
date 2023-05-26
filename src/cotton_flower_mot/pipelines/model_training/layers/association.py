@@ -73,6 +73,7 @@ class AssociationLayer(tf.keras.layers.Layer):
 
         """
         affinity_scores, num_detections, num_tracklets = inputs
+        one = tf.constant(1, dtype=tf.int64)
 
         def _normalize(
             element: Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
@@ -90,12 +91,11 @@ class AssociationLayer(tf.keras.layers.Layer):
                 # Flatten.
                 transport_flat = tf.reshape(association, (-1,))
                 # Re-pad so the outputs all have the same size.
-                ones = tf.constant(1, dtype=tf.int64)
                 padding = tf.stack(
                     (
                         0,
                         output_flat_length
-                        - (_num_tracklets + ones) * (_num_detections + ones),
+                        - (_num_tracklets + one) * (_num_detections + one),
                     )
                 )
                 return tf.pad(transport_flat, tf.expand_dims(padding, 0))
@@ -143,7 +143,7 @@ class AssociationLayer(tf.keras.layers.Layer):
         )
 
         # Convert to a ragged tensor.
-        row_lengths = num_detections * num_tracklets
+        row_lengths = (num_detections + one) * (num_tracklets + one)
         to_ragged = partial(tf.RaggedTensor.from_tensor, lengths=row_lengths)
         return to_ragged(sinkhorn_dense), to_ragged(assignment_dense)
 
