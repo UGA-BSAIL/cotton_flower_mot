@@ -5,6 +5,7 @@ Implementation of the Sinkhorn-Kopp algorithm in TensorFlow.
 from functools import partial
 from typing import Optional, Tuple, Union
 
+import numpy as np
 import tensorflow as tf
 from scipy import optimize
 
@@ -210,7 +211,7 @@ def do_hard_assignment(
 
     Args:
         sinkhorn: The sinkhorn matrix. Should have shape
-            `[n_tracklets, n_detections]`.
+            `[n_tracklets + 1, n_detections + 1]`.
         threshold: The threshold value to use. Anything above this will be
             treated as a one.
 
@@ -218,29 +219,37 @@ def do_hard_assignment(
         The hard assignment matrix.
 
     """
-    # Binarize the Sinkhorn matrix.
-    threshold = tf.constant(threshold, dtype=tf.float32)
-    binarized = tf.where(
-        sinkhorn >= threshold, tf.ones_like(sinkhorn), tf.zeros_like(sinkhorn)
-    )
+    num_tracklets = tf.shape(sinkhorn)[0] - 1
+    num_detections = tf.shape(sinkhorn)[1] - 1
 
-    # This implementation of the Hungarian algorithm can't handle
-    # births/deaths directly, so we have to pad with a bunch of "dummy"
-    # birth/death nodes so that it has one to match every possible track to.
-    num_tracklets = tf.shape(binarized)[0]
-    num_detections = tf.shape(binarized)[1]
-    binarized_padded = tf.pad(
-        binarized,
-        [(0, num_detections), (0, num_tracklets)],
-        constant_values=1.0,
-    )
+    def _hungarian(
+        _affinity: np.array,
+    ) -> Tuple[np.array, np.array, np.array]:
+        # This implementation of the Hungarian algorithm can't handle
+        # births/deaths directly, so we have to pad with a bunch of "dummy"
+        # birth/death nodes so that it has one to match every possible track
+        # and detection to.
+        _num_tracklets = _affinity.shape[0] - 1
+        _num_detections = _affinity.shape[1] - 1
+        affinity_padded = np.pad(
+            _affinity,
+            [
+                (0, max(_num_detections - 1, 0)),
+                (0, max(_num_tracklets - 1, 0)),
+            ],
+            mode="edge",
+        )
+
+        return (
+            np.array(affinity_padded.shape),
+        ) + optimize.linear_sum_assignment(affinity_padded, maximize=True)
 
     # Apply Hungarian matching.
-    maximize_affinity = partial(optimize.linear_sum_assignment, maximize=True)
-    row_indices, col_indices = tf.numpy_function(
-        maximize_affinity,
-        [binarized_padded],
-        (tf.int64, tf.int64),
+    padded_shape, row_indices, col_indices = tf.numpy_function(
+        _hungarian,
+        [sinkhorn],
+        (tf.int64, tf.int64, tf.int64),
+        stateful=False,
         name="hungarian",
     )
 
@@ -248,10 +257,9 @@ def do_hard_assignment(
     sparse_indices = tf.stack((row_indices, col_indices), axis=1)
     num_assignments = tf.shape(row_indices)[0]
     values = tf.ones((num_assignments,), dtype=tf.bool)
-    dense_shape = tf.cast(tf.shape(binarized_padded), tf.int64)
 
     sparse_assignment = tf.sparse.SparseTensor(
-        sparse_indices, values, dense_shape
+        sparse_indices, values, padded_shape
     )
     return tf.sparse.to_dense(sparse_assignment)[
         :num_tracklets, :num_detections

@@ -10,6 +10,7 @@ import tensorflow as tf
 from loguru import logger
 
 from ..schemas import ModelInputs
+from ..assignment import do_hard_assignment, add_births_and_deaths_to_assignment
 
 
 class Track:
@@ -261,13 +262,13 @@ class OnlineTracker:
                 self.__active_tracks.add(track)
 
     def __update_tracks(
-        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
+        self, *, sinkhorn_matrix: np.ndarray, detections: np.ndarray
     ) -> None:
         """
         Updates the current set of tracks based on the latest tracking result.
 
         Args:
-            assignment_matrix: The assignment matrix between the detections from
+            sinkhorn_matrix: The assignment matrix between the detections from
                 the previous frame and the current one. Should have a shape of
                 `[num_detections * num_tracklets]`.
             detections: The current detection bounding boxes. Should have
@@ -277,20 +278,23 @@ class OnlineTracker:
         # Un-flatten the assignment matrix.
         num_tracklets = len(self.__previous_geometry)
         num_detections = len(detections)
-        assignment_matrix = np.reshape(
-            assignment_matrix, (num_tracklets + 1, num_detections + 1)
+        sinkhorn_matrix = np.reshape(
+            sinkhorn_matrix, (num_tracklets + 1, num_detections + 1)
         )
-        # Get rid of the births and deaths, since those are superfluous.
-        assignment_matrix = assignment_matrix[:-1, :-1]
+        logger.debug(sinkhorn_matrix)
+
+        assignment = do_hard_assignment(sinkhorn_matrix).numpy()
+        logger.debug(assignment)
+
         logger.debug(
-            "Expanding assignment matrix to {}.", assignment_matrix.shape
+            "Expanding assignment matrix to {}.", assignment.shape
         )
 
         self.__update_active_tracks(
-            assignment_matrix=assignment_matrix, detections=detections
+            assignment_matrix=assignment, detections=detections
         )
         self.__add_new_tracks(
-            assignment_matrix=assignment_matrix, detections=detections
+            assignment_matrix=assignment, detections=detections
         )
 
     def __update_saved_state(
@@ -399,8 +403,8 @@ class OnlineTracker:
         if num_tracklets == 0 or num_detections == 0:
             # Don't bother running the tracker.
             logger.debug("No tracks or no detections, not running tracker.")
-            assignment = np.ones(
-                (num_tracklets + 1, num_detections + 1), dtype=np.bool
+            sinkhorn = np.ones(
+                (num_tracklets + 1, num_detections + 1), dtype=np.float
             )
         else:
             logger.info("Applying tracking model...")
@@ -408,7 +412,7 @@ class OnlineTracker:
                 model_inputs, detections=detection_geometry
             )
             model_outputs = self.__tracking_model(model_inputs, training=False)
-            assignment = model_outputs[1][0].numpy()
+            sinkhorn = model_outputs[0][0].numpy()
 
         logger.debug("Got {} detections.", len(detection_geometry))
         # Remove the confidence, since we don't use that for tracking.
@@ -416,7 +420,7 @@ class OnlineTracker:
 
         # Update the tracks.
         self.__update_tracks(
-            assignment_matrix=assignment, detections=detection_geometry
+            sinkhorn_matrix=sinkhorn, detections=detection_geometry
         )
         # Update the state.
         self.__update_saved_state(frame=frame, geometry=detection_geometry)

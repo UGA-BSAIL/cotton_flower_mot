@@ -125,7 +125,7 @@ class AssociationLayer(tf.keras.layers.Layer):
             )
             # Remove extraneous batch dimension.
             transport = transport[0]
-            assignment = do_hard_assignment(transport[:-1, :-1])
+            assignment = do_hard_assignment(transport)
             assignment = add_births_and_deaths_to_assignment(assignment)
 
             return _pad_and_flatten(transport), _pad_and_flatten(assignment)
