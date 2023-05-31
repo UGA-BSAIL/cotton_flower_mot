@@ -26,14 +26,17 @@ class AssociationLayer(tf.keras.layers.Layer):
         self._lambda = sinkhorn_lambda
 
     @staticmethod
-    def _compute_row_or_column_sum(length: tf.Tensor) -> tf.Tensor:
+    def _compute_row_or_column_sum(
+        length: tf.Tensor, *, other_dim_length: tf.Tensor
+    ) -> tf.Tensor:
         """
         For Sinkhorn normalization, we expect rows and columns to sum to one,
         except for the births/deaths row/column, which we expect to sum to their
-        own length.
+        length of the other dimension.
 
         Args:
             length: The length of the row or column.
+            other_dim_length: The length of the other dimension.
 
         Returns:
             The expected sums. This will have the form `[1, 1, ..., length]`.
@@ -43,7 +46,8 @@ class AssociationLayer(tf.keras.layers.Layer):
         sums = tf.ones(row_shape, dtype=tf.float32)
 
         # Add the last element.
-        return tf.concat((sums, tf.cast(row_shape, tf.float32)), axis=0)
+        last_element = tf.expand_dims(other_dim_length, axis=0)
+        return tf.concat((sums, tf.cast(last_element, tf.float32)), axis=0)
 
     def call(
         self,
@@ -107,8 +111,12 @@ class AssociationLayer(tf.keras.layers.Layer):
             # Add additional row and column for track births/deaths.
             affinity_expanded = tf.pad(affinity_un_padded, [[0, 1], [0, 1]])
 
-            row_sums = self._compute_row_or_column_sum(_num_tracklets)
-            column_sums = self._compute_row_or_column_sum(_num_detections)
+            row_sums = self._compute_row_or_column_sum(
+                _num_tracklets, other_dim_length=_num_detections
+            )
+            column_sums = self._compute_row_or_column_sum(
+                _num_detections, other_dim_length=_num_tracklets
+            )
 
             # Add fake batch dimension.
             affinity_expanded = tf.expand_dims(affinity_expanded, axis=0)

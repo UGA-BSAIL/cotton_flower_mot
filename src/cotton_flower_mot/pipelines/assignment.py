@@ -203,7 +203,7 @@ def construct_gt_sinkhorn_matrix(
 
 
 def do_hard_assignment(
-    sinkhorn: tf.Tensor, threshold: float = 0.5
+    sinkhorn: tf.Tensor
 ) -> tf.Tensor:
     """
     Converts the "soft" Sinkhorn assignment matrix into a hard one by using
@@ -212,8 +212,6 @@ def do_hard_assignment(
     Args:
         sinkhorn: The sinkhorn matrix. Should have shape
             `[n_tracklets + 1, n_detections + 1]`.
-        threshold: The threshold value to use. Anything above this will be
-            treated as a one.
 
     Returns:
         The hard assignment matrix.
