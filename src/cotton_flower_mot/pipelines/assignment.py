@@ -185,25 +185,11 @@ def construct_gt_sinkhorn_matrix(
         )
 
     # Convert booleans to floats.
-    sinkhorn_matrix = tf.cast(sinkhorn_matrix, tf.float32)
-
-    # Add births/deaths.
-    births = 1.0 - tf.reduce_sum(sinkhorn_matrix, axis=0)
-    deaths = 1.0 - tf.reduce_sum(sinkhorn_matrix, axis=1)
-    max_objects = tf.cast(tf.reduce_max(tf.shape(sinkhorn_matrix)), tf.float32)
-    expanded_sinkhorn = tf.concat(
-        (sinkhorn_matrix, tf.expand_dims(births, 0)), axis=0
-    )
-    deaths = tf.concat((deaths, tf.expand_dims(max_objects, 0)), axis=0)
-    expanded_sinkhorn = tf.concat(
-        (expanded_sinkhorn, tf.expand_dims(deaths, 1)), axis=1
-    )
-
-    return expanded_sinkhorn
+    return tf.cast(sinkhorn_matrix, tf.float32)
 
 
 def do_hard_assignment(
-    sinkhorn: tf.Tensor
+    sinkhorn: tf.Tensor, threshold: float = 0.5
 ) -> tf.Tensor:
     """
     Converts the "soft" Sinkhorn assignment matrix into a hard one by using
@@ -212,9 +198,10 @@ def do_hard_assignment(
     Args:
         sinkhorn: The sinkhorn matrix. Should have shape
             `[n_tracklets + 1, n_detections + 1]`.
+        threshold: Threshold to use when binarizing the assignment matrix.
 
     Returns:
-        The hard assignment matrix.
+        The hard assignment matrix, without births or deaths.
 
     """
     num_tracklets = tf.shape(sinkhorn)[0] - 1
@@ -243,9 +230,11 @@ def do_hard_assignment(
         ) + optimize.linear_sum_assignment(affinity_padded, maximize=True)
 
     # Apply Hungarian matching.
+    tf.print("Sinkhorn:", sinkhorn, summarize=-1)
+    binarized = tf.greater(sinkhorn, threshold)
     padded_shape, row_indices, col_indices = tf.numpy_function(
         _hungarian,
-        [sinkhorn],
+        [binarized],
         (tf.int64, tf.int64, tf.int64),
         stateful=False,
         name="hungarian",
@@ -264,26 +253,38 @@ def do_hard_assignment(
     ]
 
 
-def add_births_and_deaths_to_assignment(
+def add_births_and_deaths(
     assignment: tf.Tensor,
 ) -> tf.Tensor:
     """
-    Adds a birth row and death column to an assignment matrix without them.
+    Adds a birth row and death column to an assignment or sinkhorn matrix
+    without them.
 
     Args:
-        assignment: The assignment matrix, with shape
+        assignment: The assignment or sinkhorn matrix, with shape
           `[num_tracklets, num_detections]`
 
     Returns:
         The assignment matrix, with the added row and column.
 
     """
-    births = tf.logical_not(tf.reduce_any(assignment, axis=0, keepdims=True))
-    deaths = tf.logical_not(tf.reduce_any(assignment, axis=1, keepdims=True))
-    # Add the bottom right corner.
-    births = tf.concat((births, tf.constant([[True]])), axis=1)
+    original_dtype = assignment.dtype
+    # Convert to floats.
+    assignment = tf.cast(assignment, tf.float32)
 
-    assignment_expanded = tf.concat((assignment, deaths), axis=1)
-    assignment_expanded = tf.concat((assignment_expanded, births), axis=0)
+    # Add births/deaths.
+    births = 1.0 - tf.reduce_sum(assignment, axis=0)
+    deaths = 1.0 - tf.reduce_sum(assignment, axis=1)
 
-    return assignment_expanded
+    # Calculate the value in the bottom right corner.
+    num_tracklets = tf.shape(births)[0]
+    corner_value = tf.cast(num_tracklets, tf.float32) - tf.reduce_sum(births)
+    expanded_sinkhorn = tf.concat(
+        (assignment, tf.expand_dims(births, 0)), axis=0
+    )
+    deaths = tf.concat((deaths, tf.expand_dims(corner_value, 0)), axis=0)
+    expanded_sinkhorn = tf.concat(
+        (expanded_sinkhorn, tf.expand_dims(deaths, 1)), axis=1
+    )
+
+    return tf.cast(expanded_sinkhorn, original_dtype)

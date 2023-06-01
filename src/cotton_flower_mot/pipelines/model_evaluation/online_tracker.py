@@ -10,7 +10,7 @@ import tensorflow as tf
 from loguru import logger
 
 from ..schemas import ModelInputs
-from ..assignment import do_hard_assignment, add_births_and_deaths_to_assignment
+from ..assignment import do_hard_assignment, add_births_and_deaths
 
 
 class Track:

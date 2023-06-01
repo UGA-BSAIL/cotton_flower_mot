@@ -6,7 +6,7 @@ import tensorflow as tf
 from ...assignment import (
     do_hard_assignment,
     solve_optimal_transport,
-    add_births_and_deaths_to_assignment,
+    add_births_and_deaths,
 )
 
 
@@ -134,7 +134,7 @@ class AssociationLayer(tf.keras.layers.Layer):
             # Remove extraneous batch dimension.
             transport = transport[0]
             assignment = do_hard_assignment(transport)
-            assignment = add_births_and_deaths_to_assignment(assignment)
+            assignment = add_births_and_deaths(assignment)
 
             return _pad_and_flatten(transport), _pad_and_flatten(assignment)
 

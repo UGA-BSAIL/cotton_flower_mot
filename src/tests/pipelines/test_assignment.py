@@ -174,23 +174,49 @@ def test_construct_gt_sinkhorn_matrix(
 @pytest.mark.parametrize(
     ("sinkhorn", "expected_assignment"),
     [
-        (np.eye(3, dtype=np.float32), np.eye(3, dtype=np.bool)),
-        (np.eye(3, dtype=np.float32) + 0.1, np.eye(3, dtype=np.bool)),
         (
             np.array(
-                [[0.0, 0.1, 0.9], [0.02, 0.75, 0.05], [1.0, 0.0, 0.15]],
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 3]],
+                dtype=np.float32,
+            ),
+            np.eye(3, dtype=bool),
+        ),
+        (
+            np.array(
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 3]],
+                dtype=np.float32,
+            )
+            + 0.1,
+            np.eye(3, dtype=bool),
+        ),
+        (
+            np.array(
+                [
+                    [0.0, 0.1, 0.9, 0.0],
+                    [0.02, 0.75, 0.05, 0.0],
+                    [1.0, 0.0, 0.15, 0.0],
+                    [0.0, 0.0, 0.0, 3.0],
+                ],
                 dtype=np.float32,
             ),
             np.array(
-                [
-                    [False, False, True],
-                    [False, True, False],
-                    [True, False, False],
-                ],
+                [[0, 0, 1], [0, 1, 0], [1, 0, 0]],
+                dtype=bool,
             ),
         ),
+        (
+            np.array(
+                [
+                    [0.1, 0.0, 0.0, 0.9],
+                    [0.0, 0.9, 0.0, 0.1],
+                    [0.9, 0.1, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 2.0],
+                ]
+            ),
+            np.array([[0, 0, 0], [0, 1, 0], [1, 0, 0]], dtype=bool),
+        ),
     ],
-    ids=["obvious", "noisy1", "noisy2"],
+    ids=["obvious", "noisy1", "noisy2", "births_and_deaths"],
 )
 def test_do_hard_assignment(
     sinkhorn: np.ndarray, expected_assignment: np.ndarray
@@ -211,3 +237,58 @@ def test_do_hard_assignment(
 
     # Assert.
     np.testing.assert_array_equal(expected_assignment, got_assignment)
+
+
+@pytest.mark.parametrize(
+    ("sinkhorn", "expected_expanded"),
+    [
+        (
+            np.eye(3),
+            np.array(
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 3]],
+            ),
+        ),
+        (
+            np.array([[1, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 0]]),
+            np.array(
+                [
+                    [1, 0, 0, 0],
+                    [0, 0, 0, 1],
+                    [0, 1, 0, 0],
+                    [0, 0, 0, 1],
+                    [0, 0, 1, 2],
+                ]
+            ),
+        ),
+    ],
+    ids=["eye", "births_and_deaths"],
+)
+@pytest.mark.parametrize(
+    "input_dtype",
+    [np.float32, np.int32, bool],
+    ids=["float", "int", "bool"],
+)
+def test_add_births_and_deaths(
+    sinkhorn: np.array,
+    expected_expanded: np.array,
+    input_dtype: np.dtype,
+) -> None:
+    """
+    Tests that `add_births_and_deaths` works.
+
+    Args:
+        sinkhorn: The input sinkhorn or assignment matrix to test with.
+        expected_expanded: The corresponding output we expect.
+        input_dtype: The datatype of the input to use for testing.
+
+    """
+    # Arrange.
+    sinkhorn = sinkhorn.astype(input_dtype)
+    expected_expanded = expected_expanded.astype(input_dtype)
+    sinkhorn = tf.constant(sinkhorn)
+
+    # Act.
+    got_expanded = assignment.add_births_and_deaths(sinkhorn).numpy()
+
+    # Assert.
+    np.testing.assert_array_equal(expected_expanded, got_expanded)

@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from pydantic.dataclasses import dataclass
 
-from .assignment import construct_gt_sinkhorn_matrix
+from .assignment import construct_gt_sinkhorn_matrix, add_births_and_deaths
 from .color_utils import rgb_to_hcl
 from .config import ModelConfig
 from .heat_maps import make_object_heat_map
@@ -454,44 +454,16 @@ def _augment_with_false_positives(
     )
 
     # Add rows/columns to the sinkhorn matrix to reflect the false positives.
-    sinkhorn_no_births_deaths = sinkhorn[:-1, :-1]
     new_num_tracklets = tf.shape(tracklets_bbox_coords)[0]
     new_num_detections = tf.shape(detections_bbox_coords)[0]
     padded_size = tf.stack((new_num_tracklets, new_num_detections))
-    needed_padding = padded_size - tf.shape(sinkhorn_no_births_deaths)
+    needed_padding = padded_size - tf.shape(sinkhorn)
     sinkhorn_padded = tf.pad(
-        sinkhorn_no_births_deaths,
+        sinkhorn,
         ((0, needed_padding[0]), (0, needed_padding[1])),
     )
 
-    # Add the births and deaths rows and columns back.
-    births_row = sinkhorn[-1, :-1]
-    deaths_col = sinkhorn[:-1, -1]
-    # Any FPs we added are going to end up as ones here, since they should
-    # not be matched to any "real" tracks.
-    births_row_padded = tf.pad(
-        births_row,
-        [(0, needed_padding[1])],
-        constant_values=1.0,
-    )
-    deaths_col_padded = tf.pad(
-        deaths_col,
-        [(0, needed_padding[0])],
-        constant_values=1.0,
-    )
-    # Add the bottom right corner, which should remain the same.
-    deaths_col_padded = tf.concat(
-        (deaths_col_padded, tf.expand_dims(sinkhorn[-1, -1], 0)), axis=0
-    )
-    # Add back the births and deaths.
-    expanded_sinkhorn = tf.concat(
-        (sinkhorn_padded, tf.expand_dims(births_row_padded, 0)), axis=0
-    )
-    expanded_sinkhorn = tf.concat(
-        (expanded_sinkhorn, tf.expand_dims(deaths_col_padded, 1)), axis=1
-    )
-
-    return tracklets_bbox_coords, detections_bbox_coords, expanded_sinkhorn
+    return tracklets_bbox_coords, detections_bbox_coords, sinkhorn_padded
 
 
 def _augment_images(
@@ -1027,6 +999,8 @@ def _load_pair_features(
             duplicate_rate=augmentation_config.duplicate_rate,
         )
 
+        # Expand the sinkhorn matrix to add births and deaths.
+        sinkhorn = add_births_and_deaths(sinkhorn)
         # The sinkhorn matrix produced by the model is flattened.
         sinkhorn = tf.reshape(sinkhorn, (-1,))
         # Assignment target is the same as the sinkhorn matrix, but binarized.

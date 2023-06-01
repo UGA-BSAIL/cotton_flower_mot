@@ -31,6 +31,8 @@ def count_id_switches(
         The number of ID switches for each item in the batch.
 
     """
+    tf.print("true_assignment:", true_assignment[0], summarize=-1)
+    tf.print("pred_assignment:", pred_assignment[0], summarize=-1)
     switched = tf.math.logical_xor(true_assignment, pred_assignment)
     switched = tf.cast(switched, tf.int32)
     # Division by 2 is because every time the assignment changes, it results
