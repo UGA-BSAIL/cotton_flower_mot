@@ -78,6 +78,7 @@ def compute_counts(
     *,
     tracks_from_clips: Dict[int, List[Dict[str, Any]]],
     annotations: pd.DataFrame,
+    counting_line_params: Dict[str, Any],
 ) -> List:
     """
     Computes counts from the tracks and the overall counting accuracy.
@@ -85,6 +86,7 @@ def compute_counts(
     Args:
         tracks_from_clips: The extracted tracks from each clip.
         annotations: The raw annotations in Pandas form.
+        counting_line_params: Parameters describing the counting line to use.
 
     Returns:
         A report about the count accuracy that is meant to be saved to a
@@ -92,6 +94,8 @@ def compute_counts(
 
     """
     clip_reports = []
+    line_positions = counting_line_params["line_positions"]
+    sequences = counting_line_params["sequences"]
 
     # Set the index to the sequence ID to speed up filtering operations.
     annotations.set_index(
@@ -106,8 +110,16 @@ def compute_counts(
         clip_annotations = annotations.iloc[annotations.index == sequence_id]
         gt_count = len(clip_annotations[Otf.OBJECT_ID.value].unique())
 
-        # The predicted count is simply the number of tracks.
-        predicted_count = len(tracks)
+        # To determine the count, check for ones that cross the counting line.
+        predicted_count = 0
+        for track in tracks:
+            track_camera = sequences[sequence_id]
+            track_pos = line_positions[track_camera]
+            if track.crosses_line(
+                track_pos["pos"], horizontal=track_pos["horizontal"]
+            ):
+                predicted_count += 1
+
         count_error = gt_count - predicted_count
 
         clip_reports.append(

@@ -1,0 +1,38 @@
+# Positions of the lines for each camera.
+line_positions:
+  left:
+    horizontal: false
+    pos: 0.5
+  right:
+    horizontal: false
+    pos: 0.5
+  top:
+    horizontal: true
+    pos: 0.5
+
+sequences:
+  14:
+    # Which camera it's from.
+    camera: left
+  21:
+    camera: left
+  23:
+    camera: top
+  33:
+    camera: left
+  38:
+    camera: left
+  45:
+    camera: right
+  12:
+    camera: left
+  20:
+    camera: left
+  26:
+    camera: top
+  28:
+    camera: top
+  29:
+    camera: left
+  40:
+    camera: right

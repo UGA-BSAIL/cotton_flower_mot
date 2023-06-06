@@ -87,7 +87,7 @@ def bound_numerics(features: tf.Tensor) -> tf.Tensor:
         checked_numerics = tf.cond(
             numeric_problems,
             lambda: tf.print(
-                "Tensor has NaN or infinite values:",
+                f"Tensor {_features.name} has NaN or infinite values:",
                 _features,
             ),
             lambda: tf.constant(True),

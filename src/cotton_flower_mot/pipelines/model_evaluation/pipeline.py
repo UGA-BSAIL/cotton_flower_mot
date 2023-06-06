@@ -53,6 +53,7 @@ def create_pipeline(**kwargs):
             #     dict(
             #         tracks_from_clips="testing_tracks",
             #         annotations="annotations_pandas",
+            #         counting_line_params="counting_line_params",
             #     ),
             #     "count_report_test",
             # ),
@@ -61,6 +62,7 @@ def create_pipeline(**kwargs):
             #     dict(
             #         tracks_from_clips="validation_tracks",
             #         annotations="annotations_pandas",
+            #         counting_line_params="counting_line_params",
             #     ),
             #     "count_report_valid",
             # ),

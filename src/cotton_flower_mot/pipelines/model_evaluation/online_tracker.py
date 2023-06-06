@@ -96,6 +96,43 @@ class Track:
         """
         return self.__id
 
+    def crosses_line(self, line_pos: float, horizontal: bool = True) -> bool:
+        """
+        Determines whether this track crosses a horizontal line.
+
+        Args:
+            line_pos: The height (if horizontal) or width (if vertical) of
+                the line to check.
+            horizontal: If true, use a horizontal line. Otherwise,
+                use a vertical line.
+
+        Returns:
+            True if it crosses the line, false otherwise.
+
+        """
+        track_frames = list(self.__frames_to_detections.keys())
+        track_frames.sort()
+
+        was_before_line = None
+        for frame_num in track_frames:
+            box_center_x, box_center_y, _, _ = self.__frames_to_detections[
+                frame_num
+            ]
+
+            if horizontal:
+                is_before_line = box_center_y < line_pos
+            else:
+                is_before_line = box_center_x < line_pos
+
+            if was_before_line is None:
+                # No previous detection. Just save this and continue.
+                was_before_line = is_before_line
+            elif was_before_line != is_before_line:
+                # It crossed the line.
+                return True
+
+        return False
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Gets a dictionary representation of the track that can be easily
@@ -286,9 +323,7 @@ class OnlineTracker:
         assignment = do_hard_assignment(sinkhorn_matrix).numpy()
         logger.debug(assignment)
 
-        logger.debug(
-            "Expanding assignment matrix to {}.", assignment.shape
-        )
+        logger.debug("Expanding assignment matrix to {}.", assignment.shape)
 
         self.__update_active_tracks(
             assignment_matrix=assignment, detections=detections

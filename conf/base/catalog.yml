@@ -1,3 +1,8 @@
+# Configuration to use for counting lines.
+counting_line_params:
+  type: yaml.YAMLDataSet
+  filepath: data/01_raw/counting_line_params.yml
+
 # Cleaned and wrangled annotations.
 annotations_pandas:
   type: pandas.ParquetDataSet
