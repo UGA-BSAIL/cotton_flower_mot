@@ -1192,7 +1192,7 @@ def _drop_mask(
         width: The width of the mask to create.
 
     Yields:
-        Boolean array of length _MASK_WIDTH where each element indicates
+        Boolean array where each element indicates
         whether a value should be kept.
 
     """

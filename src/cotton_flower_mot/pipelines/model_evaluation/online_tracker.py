@@ -439,7 +439,7 @@ class OnlineTracker:
             # Don't bother running the tracker.
             logger.debug("No tracks or no detections, not running tracker.")
             sinkhorn = np.ones(
-                (num_tracklets + 1, num_detections + 1), dtype=np.float
+                (num_tracklets + 1, num_detections + 1), dtype=float
             )
         else:
             logger.info("Applying tracking model...")

@@ -3,10 +3,9 @@ Nodes for model evaluation pipeline.
 """
 
 
-from typing import Dict, Callable, Iterable, List, Any
+from typing import Dict, Callable, Iterable, List, Any, Tuple
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from loguru import logger
 from functools import partial
@@ -74,10 +73,30 @@ def compute_tracks_for_clip(
     return tracks_from_clips
 
 
+def _get_line_for_sequence(
+    counting_line_params: Dict[str, Any], sequence_id: int
+) -> Tuple[float, bool]:
+    """
+    Gets the counting line for a particular sequence.
+
+    Args:
+        counting_line_params: The loaded counting line parameters.
+        sequence_id: The ID of the sequence to get the line for.
+
+    Returns:
+        The line position, and whether it is horizontal or not.
+
+    """
+    line_positions = counting_line_params["line_positions"]
+    sequences = counting_line_params["sequences"]
+    track_camera = sequences[sequence_id]["camera"]
+    track_pos = line_positions[track_camera]
+    return track_pos["pos"], track_pos["horizontal"]
+
+
 def compute_counts(
     *,
     tracks_from_clips: Dict[int, List[Dict[str, Any]]],
-    annotations: pd.DataFrame,
     counting_line_params: Dict[str, Any],
 ) -> List:
     """
@@ -85,7 +104,6 @@ def compute_counts(
 
     Args:
         tracks_from_clips: The extracted tracks from each clip.
-        annotations: The raw annotations in Pandas form.
         counting_line_params: Parameters describing the counting line to use.
 
     Returns:
@@ -94,40 +112,23 @@ def compute_counts(
 
     """
     clip_reports = []
-    line_positions = counting_line_params["line_positions"]
-    sequences = counting_line_params["sequences"]
-
-    # Set the index to the sequence ID to speed up filtering operations.
-    annotations.set_index(
-        Otf.IMAGE_SEQUENCE_ID.value, inplace=True, drop=False
-    )
-
     for sequence_id, tracks in tracks_from_clips.items():
         # Deserialize the tracks.
         tracks = [Track.from_dict(t) for t in tracks]
 
-        # Calculate the ground-truth count.
-        clip_annotations = annotations.iloc[annotations.index == sequence_id]
-        gt_count = len(clip_annotations[Otf.OBJECT_ID.value].unique())
-
         # To determine the count, check for ones that cross the counting line.
         predicted_count = 0
         for track in tracks:
-            track_camera = sequences[sequence_id]
-            track_pos = line_positions[track_camera]
-            if track.crosses_line(
-                track_pos["pos"], horizontal=track_pos["horizontal"]
-            ):
+            line_pos, horizontal = _get_line_for_sequence(
+                counting_line_params, sequence_id
+            )
+            if track.crosses_line(line_pos, horizontal=horizontal):
                 predicted_count += 1
-
-        count_error = gt_count - predicted_count
 
         clip_reports.append(
             dict(
                 sequence_id=sequence_id,
-                gt_count=gt_count,
                 predicted_count=predicted_count,
-                count_error=count_error,
             )
         )
 
@@ -138,6 +139,7 @@ def make_track_videos(
     *,
     tracks_from_clips: Dict[int, List[Dict[str, Any]]],
     clip_dataset: tf.data.Dataset,
+    counting_line_params: Dict[str, Any],
 ) -> Dict[str, Callable[[], Iterable[np.ndarray]]]:
     """
     Creates track videos for all the tracks in a clip.
@@ -146,6 +148,7 @@ def make_track_videos(
         tracks_from_clips: The tracks that were found for each clip.
         clip_dataset: A dataset containing the input data for all the clips,
             sequentially.
+        counting_line_params: Parameters describing the counting line to use.
 
     Yields:
         Each video, represented as an iterable of frames.
@@ -172,7 +175,15 @@ def make_track_videos(
             == sequence_id_
         )
 
-        return draw_tracks(single_clip, tracks=tracks_)
+        line_pos, horizontal = _get_line_for_sequence(
+            counting_line_params, sequence_id_
+        )
+        return draw_tracks(
+            single_clip,
+            tracks=tracks_,
+            line_pos=line_pos,
+            line_horizontal=horizontal,
+        )
 
     partitions = {}
     for sequence_id, tracks in tracks_from_clips.items():

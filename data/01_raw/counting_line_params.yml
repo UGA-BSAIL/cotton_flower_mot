@@ -2,7 +2,7 @@
 line_positions:
   left:
     horizontal: false
-    pos: 0.5
+    pos: 0.25
   right:
     horizontal: false
     pos: 0.5

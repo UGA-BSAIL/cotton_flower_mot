@@ -122,11 +122,45 @@ def _draw_bounding_box(
     )
 
 
+def _draw_counting_line(
+    artist: ImageDraw.ImageDraw,
+    *,
+    pos: float,
+    horizontal: bool,
+    frame_width: int,
+    frame_height: int,
+) -> None:
+    """
+    Draws the counting line.
+
+    Args:
+        artist: The `ImageDraw` object to draw with.
+        pos: The position of the line in the frame.
+        horizontal: Whether the line is horizontal.
+        frame_width: The width of the frame.
+        frame_height: The height of the frame.
+
+    """
+    # Calculate the line coordinates.
+    if horizontal:
+        # Horizontal line
+        pos_px = pos * frame_height
+        line_coords = [(0, pos_px), (frame_width, pos_px)]
+    else:
+        # Vertical line
+        pos_px = pos * frame_width
+        line_coords = [(pos_px, 0), (pos_px, frame_height)]
+
+    artist.line(line_coords, fill="red", width=3)
+
+
 def draw_track_frame(
     frame: np.ndarray,
     *,
     frame_num: int,
     tracks: List[Track],
+    line_pos: float,
+    line_horizontal: bool,
 ) -> np.ndarray:
     """
     Draws the tracks on a single frame.
@@ -135,6 +169,8 @@ def draw_track_frame(
         frame: The frame to draw on. Will be modified in-place.
         frame_num: The frame number of this frame.
         tracks: The tracks to draw.
+        line_pos: The position of the counting line.
+        line_horizontal: Whether the counting line is horizontal.
 
     Returns:
         The modified frame.
@@ -159,14 +195,25 @@ def draw_track_frame(
         # Because the image is flipped, we have to flip our bounding boxes.
         bounding_box[1] = frame.height - bounding_box[1]
 
-        # Draw the bounding box.
+        # Draw everything.
         _draw_bounding_box(draw, track=track, box=bounding_box)
+        _draw_counting_line(
+            draw,
+            pos=line_pos,
+            horizontal=line_horizontal,
+            frame_width=frame.width,
+            frame_height=frame.height,
+        )
 
     return np.array(frame)
 
 
 def draw_tracks(
-    inputs: Iterable[Dict[str, tf.Tensor]], *, tracks: List[Track]
+    inputs: Iterable[Dict[str, tf.Tensor]],
+    *,
+    tracks: List[Track],
+    line_pos: float,
+    line_horizontal: bool,
 ) -> Iterable[np.ndarray]:
     """
     Draws the tracks on top of a video.
@@ -175,6 +222,8 @@ def draw_tracks(
         inputs: Dictionary containing the input data, organized according
             to the keys in `ModelInputs`.
         tracks: The tracks to draw.
+        line_pos: The position of the counting line.
+        line_horizontal: Whether the counting line is horizontal.
 
     Yields:
         Each frame, with the tracks drawn on it.
@@ -186,6 +235,12 @@ def draw_tracks(
         # Flip the frame, because the input data is upside-down.
         frame = cv2.flip(frame, 0)
 
-        frame = draw_track_frame(frame, frame_num=frame_num, tracks=tracks)
+        frame = draw_track_frame(
+            frame,
+            frame_num=frame_num,
+            tracks=tracks,
+            line_pos=line_pos,
+            line_horizontal=line_horizontal,
+        )
 
         yield frame
