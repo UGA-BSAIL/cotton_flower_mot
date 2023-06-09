@@ -112,6 +112,15 @@ _model_args: &model_args
     include_optimizer: False
   versioned: True
 
+# Additional clips to use for validation.
+video_2021_08_25_SPL:
+  type: cotton_flower_mot.data_sets.VideoDataSet
+  filepath: data/01_raw/2021-08-25_SPL.MP4
+
+video_2022_08_23_ENGR:
+  type: cotton_flower_mot.data_sets.VideoDataSet
+  filepath: data/01_raw/2022-08-23_ENGR.avi
+
 # Don't bother copying the untrained model, as this wastes a lot of time
 # if your disk is slow.
 initial_model:

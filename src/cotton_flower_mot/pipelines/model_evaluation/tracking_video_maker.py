@@ -209,7 +209,7 @@ def draw_track_frame(
 
 
 def draw_tracks(
-    inputs: Iterable[Dict[str, tf.Tensor]],
+    clip_frames: Iterable[np.ndarray],
     *,
     tracks: List[Track],
     line_pos: float,
@@ -219,8 +219,7 @@ def draw_tracks(
     Draws the tracks on top of a video.
 
     Args:
-        inputs: Dictionary containing the input data, organized according
-            to the keys in `ModelInputs`.
+        clip_frames: The video frames from the clip.
         tracks: The tracks to draw.
         line_pos: The position of the counting line.
         line_horizontal: Whether the counting line is horizontal.
@@ -229,9 +228,7 @@ def draw_tracks(
         Each frame, with the tracks drawn on it.
 
     """
-    for frame_num, feature_dict in enumerate(inputs):
-        frame = feature_dict[ModelInputs.DETECTIONS_FRAME.value].numpy()
-
+    for frame_num, frame in enumerate(clip_frames):
         # Flip the frame, because the input data is upside-down.
         frame = cv2.flip(frame, 0)
 

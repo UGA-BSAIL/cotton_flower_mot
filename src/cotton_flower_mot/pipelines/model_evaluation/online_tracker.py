@@ -461,7 +461,7 @@ class OnlineTracker:
         self.__update_saved_state(frame=frame, geometry=detection_geometry)
 
     def process_frame(
-        self, *, frame: np.ndarray, detections: Optional[np.ndarray] = None
+        self, frame: np.ndarray, detections: Optional[np.ndarray] = None
     ) -> None:
         """
         Use the tracker to process a new frame. It will detect objects in the

@@ -149,6 +149,10 @@ class VideoDataSet(AbstractVersionedDataSet):
             if self.__bgr_color:
                 # OpenCV works with BGR images, but VideoWriter expects RGB.
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if frame.shape[:2][::-1] != self.__resolution:
+                # Resize the frame to the correct shape.
+                frame = cv2.resize(frame, self.__resolution)
+
             writer.write(frame)
 
         writer.release()

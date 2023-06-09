@@ -11,28 +11,32 @@ line_positions:
     pos: 0.5
 
 sequences:
-  14:
+  "14":
     # Which camera it's from.
     camera: left
-  21:
+  "21":
     camera: left
-  23:
+  "23":
     camera: top
-  33:
+  "33":
     camera: left
-  38:
+  "38":
     camera: left
-  45:
+  "45":
     camera: right
-  12:
+  "12":
     camera: left
-  20:
+  "20":
     camera: left
-  26:
+  "26":
     camera: top
-  28:
+  "28":
     camera: top
-  29:
+  "29":
     camera: left
-  40:
+  "40":
     camera: right
+  2021-08-25_SPL:
+    camera: top
+  2022-08-23_ENGR:
+    camera: top
