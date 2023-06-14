@@ -87,7 +87,11 @@ def _draw_text(
 
 
 def _draw_bounding_box(
-    artist: ImageDraw.ImageDraw, *, track: Track, box: np.ndarray
+    artist: ImageDraw.ImageDraw,
+    *,
+    track: Track,
+    box: np.ndarray,
+    is_detection: bool,
 ) -> None:
     """
     Draws a bounding box.
@@ -97,6 +101,8 @@ def _draw_bounding_box(
         track: The track that we are drawing a box for.
         box: The box to be drawn, in the form
             `[center_x, center_y, width, height]`.
+        is_detection: If true, this is a real detection, otherwise it is an
+            extrapolated one.
     """
     # Convert the box to a form we can draw with.
     center = box[:2]
@@ -108,6 +114,9 @@ def _draw_bounding_box(
 
     # Choose a color.
     color = _color_for_track(track)
+    if not is_detection:
+        # In this case, we want it to be translucent.
+        color += (127,)
 
     artist.rectangle((min_point, max_point), outline=color, width=5)
 
@@ -179,7 +188,8 @@ def draw_track_frame(
     # Convert from OpenCV format to PIL.
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = Image.fromarray(frame, mode="RGB")
-    draw = ImageDraw.Draw(frame)
+    overlay = Image.new("RGBA", frame.size)
+    draw = ImageDraw.Draw(overlay)
 
     # Determine the associated bounding box for all the tracks.
     for track in tracks:
@@ -187,6 +197,7 @@ def draw_track_frame(
         if bounding_box is None:
             # No detection for this track at this frame.
             continue
+        is_detection = track.has_real_detection_for_frame(frame_num)
 
         # Convert the bounding box to pixels.
         bounding_box *= np.array(
@@ -196,7 +207,9 @@ def draw_track_frame(
         bounding_box[1] = frame.height - bounding_box[1]
 
         # Draw everything.
-        _draw_bounding_box(draw, track=track, box=bounding_box)
+        _draw_bounding_box(
+            draw, track=track, box=bounding_box, is_detection=is_detection
+        )
         _draw_counting_line(
             draw,
             pos=line_pos,
@@ -205,7 +218,8 @@ def draw_track_frame(
             frame_height=frame.height,
         )
 
-    return np.array(frame)
+    frame = Image.alpha_composite(frame.convert("RGBA"), overlay)
+    return np.array(frame.convert("RGB"))
 
 
 def draw_tracks(

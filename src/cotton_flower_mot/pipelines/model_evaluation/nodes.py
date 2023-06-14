@@ -17,7 +17,7 @@ from .tracking_video_maker import draw_tracks
 from ...data_sets.video_data_set import FrameReader
 
 
-DefaultTracker = partial(OnlineTracker, death_window=10)
+DefaultTracker = partial(OnlineTracker, death_window=30)
 
 ClipsToTracksType = Dict[str, List[Dict[str, Any]]]
 """
@@ -161,7 +161,7 @@ def _get_line_for_sequence(
 
 def compute_counts(
     *,
-    tracks_from_clips: Dict[int, List[Dict[str, Any]]],
+    tracks_from_clips: ClipsToTracksType,
     counting_line_params: Dict[str, Any],
 ) -> List:
     """
@@ -180,13 +180,13 @@ def compute_counts(
     for sequence_id, tracks in tracks_from_clips.items():
         # Deserialize the tracks.
         tracks = [Track.from_dict(t) for t in tracks]
+        line_pos, horizontal = _get_line_for_sequence(
+            counting_line_params, sequence_id
+        )
 
         # To determine the count, check for ones that cross the counting line.
         predicted_count = 0
         for track in tracks:
-            line_pos, horizontal = _get_line_for_sequence(
-                counting_line_params, sequence_id
-            )
             if track.crosses_line(line_pos, horizontal=horizontal):
                 predicted_count += 1
 
@@ -241,7 +241,7 @@ def make_track_videos_clip_dataset(
             lambda inputs: inputs[ModelInputs.SEQUENCE_ID.value][0]
             == int(sequence_id_)
         )
-        single_clip = clip_dataset.map(
+        single_clip = single_clip.map(
             lambda inputs: inputs[ModelInputs.DETECTIONS_FRAME.value]
         )
         single_clip = (f.numpy() for f in single_clip)

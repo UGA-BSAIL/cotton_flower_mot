@@ -116,6 +116,8 @@ _model_args: &model_args
 video_2021_08_25_SPL:
   type: cotton_flower_mot.data_sets.VideoDataSet
   filepath: data/01_raw/2021-08-25_SPL.MP4
+  fps: 60
+  bgr_color: False
 
 video_2022_08_23_ENGR:
   type: cotton_flower_mot.data_sets.VideoDataSet

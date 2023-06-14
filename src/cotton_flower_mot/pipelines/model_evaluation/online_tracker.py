@@ -3,11 +3,12 @@ Framework for online tracking.
 """
 
 
-from typing import Dict, Iterable, List, Optional, Union, Any
+from typing import Dict, Iterable, List, Optional, Union, Any, Tuple
 
 import numpy as np
 import tensorflow as tf
 from loguru import logger
+from sklearn.linear_model import RANSACRegressor
 
 from ..schemas import ModelInputs
 from ..assignment import do_hard_assignment, add_births_and_deaths
@@ -23,14 +24,11 @@ class Track:
     Allows us to associate a unique ID with each track.
     """
 
-    def __init__(self, indices: Iterable[int] = ()):
-        """
-        Args:
-            indices: Initial indices into the detections array for each
-                frame that form the track.
-        """
+    def __init__(self):
         # Maps frame numbers to detection bounding boxes.
-        self.__frames_to_detections = {f: i for f, i in enumerate(indices)}
+        self.__frames_to_detections = {}
+        # Maps frame numbers to whether this detection is real or extrapolated.
+        self.__frame_has_detection = {}
         # Keeps track of the last frame we have a detection for.
         self.__latest_frame = -1
 
@@ -38,7 +36,11 @@ class Track:
         Track._NEXT_ID += 1
 
     def add_new_detection(
-        self, *, frame_num: int, detection: np.ndarray
+        self,
+        *,
+        frame_num: int,
+        detection: np.ndarray,
+        is_extrapolated: bool = False,
     ) -> None:
         """
         Adds a new detection to the end of the track.
@@ -47,10 +49,14 @@ class Track:
             frame_num: The frame number that this detection is for.
             detection: The new detection to add, in the form
                 `[center_x, center_y, width, height]`.
+            is_extrapolated: If true, marks this as an extrapolated detection
+                instead of a "real" one.
 
         """
         self.__frames_to_detections[frame_num] = detection.tolist()
-        self.__latest_frame = max(self.__latest_frame, frame_num)
+        self.__frame_has_detection[frame_num] = not is_extrapolated
+        if not is_extrapolated:
+            self.__latest_frame = max(self.__latest_frame, frame_num)
 
     @property
     def last_detection(self) -> Optional[np.ndarray]:
@@ -71,7 +77,7 @@ class Track:
         """
         return self.__latest_frame
 
-    def detection_for_frame(self, frame_num: int) -> Optional[np.ndarray]:
+    def detection_for_frame(self, frame_num: int) -> Optional[np.array]:
         """
         Gets the corresponding detection box for a particular frame,
         or None if we don't have a detection for that frame.
@@ -86,6 +92,18 @@ class Track:
         if frame_num not in self.__frames_to_detections:
             return None
         return np.array(self.__frames_to_detections[frame_num])
+
+    def has_real_detection_for_frame(self, frame_num: int) -> bool:
+        """
+        Args:
+            frame_num: The frame number to check at.
+
+        Returns:
+            True if there is an actual detection, False if there is no
+            detection or only an extrapolated box.
+
+        """
+        return self.__frame_has_detection.get(frame_num, False)
 
     @property
     def id(self) -> int:
@@ -133,6 +151,37 @@ class Track:
 
         return False
 
+    def predict_future_box(self, frame_num: int) -> np.array:
+        """
+        Extrapolates the trajectory of this object to a future time.
+
+        Args:
+            frame_num: The frame number that we are predicting the bounding
+                box for.
+
+        Returns:
+            The extrapolated bounding box, of the form
+            `[center_x, center_y, width, height]`.
+
+        """
+        # Get the previous positions. (Only use real detections.)
+        frames = [f for f, v in self.__frame_has_detection.items() if v]
+        if len(frames) < 3:
+            raise ValueError(
+                "Should have at least three detections to extrapolate."
+            )
+
+        boxes = [self.__frames_to_detections[f] for f in frames]
+        frames = np.array(frames, dtype=float)
+        frames = np.expand_dims(frames, axis=1)
+        boxes = np.array(boxes)
+
+        # Perform the regression.
+        reg = RANSACRegressor().fit(frames, boxes)
+
+        # Predict the new box.
+        return reg.predict([[frame_num]])[0]
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Gets a dictionary representation of the track that can be easily
@@ -144,6 +193,7 @@ class Track:
         """
         return dict(
             frames_to_detections=self.__frames_to_detections,
+            frame_has_detection=self.__frame_has_detection,
             latest_frame=self.__latest_frame,
             track_id=self.__id,
         )
@@ -163,6 +213,7 @@ class Track:
         track = cls()
 
         track.__frames_to_detections = config["frames_to_detections"]
+        track.__frame_has_detection = config["frame_has_detection"]
         track.__latest_frame = config["latest_frame"]
         track.__id = config["track_id"]
 
@@ -231,7 +282,7 @@ class OnlineTracker:
         return False
 
     def __update_active_tracks(
-        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
+        self, *, assignment_matrix: np.array, detections: np.array
     ) -> None:
         """
         Updates the currently-active tracks with new detection information.
@@ -255,6 +306,25 @@ class OnlineTracker:
                 ):
                     # Consider the tracklet dead.
                     dead_tracklets.append(track)
+
+                else:
+                    # Otherwise, extrapolate a new bounding box based on
+                    # previous track information.
+                    try:
+                        extrapolated_box = track.predict_future_box(
+                            self.__frame_num
+                        )
+                    except ValueError:
+                        logger.debug(
+                            "Not extrapolating track because there "
+                            "are too few detections."
+                        )
+                        continue
+                    track.add_new_detection(
+                        frame_num=self.__frame_num,
+                        detection=extrapolated_box,
+                        is_extrapolated=True,
+                    )
 
             else:
                 # Find the associated detection.
