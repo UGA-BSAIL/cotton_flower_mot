@@ -6,6 +6,7 @@ Framework for online tracking.
 from typing import Dict, Iterable, List, Optional, Union, Any, Tuple
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from loguru import logger
 from sklearn.linear_model import RANSACRegressor
@@ -93,6 +94,20 @@ class Track:
             return None
         return np.array(self.__frames_to_detections[frame_num])
 
+    def all_detections(self) -> pd.DataFrame:
+        """
+        Gets all the detections for this track, as a DataFrame.
+
+        Returns:
+            All the detections, indexed by frame number.
+
+        """
+        return pd.DataFrame(
+            index=self.__frames_to_detections.keys(),
+            data=self.__frames_to_detections.values(),
+            columns=["center_x", "center_y", "width", "height"],
+        )
+
     def has_real_detection_for_frame(self, frame_num: int) -> bool:
         """
         Args:
@@ -113,6 +128,14 @@ class Track:
 
         """
         return self.__id
+
+    def __len__(self) -> int:
+        """
+        Returns:
+            The number of detections in the track.
+
+        """
+        return len(self.__frames_to_detections)
 
     def crosses_line(self, line_pos: float, horizontal: bool = True) -> bool:
         """

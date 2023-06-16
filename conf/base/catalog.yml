@@ -123,6 +123,12 @@ video_2022_08_23_ENGR:
   type: cotton_flower_mot.data_sets.VideoDataSet
   filepath: data/01_raw/2022-08-23_ENGR.avi
 
+video_2022_08_31_SPL:
+  type: cotton_flower_mot.data_sets.VideoDataSet
+  filepath: data/01_raw/2022-08-31_SPL.mp4
+  fps: 24
+  bgr_color: False
+
 # Don't bother copying the untrained model, as this wastes a lot of time
 # if your disk is slow.
 initial_model:
@@ -170,3 +176,14 @@ pretrained_colorization_model_output:
 pretrained_colorization_model:
   filepath: data/06_models/pretrained_colorization.hd5
   << : *model_args
+
+# Output histograms.
+horizontal_displacement_histogram:
+  type: matplotlib.MatplotlibWriter
+  filepath: ${output_data_dir}/08_reporting/graphs/horizontal_displacement_histogram.png
+  versioned: true
+
+vertical_displacement_histogram:
+  type: matplotlib.MatplotlibWriter
+  filepath: ${output_data_dir}/08_reporting/graphs/vertical_displacement_histogram.png
+  versioned: true
