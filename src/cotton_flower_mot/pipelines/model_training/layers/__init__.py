@@ -21,6 +21,7 @@ from .pooling import PeakLayer
 from .utility import BnActConv, BnActDense
 from .future.convnext import LayerScale
 from .pooling import RoiPooling
+from .pretrained_tf import PretrainedTf
 
 # Make sure that Kedro is aware of custom layers.
 CUSTOM_LAYERS = {
@@ -44,6 +45,7 @@ CUSTOM_LAYERS = {
         CenterSizes,
         LayerScale,
         RoiPooling,
+        PretrainedTf
     )
 }
 if "custom_objects" not in TensorFlowModelDataset.DEFAULT_LOAD_ARGS:

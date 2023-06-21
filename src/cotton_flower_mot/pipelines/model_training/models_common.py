@@ -1,5 +1,5 @@
 from keras import layers
-from typing import Tuple
+from typing import Tuple, Union
 import tensorflow as tf
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
@@ -60,37 +60,50 @@ def apply_detector(
     detector: keras.Model,
     *,
     frames: tf.Tensor,
-) -> Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor]:
+) -> Union[
+    Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor],
+    Tuple[tf.Tensor, tf.RaggedTensor],
+]:
     """
     Applies the detector model to an input.
 
     Args:
         detector: The detector model.
         frames: The input frames.
-        confidence_threshold: The minimum confidence of detections. Any
-            detections with lower confidence will be removed.
 
     Returns:
-        The heatmaps, dense geometry predictions, and bounding boxes.
+        The heatmaps, dense geometry predictions (if present), and bounding
+        boxes.
 
     """
-    heatmap, dense_geometry, bboxes = detector(frames)
+    raw_outputs = detector(frames)
+    dense_geometry = None
+    if len(raw_outputs) == 3:
+        heatmap, dense_geometry, bboxes = raw_outputs
+
+        dense_geometry = layers.Activation(
+            "linear",
+            name=ModelTargets.GEOMETRY_DENSE_PRED.value,
+            dtype=tf.float32,
+        )(dense_geometry)
+    else:
+        heatmap, bboxes = raw_outputs
 
     # Ensure that the resulting layers have the correct names when we set
     # them as outputs.
     heatmap = layers.Activation(
         "linear", name=ModelTargets.HEATMAP.value, dtype=tf.float32
     )(heatmap)
-    dense_geometry = layers.Activation(
-        "linear", name=ModelTargets.GEOMETRY_DENSE_PRED.value, dtype=tf.float32
-    )(dense_geometry)
     bboxes = layers.Activation(
         "linear",
         name=ModelTargets.GEOMETRY_SPARSE_PRED.value,
         dtype=tf.float32,
     )(bboxes)
 
-    return heatmap, dense_geometry, bboxes
+    if dense_geometry is not None:
+        return heatmap, dense_geometry, bboxes
+    else:
+        return heatmap, bboxes
 
 
 def apply_tracker(

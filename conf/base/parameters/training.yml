@@ -1,6 +1,8 @@
 # Tensorboard parameters.
 # Log directory.
 tensorboard_output_dir: ${log_dir}/tensorboard
+# Path to the pretrained YOLO model.
+training_yolo_model_path: "data/06_models/best_with_features_32"
 # Period at which to write histograms, in epochs.
 histogram_period: 2
 # Period at which to write metrics, in batches.
@@ -66,7 +68,7 @@ learning_phases:
     # The momentum to use for the phase.
     momentum: 0.9
     # Number of epochs to train for in this phase.
-    num_epochs: 100
+    num_epochs: 50
 
 # Learning phases for training RotNet.
 rotnet_learning_phases:

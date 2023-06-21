@@ -570,6 +570,6 @@ def make_metrics() -> Dict[str, Any]:
             false_positives,
             mot_accuracy,
         ],
-        ModelTargets.HEATMAP.value: MaxConfidence(),
+        # ModelTargets.HEATMAP.value: MaxConfidence(),
         ModelTargets.ASSIGNMENT.value: id_switches,
     }

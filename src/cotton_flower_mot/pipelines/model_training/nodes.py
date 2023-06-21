@@ -3,7 +3,8 @@ Nodes for the model training pipeline.
 """
 
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
+from pathlib import Path
 
 import numpy as np
 import tensorflow as tf
@@ -18,7 +19,8 @@ from ..training_utils import (
     get_log_dir,
     make_common_callbacks,
 )
-from .combined_model import build_combined_model, build_separate_models
+from .combined_model import build_combined_model, build_separate_models_yolo
+from .yolo import load_yolo
 from .losses import make_losses
 from .metrics import make_metrics
 
@@ -92,24 +94,26 @@ def prepare_pretrained_encoder(
 
 
 def create_model(
-    config: ModelConfig, encoder: Optional[tf.keras.Model] = None
+    config: ModelConfig, *, yolo_path: Path
 ) -> tf.keras.Model:
     """
     Builds the model to use.
 
     Args:
         config: The model configuration.
-        encoder: A custom pretrained encoder which will be used for feature
-            extraction.
+        yolo_path: The path to the saved pretrained YOLO detector.
 
     Returns:
         The end-to-end model.
 
     """
-    detector, tracker = build_separate_models(config, encoder=encoder)
+    yolo = load_yolo(saved_model=yolo_path, config=config)
+    yolo.trainable = False
+    detector, tracker = build_separate_models_yolo(config, yolo_model=yolo)
     combined = build_combined_model(config, detector=detector, tracker=tracker)
     logger.info("Model has {} parameters.", combined.count_params())
 
+    combined.summary()
     return combined
 
 
@@ -150,17 +154,42 @@ def _make_callbacks(
     )
 
     log_dir = get_log_dir(tensorboard_output_dir)
-    heatmap_callback = LogHeatmaps(
-        model=model,
-        dataset=dataset,
-        log_dir=log_dir / "heatmaps",
-        resize_images=heatmap_size,
-        log_period=heatmap_period,
-        max_num_batches=num_heatmap_batches,
-        num_images_per_batch=num_heatmap_images,
-    )
+    # heatmap_callback = LogHeatmaps(
+    #     model=model,
+    #     dataset=dataset,
+    #     log_dir=log_dir / "heatmaps",
+    #     resize_images=heatmap_size,
+    #     log_period=heatmap_period,
+    #     max_num_batches=num_heatmap_batches,
+    #     num_images_per_batch=num_heatmap_images,
+    # )
 
-    return common_callbacks + [heatmap_callback]
+    return common_callbacks
+
+
+def _remove_detection_targets(dataset: tf.data.Dataset) -> tf.data.Dataset:
+    """
+    Removes the detection-related targets from a dataset.
+
+    Args:
+        dataset: The dataset to remove the targets from.
+
+    Returns:
+        The dataset without the targets.
+
+    """
+    return dataset.map(
+        lambda inputs, targets: (
+            inputs,
+            {
+                k: targets[k]
+                for k in [
+                    ModelTargets.SINKHORN.value,
+                    ModelTargets.ASSIGNMENT.value,
+                ]
+            },
+        )
+    )
 
 
 def train_model(
@@ -198,6 +227,9 @@ def train_model(
         The trained model from the best epoch and from the last epoch.
 
     """
+    training_data = _remove_detection_targets(training_data)
+    testing_data = _remove_detection_targets(testing_data)
+
     # Add a callback for keeping track of the best model.
     best_model_callback = KeepBest()
 
@@ -219,11 +251,11 @@ def train_model(
         model.compile(
             optimizer=optimizer,
             loss=make_losses(**loss_params),
-            loss_weights={
-                ModelTargets.HEATMAP.value: heatmap_loss_weight,
-                ModelTargets.GEOMETRY_DENSE_PRED.value: geometry_loss_weight,
-                ModelTargets.SINKHORN.value: sinkhorn_loss_weight,
-            },
+            # loss_weights={
+            #     ModelTargets.HEATMAP.value: heatmap_loss_weight,
+            #     ModelTargets.GEOMETRY_DENSE_PRED.value: geometry_loss_weight,
+            #     ModelTargets.SINKHORN.value: sinkhorn_loss_weight,
+            # },
             metrics=make_metrics(),
         )
         model.fit(

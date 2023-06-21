@@ -4,7 +4,7 @@ https://arxiv.org/pdf/2010.00067.pdf
 """
 
 from functools import partial
-from typing import Tuple
+from typing import Tuple, Callable
 
 import numpy as np
 import tensorflow as tf
@@ -218,9 +218,9 @@ def _build_gnn(
         `[batch_size, n_nodes, n_gcn_channels]`.
 
     """
-    node_features = bound_numerics(node_features)
-    edge_features = bound_numerics(edge_features)
-    graph_structure = [bound_numerics(g) for g in graph_structure]
+    # node_features = bound_numerics(node_features)
+    # edge_features = bound_numerics(edge_features)
+    # graph_structure = [bound_numerics(g) for g in graph_structure]
 
     node_features = layers.BatchNormalization()(node_features)
     edge_features = layers.BatchNormalization()(edge_features)
@@ -424,7 +424,7 @@ def _extract_appearance_features(
         dimension is ragged.
 
     """
-    image_features = bound_numerics(image_features)
+    # image_features = bound_numerics(image_features)
 
     image_features_res = layers.Dropout(0.5)(image_features)
     image_features = BnActConv(128, 3, padding="same")(image_features)
@@ -450,7 +450,7 @@ def _extract_appearance_features(
             (-1, num_flat_features),
             name="appearance_flatten",
         )
-        flat_features = bound_numerics(flat_features)
+        # flat_features = bound_numerics(flat_features)
         return _features.with_values(flat_features)
 
     features = layers.Lambda(_flatten_features)(feature_crops)
@@ -503,7 +503,7 @@ def extract_interaction_features(
         appearance_features=(detections_app_features, tracklets_app_features),
         config=config,
     )
-    edge_features = bound_numerics(edge_features)
+    # edge_features = bound_numerics(edge_features)
 
     # Create the adjacency matrix and build the GCN.
     num_detections = detections_geometry.row_lengths()
@@ -530,7 +530,7 @@ def extract_interaction_features(
         edge_features=edge_features,
         config=config,
     )
-    final_node_features = bound_numerics(final_node_features)
+    # final_node_features = bound_numerics(final_node_features)
 
     # Split back into separate tracklets and detections.
     max_num_tracklets = tf.shape(tracklets_app_features)[1]
@@ -644,7 +644,7 @@ def _make_image_input(config: ModelConfig, *, name: str) -> layers.Input:
 
 
 def build_tracking_model(
-    config: ModelConfig, *, feature_extractor: tf.keras.Model
+    config: ModelConfig, *, feature_extractor: Callable[[tf.Tensor], tf.Tensor]
 ) -> tf.keras.Model:
     """
     Builds the complete Keras model.

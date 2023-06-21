@@ -3,7 +3,7 @@ Implements a combined detection + tracking model.
 """
 
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import keras
 import tensorflow as tf
@@ -108,6 +108,29 @@ def build_separate_models(
     return detector, tracking_model
 
 
+def build_separate_models_yolo(
+        config: ModelConfig, yolo_model: tf.keras.Model
+) -> Tuple[tf.keras.Model, tf.keras.Model]:
+    """
+    Builds compatible detection and tracking models, using a pretrained YOLO
+    model for detection.
+
+    Args:
+        config: The model configuration.
+        yolo_model: The pretrained YOLO model to use for detection.
+
+    Returns:
+        The detection and tracking models.
+
+    """
+    logger.debug("Building tracking model...")
+    tracking_model = build_tracking_model(
+        config=config, feature_extractor=lambda x: yolo_model(x)[0]
+    )
+
+    return yolo_model, tracking_model
+
+
 def build_combined_model(
     config: ModelConfig, *, detector: keras.Model, tracker: keras.Model
 ) -> tf.keras.Model:
@@ -133,11 +156,9 @@ def build_combined_model(
     ) = make_tracking_inputs(config)
 
     # Apply the detection model to the input frames.
-    (
-        detection_heatmap,
-        detection_dense_geometry,
-        detection_bboxes_with_conf,
-    ) = apply_detector(
+    detection_outputs: Tuple[
+        Union[tf.Tensor, tf.RaggedTensor], ...
+    ] = apply_detector(
         detector,
         frames=current_frames_input,
     )
@@ -157,10 +178,8 @@ def build_combined_model(
             tracklet_geometry_input,
             detection_geometry_input,
         ],
-        outputs=[
-            detection_heatmap,
-            detection_dense_geometry,
-            detection_bboxes_with_conf,
+        outputs=list(detection_outputs)
+        + [
             sinkhorn,
             assignment,
         ],

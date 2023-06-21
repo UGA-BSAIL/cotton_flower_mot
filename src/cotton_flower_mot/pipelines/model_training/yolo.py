@@ -4,9 +4,12 @@ Utilities for implementing detection with a pre-trained YOLO model.
 
 
 from pathlib import Path
+
+import keras
 import tensorflow as tf
 from ..config import ModelConfig
 from ..schemas import ModelInputs, ModelTargets
+from .layers.pretrained_tf import PretrainedTf
 
 layers = tf.keras.layers
 
@@ -37,30 +40,35 @@ def _preprocess_inputs(images: tf.Tensor) -> tf.Tensor:
     return images_float / 255.0
 
 
-def load_yolo(model_path: Path, *, config: ModelConfig) -> tf.keras.Model:
+def load_yolo(saved_model: Path, *, config: ModelConfig) -> tf.keras.Model:
     """
     Loads a YOLO model, and adds the glue necessary to make it
     work with the tracking pipeline.
 
     Args:
-        model_path: The path to the `saved model` directory.
+        saved_model: The path to the raw pretrained model.
         config: The model configuration to use.
 
     Returns:
         The loaded model.
 
     """
-    # Load the model.
-    raw_model = tf.keras.models.load_model(model_path)
-
     # Create a new model that's compatible with the pipeline.
     image_input = layers.Input(
-        input_shape=config.detection_model_input_shape,
+        shape=config.detection_model_input_shape,
         name=ModelInputs.DETECTIONS_FRAME.value,
     )
-    images_preprocessed = layers.Lambda(_preprocess_inputs, name="preprocess")
+    images_preprocessed = layers.Lambda(_preprocess_inputs, name="preprocess")(
+        image_input
+    )
 
-    boxes, features = raw_model(images_preprocessed)
+    boxes, features = PretrainedTf(saved_model, name="yolo_raw")(
+        images_preprocessed
+    )
+    # model = keras.models.load_model(saved_model, compile=False)
+    # boxes, features = layers.Lambda(
+    #     lambda x: model(tf.cast(x, tf.float32)), name="yolo_raw"
+    # )(images_preprocessed)
 
     # Ensure the outputs have the right name and dtype.
     boxes = layers.Activation(
@@ -73,5 +81,5 @@ def load_yolo(model_path: Path, *, config: ModelConfig) -> tf.keras.Model:
     )(features)
 
     return tf.keras.Model(
-        inputs=[image_input], outputs=[boxes, features], name="yolo_detector"
+        inputs=[image_input], outputs=[features, boxes], name="yolo_detector"
     )

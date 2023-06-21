@@ -42,7 +42,16 @@ def create_pipeline(model_init: ModelInit = ModelInit.IMAGENET):
     if model_init == ModelInit.IMAGENET:
         # This is the default model loading process.
         init_pipeline = Pipeline(
-            [node(create_model, "model_config", "initial_model")]
+            [
+                node(
+                    create_model,
+                    dict(
+                        config="model_config",
+                        yolo_path="params:training_yolo_model_path",
+                    ),
+                    "initial_model",
+                )
+            ],
         )
     else:
         # This is the model loading process using a custom pretrained encoder.

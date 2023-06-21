@@ -3319,6 +3319,18 @@ antlr4-python3-runtime = ">=4.9.0,<4.10.0"
 PyYAML = ">=5.1.0"
 
 [[package]]
+name = "onnx2tf"
+version = "1.13.11"
+description = "Self-Created Tools to convert ONNX files (NCHW) to TensorFlow/TFLite/Keras format (NHWC). The purpose of this tool is to solve the massive Transpose extrapolation problem in onnx-tensorflow (onnx-tf)."
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "onnx2tf-1.13.11-py3-none-any.whl", hash = "sha256:6d3fcc3ffc58c4b45fc330d77755435dd365625a995837b9861edcee406f85d9"},
+    {file = "onnx2tf-1.13.11.tar.gz", hash = "sha256:266a80ad1a3f009e5c0938678cab0743d36e79b0e1e9b01c68b4a8d3d475a00b"},
+]
+
+[[package]]
 name = "opencv-contrib-python"
 version = "4.7.0.72"
 description = "Wrapper package for OpenCV python bindings."
@@ -5980,4 +5992,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10"
-content-hash = "a292814f1d5009c67ca088f2ae399fdcde70d429743a89c62874c659b658d02a"
+content-hash = "6a461b03c341b19502aac377b5511814523b70e8771ee65275041efb4b435f5b"
