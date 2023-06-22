@@ -1430,7 +1430,9 @@ def _batch_and_prefetch(
 
     # Construct batches.
     batched = dataset.apply(
-        tf.data.experimental.dense_to_ragged_batch(batch_size)
+        tf.data.experimental.dense_to_ragged_batch(
+            batch_size, drop_remainder=True
+        )
     )
 
     # `Dataset.map()` doesn't always correctly figure out which features

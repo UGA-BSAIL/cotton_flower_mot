@@ -6,21 +6,20 @@ https://arxiv.org/pdf/2010.00067.pdf
 from functools import partial
 from typing import Tuple, Callable
 
-import numpy as np
 import tensorflow as tf
 from keras import layers
 from spektral.utils.convolution import line_graph
 
+from .layers.appearance_feature_extractor import AppearanceFeatureExtractor
 from ..config import ModelConfig
-from ..schemas import ModelInputs, ModelTargets
-from ..training_utils import bound_numerics
+from ..schemas import ModelTargets
 from .graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,
     gcn_filter,
     make_complete_bipartite_adjacency_matrices,
 )
-from .layers import AssociationLayer, BnActConv, ResidualCensNet, RoiPooling
+from .layers import AssociationLayer, BnActConv, ResidualCensNet
 from .models_common import make_tracking_inputs
 from .similarity_utils import (
     aspect_ratio_penalty,
@@ -401,62 +400,6 @@ def _preprocess_adjacency(
     )
 
 
-def _extract_appearance_features(
-    *,
-    bbox_geometry: tf.RaggedTensor,
-    image_features: tf.Tensor,
-    config: ModelConfig,
-) -> tf.RaggedTensor:
-    """
-    Extracts the appearance features for the detections or tracklets.
-
-    Args:
-        bbox_geometry: The bounding box information. Should have
-            shape `[batch_size, num_boxes, 4]`, where the second dimension is
-            ragged, and the third is ordered `[x, y, width, height]`.
-            tracklets.
-        image_features: The raw image features from the detector.
-        config: The model configuration to use.
-
-    Returns:
-        The extracted appearance features. They are a `RaggedTensor`
-        with the shape `[batch_size, n_nodes, n_features]`, where the second
-        dimension is ragged.
-
-    """
-    # image_features = bound_numerics(image_features)
-
-    image_features_res = layers.Dropout(0.5)(image_features)
-    image_features = BnActConv(128, 3, padding="same")(image_features)
-    image_features = BnActConv(256, 1, padding="same")(image_features)
-    image_features = BnActConv(256, 1, padding="same")(image_features)
-
-    image_features_res = BnActConv(256, 1, padding="same")(image_features_res)
-    image_features = layers.Add()((image_features_res, image_features))
-
-    image_features = BnActConv(8, 1, activation="relu")(image_features)
-    feature_crops = RoiPooling(config.roi_pooling_size)(
-        (image_features, bbox_geometry)
-    )
-
-    # Coerce the features to the correct shape.
-    def _flatten_features(_features: tf.RaggedTensor) -> tf.RaggedTensor:
-        # We have to go through this annoying process to ensure that the
-        # static shape remains correct.
-        inner_shape = _features.shape[-3:]
-        num_flat_features = np.prod(inner_shape)
-        flat_features = tf.reshape(
-            _features.values,
-            (-1, num_flat_features),
-            name="appearance_flatten",
-        )
-        # flat_features = bound_numerics(flat_features)
-        return _features.with_values(flat_features)
-
-    features = layers.Lambda(_flatten_features)(feature_crops)
-    return features
-
-
 def extract_interaction_features(
     *,
     detections_app_features: tf.Tensor,
@@ -673,15 +616,14 @@ def build_tracking_model(
     )
 
     # Perform ROI pooling to extract appearance features for each object.
-    detections_app_features = _extract_appearance_features(
-        bbox_geometry=detection_geometry_input,
-        image_features=current_frame_features,
-        config=config,
+    appearance_feature_extractor = AppearanceFeatureExtractor(
+        roi_pooling_size=config.roi_pooling_size
     )
-    tracklets_app_features = _extract_appearance_features(
-        bbox_geometry=tracklet_geometry_input,
-        image_features=previous_frame_features,
-        config=config,
+    detections_app_features = appearance_feature_extractor(
+        (detection_geometry_input, current_frame_features)
+    )
+    tracklets_app_features = appearance_feature_extractor(
+        (tracklet_geometry_input, previous_frame_features)
     )
 
     # Build the actual model.

@@ -62,7 +62,7 @@ def apply_detector(
     frames: tf.Tensor,
 ) -> Union[
     Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor],
-    Tuple[tf.Tensor, tf.RaggedTensor],
+    Tuple[tf.Tensor, tf.Tensor],
 ]:
     """
     Applies the detector model to an input.

@@ -3,12 +3,13 @@ Handles the details of inference with the GCNNMatch tracker system.
 """
 
 
-from typing import Any, Tuple, Dict
+from typing import Any, Tuple, Dict, Union
 
 import keras
 import tensorflow as tf
 from keras import layers
 from loguru import logger
+from pathlib import Path
 
 from ..config import ModelConfig
 from ..model_training.models_common import (
@@ -20,7 +21,7 @@ from ..model_training.layers import CUSTOM_LAYERS
 
 
 def _filter_detections(
-    detections: tf.RaggedTensor,
+    detections: Union[tf.RaggedTensor, tf.Tensor],
     confidence_threshold: float = 0.5,
     nms_iou_threshold: float = 0.5,
 ) -> tf.RaggedTensor:
@@ -56,7 +57,9 @@ def _filter_detections(
         # Get the actual bounding boxes again.
         return tf.gather(detections_, nms_indices, axis=0)
 
-    def _do_nms(detections_: tf.RaggedTensor) -> tf.RaggedTensor:
+    def _do_nms(
+        detections_: Union[tf.RaggedTensor, tf.Tensor]
+    ) -> tf.RaggedTensor:
         return tf.map_fn(
             _single_frame_nms,
             detections_,
@@ -94,7 +97,11 @@ def _config_to_float32(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def build_inference_model(
-    training_model: keras.Model, *, config: ModelConfig, **kwargs: Any
+    training_model: keras.Model,
+    *,
+    config: ModelConfig,
+    detector_model_path: Path,
+    **kwargs: Any
 ) -> Tuple[keras.Model, keras.Model]:
     """
     Constructs a specialized model that can be used for inference. This
@@ -107,6 +114,8 @@ def build_inference_model(
     Args:
         training_model: The training model with trained weights.
         config: The model configuration that was used for `training_model`.
+        detector_model_path: The path to the pretrained detector model to use
+            for inference.
         **kwargs: Will be forwarded to `_filter_detections`.
 
     Returns:
@@ -140,13 +149,18 @@ def build_inference_model(
     ) = make_tracking_inputs(config=config)
 
     # Extract the individual detection and tracking models.
-    detector = training_model.get_layer("centernet_detector")
+    detector = training_model.get_layer("yolo_detector")
     tracker = training_model.get_layer("gcnnmatch")
 
+    # Use the inference version of the detection model.
+    yolo_raw = tracker.get_layer("yolo_detector").get_layer("pretrained_tf_3")
+    yolo_raw.reload(detector_model_path)
+    yolo_raw = detector.get_layer("pretrained_tf_2")
+    yolo_raw.reload(detector_model_path)
+
     # Get the detections.
-    heatmap, dense_geometry, detections = apply_detector(
-        detector, frames=current_frames_input
-    )
+    detector_outputs = apply_detector(detector, frames=current_frames_input)
+    detections = detector_outputs[-1]
     detections = _filter_detections(detections, **kwargs)
     # Ignore the confidence for the detections.
     detections = tf.cast(detections[:, :, :4], tf.float32)
@@ -176,9 +190,3 @@ def build_inference_model(
         name="detector_inference",
     )
     return tracking_model, detection_model
-
-
-class InferenceModel:
-    """
-    Represents an end-to-end model that can be used for inference.
-    """

@@ -19,7 +19,7 @@ from .tracking_video_maker import draw_tracks
 from ...data_sets.video_data_set import FrameReader
 
 
-DefaultTracker = partial(OnlineTracker, death_window=30)
+DefaultTracker = partial(OnlineTracker, death_window=60)
 
 ClipsToTracksType = Dict[str, List[Dict[str, Any]]]
 """
@@ -55,6 +55,7 @@ def compute_tracks_for_clip(
     for frame in clip.read(0):
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         tracker.process_frame(frame)
 
     # Serialize the tracks.

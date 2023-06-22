@@ -40,6 +40,28 @@ def _preprocess_inputs(images: tf.Tensor) -> tf.Tensor:
     return images_float / 255.0
 
 
+def _postprocess_boxes(boxes: tf.Tensor) -> tf.Tensor:
+    """
+    Post-processes the bounding box outputs to make them more like what
+    the other models produce.
+
+    Args:
+        boxes: The raw bounding box outputs.
+
+    Returns:
+        The postprocessed boxes.
+
+    """
+    # Swap the bounding box dimensions here, because it generally expects
+    # the box dimensions to come first, but YOLO puts them last.
+    boxes = tf.transpose(boxes, perm=(0, 2, 1))
+    # Also, box coordinates have to be normalized.
+    return boxes / tf.constant(
+        list(_RAW_MODEL_INPUT_SHAPE[:2][::-1]) * 2 + [1.0],
+        dtype=boxes.dtype,
+    )
+
+
 def load_yolo(saved_model: Path, *, config: ModelConfig) -> tf.keras.Model:
     """
     Loads a YOLO model, and adds the glue necessary to make it
@@ -65,10 +87,7 @@ def load_yolo(saved_model: Path, *, config: ModelConfig) -> tf.keras.Model:
     boxes, features = PretrainedTf(saved_model, name="yolo_raw")(
         images_preprocessed
     )
-    # model = keras.models.load_model(saved_model, compile=False)
-    # boxes, features = layers.Lambda(
-    #     lambda x: model(tf.cast(x, tf.float32)), name="yolo_raw"
-    # )(images_preprocessed)
+    boxes = layers.Lambda(_postprocess_boxes, name="postprocess")(boxes)
 
     # Ensure the outputs have the right name and dtype.
     boxes = layers.Activation(
