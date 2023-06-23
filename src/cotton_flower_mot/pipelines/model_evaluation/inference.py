@@ -46,6 +46,12 @@ def _filter_detections(
         boxes = detections_[:, :4]
         confidence = detections_[:, 4]
 
+        # Convert to (x1, y1, x2, y2).
+        half_size = boxes[:, 2:] / 2
+        boxes = tf.concat(
+            [boxes[:, :2] - half_size, boxes[:, :2] + half_size], axis=1
+        )
+
         nms_indices = tf.image.non_max_suppression(
             boxes,
             confidence,
