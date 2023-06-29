@@ -93,9 +93,7 @@ def prepare_pretrained_encoder(
     )
 
 
-def create_model(
-    config: ModelConfig, *, yolo_path: Path
-) -> tf.keras.Model:
+def create_model(config: ModelConfig, *, yolo_path: Path) -> tf.keras.Model:
     """
     Builds the model to use.
 
@@ -109,8 +107,12 @@ def create_model(
     """
     yolo = load_yolo(saved_model=yolo_path, config=config)
     yolo.trainable = False
-    detector, tracker = build_separate_models_yolo(config, yolo_model=yolo)
-    combined = build_combined_model(config, detector=detector, tracker=tracker)
+    detector, appearance, tracker = build_separate_models_yolo(
+        config, yolo_model=yolo
+    )
+    combined = build_combined_model(
+        config, detector=detector, appearance=appearance, tracker=tracker
+    )
     logger.info("Model has {} parameters.", combined.count_params())
 
     combined.summary()

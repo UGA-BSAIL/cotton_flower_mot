@@ -113,6 +113,8 @@ class RoiPooling(layers.Layer):
 
         # Number of input channels. Will be set when the layer is built.
         self._num_input_channels = None
+        # Batch size. Will be set when the layer it built.
+        self._batch_size = None
 
         super().__init__(**kwargs)
 
@@ -140,10 +142,11 @@ class RoiPooling(layers.Layer):
 
     def build(self, input_shape: Tuple[tf.TensorShape, tf.RaggedTensorSpec]):
         self._num_input_channels = input_shape[0][3]
+        self._batch_size = input_shape[0][0]
 
     def compute_output_shape(self, _: Any):
         return (
-            None,
+            self._batch_size,
             None,
             self._pool_size,
             self._pool_size,

@@ -224,6 +224,17 @@ class ModelInputs(enum.Enum):
     form `[center_x, center_y, width, height]`.
     """
 
+    DETECTION_APPEARANCE = "detection_appearance"
+    """
+    Corresponding appearance features for the detection crops. Should have the
+    form `[batch, (num_boxes), num_channels]`.
+    """
+    TRACKLET_APPEARANCE = "tracklet_appearance"
+    """
+    Corresponding appearance features for the tracklet crops. Should have the
+    form `[batch, (num_boxes), num_channels]`.
+    """
+
     SEQUENCE_ID = "sequence_id"
     """
     The sequence ID of the clip.

@@ -6,13 +6,14 @@ https://arxiv.org/pdf/2010.00067.pdf
 from functools import partial
 from typing import Tuple, Callable
 
+import keras
 import tensorflow as tf
 from keras import layers
 from spektral.utils.convolution import line_graph
 
 from .layers.appearance_feature_extractor import AppearanceFeatureExtractor
 from ..config import ModelConfig
-from ..schemas import ModelTargets
+from ..schemas import ModelTargets, ModelInputs
 from .graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,
@@ -20,7 +21,7 @@ from .graph_utils import (
     make_complete_bipartite_adjacency_matrices,
 )
 from .layers import AssociationLayer, BnActConv, ResidualCensNet
-from .models_common import make_tracking_inputs
+from .models_common import make_tracking_inputs, make_geometry_inputs
 from .similarity_utils import (
     aspect_ratio_penalty,
     compute_ious,
@@ -586,16 +587,52 @@ def _make_image_input(config: ModelConfig, *, name: str) -> layers.Input:
     return layers.Input(input_shape, ragged=True, name=name, dtype="uint8")
 
 
+def build_appearance_model(
+    config: ModelConfig, *, detector: keras.Model
+) -> keras.Model:
+    """
+    Builds a model that extracts pooled appearance features from the raw
+    image features.
+
+    Args:
+        config: The model configuration to use.
+        detector: The base detector model. It should have two outputs: one
+            that produces image features, and one that produces detections.
+            This is just used as a size reference for the model input.
+
+    Returns:
+        The appearance model it created.
+
+    """
+    feature_shape = detector.output_shape[0][1:]
+    feature_input = layers.Input(feature_shape, name="image_features")
+    geometry_input = layers.Input((None, 4), ragged=True, name="geometry")
+
+    # Perform ROI pooling to extract appearance features for each object.
+    appearance_feature_extractor = AppearanceFeatureExtractor(
+        roi_pooling_size=config.roi_pooling_size
+    )
+    app_features = appearance_feature_extractor(
+        (geometry_input, feature_input)
+    )
+
+    return keras.Model(
+        inputs=[feature_input, geometry_input],
+        outputs=app_features,
+        name="appearance_features",
+    )
+
+
 def build_tracking_model(
-    config: ModelConfig, *, feature_extractor: Callable[[tf.Tensor], tf.Tensor]
+    config: ModelConfig, *, feature_extractor: keras.Model
 ) -> tf.keras.Model:
     """
     Builds the complete Keras model.
 
     Args:
         config: The model configuration.
-        feature_extractor: The model to use for extracting image features.
-            It is expected to take only the images as input and output features.
+        feature_extractor: The model to use for extracting appearance features.
+            It is used only to determine the input shape.
 
     Returns:
         The model that it created.
@@ -603,41 +640,34 @@ def build_tracking_model(
     """
     # Create the inputs.
     (
-        current_frames_input,
-        previous_frames_input,
         tracklet_geometry_input,
         detection_geometry_input,
-    ) = make_tracking_inputs(config)
+    ) = make_geometry_inputs()
 
-    # Extract appearance features for both frames.
-    current_frame_features = feature_extractor(current_frames_input)
-    previous_frame_features = tf.stop_gradient(
-        feature_extractor(previous_frames_input)
+    appearance_shape = feature_extractor.output_shape[1:]
+    tracklet_appearance_input = layers.Input(
+        appearance_shape,
+        ragged=True,
+        name=ModelInputs.TRACKLET_APPEARANCE.value,
     )
-
-    # Perform ROI pooling to extract appearance features for each object.
-    appearance_feature_extractor = AppearanceFeatureExtractor(
-        roi_pooling_size=config.roi_pooling_size
-    )
-    detections_app_features = appearance_feature_extractor(
-        (detection_geometry_input, current_frame_features)
-    )
-    tracklets_app_features = appearance_feature_extractor(
-        (tracklet_geometry_input, previous_frame_features)
+    detection_appearance_input = layers.Input(
+        appearance_shape,
+        ragged=True,
+        name=ModelInputs.DETECTION_APPEARANCE.value,
     )
 
     # Build the actual model.
     sinkhorn, assignment = compute_association(
-        detections_app_features=detections_app_features,
-        tracklets_app_features=tracklets_app_features,
+        detections_app_features=detection_appearance_input,
+        tracklets_app_features=tracklet_appearance_input,
         detections_geometry=detection_geometry_input,
         tracklets_geometry=tracklet_geometry_input,
         config=config,
     )
     return tf.keras.Model(
         inputs=[
-            current_frames_input,
-            previous_frames_input,
+            detection_appearance_input,
+            tracklet_appearance_input,
             detection_geometry_input,
             tracklet_geometry_input,
         ],

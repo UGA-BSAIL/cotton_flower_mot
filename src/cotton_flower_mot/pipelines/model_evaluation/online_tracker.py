@@ -28,10 +28,14 @@ class Track:
     def __init__(self):
         # Maps frame numbers to detection bounding boxes.
         self.__frames_to_detections = {}
+        # Maps frame numbers to appearance features.
+        self.__frames_to_appearance = {}
         # Maps frame numbers to whether this detection is real or extrapolated.
         self.__frame_has_detection = {}
         # Keeps track of the last frame we have a detection for.
         self.__latest_frame = -1
+        # Keeps track of the last frame we have a motion estimation for.
+        self.__latest_motion_frame = -1
 
         self.__id = Track._NEXT_ID
         Track._NEXT_ID += 1
@@ -40,7 +44,8 @@ class Track:
         self,
         *,
         frame_num: int,
-        detection: np.ndarray,
+        detection: np.array,
+        appearance_feature: Optional[np.array],
         is_extrapolated: bool = False,
     ) -> None:
         """
@@ -50,14 +55,29 @@ class Track:
             frame_num: The frame number that this detection is for.
             detection: The new detection to add, in the form
                 `[center_x, center_y, width, height]`.
+            appearance_feature: The appearance feature vector for this
+                detection, in the form `[num_channels]`. It does not need to
+                be provided if `is_extrapolated` is true.
             is_extrapolated: If true, marks this as an extrapolated detection
                 instead of a "real" one.
 
         """
+        if not is_extrapolated and appearance_feature is None:
+            raise ValueError(
+                "Appearance feature must be provided if box is "
+                "not extrapolated."
+            )
+
         self.__frames_to_detections[frame_num] = detection.tolist()
+        if appearance_feature is not None:
+            self.__frames_to_appearance[
+                frame_num
+            ] = appearance_feature.tolist()
         self.__frame_has_detection[frame_num] = not is_extrapolated
+
         if not is_extrapolated:
             self.__latest_frame = max(self.__latest_frame, frame_num)
+        self.__latest_motion_frame = max(self.__latest_motion_frame, frame_num)
 
     @property
     def last_detection(self) -> Optional[np.ndarray]:
@@ -68,6 +88,26 @@ class Track:
 
         """
         return self.detection_for_frame(self.__latest_frame)
+
+    @property
+    def last_motion_estimate(self) -> Optional[np.ndarray]:
+        """
+        Returns:
+            The bounding box of the most recent position of this object,
+            as estimated by the motion model.
+
+        """
+        return self.detection_for_frame(self.__latest_motion_frame)
+
+    @property
+    def last_appearance(self) -> Optional[np.ndarray]:
+        """
+        Returns:
+            The most recent appearance feature for this track, or None if the
+            track is empty.
+
+        """
+        return self.appearance_for_frame(self.__latest_frame)
 
     @property
     def last_detection_frame(self) -> Optional[int]:
@@ -93,6 +133,22 @@ class Track:
         if frame_num not in self.__frames_to_detections:
             return None
         return np.array(self.__frames_to_detections[frame_num])
+
+    def appearance_for_frame(self, frame_num: int) -> Optional[np.array]:
+        """
+        Gets the corresponding appearance feature for a particular frame,
+        or None if we don't have a detection for that frame.
+
+        Args:
+            frame_num: The frame number.
+
+        Returns:
+            The index for that frame, or None if we don't have one.
+
+        """
+        if frame_num not in self.__frames_to_appearance:
+            return None
+        return np.array(self.__frames_to_appearance[frame_num])
 
     def all_detections(self) -> pd.DataFrame:
         """
@@ -271,6 +327,13 @@ class OnlineTracker:
         self.__previous_frame = None
         # Stores the detection geometry from the previous frame.
         self.__previous_geometry = np.empty((0, 4), dtype=np.float32)
+        # Stores the appearance features from the previous frame.
+        self.__num_appearance_features = self.__detection_model.output_shape[
+            1
+        ][-1]
+        self.__previous_appearance = np.empty(
+            (0, self.__num_appearance_features), dtype=np.float32
+        )
 
         # Stores all the tracks that are currently active.
         self.__active_tracks = set()
@@ -305,7 +368,11 @@ class OnlineTracker:
         return False
 
     def __update_active_tracks(
-        self, *, assignment_matrix: np.array, detections: np.array
+        self,
+        *,
+        assignment_matrix: np.array,
+        detections: np.array,
+        appearances: np.array,
     ) -> None:
         """
         Updates the currently-active tracks with new detection information.
@@ -315,6 +382,8 @@ class OnlineTracker:
                 Should have shape `[num_tracklets, num_detections]`.
             detections: The current detection boxes. Should have the shape
                 `[num_detections, 4]`.
+            appearances: The current appearance feature. Should have the shape
+                `[num_detections, num_channels]`.
 
         """
         # Figure out associations between tracklets and detections.
@@ -346,6 +415,7 @@ class OnlineTracker:
                     track.add_new_detection(
                         frame_num=self.__frame_num,
                         detection=extrapolated_box,
+                        appearance_feature=None,
                         is_extrapolated=True,
                     )
 
@@ -357,6 +427,7 @@ class OnlineTracker:
                 track.add_new_detection(
                     frame_num=self.__frame_num,
                     detection=detections[new_detection_index],
+                    appearance_feature=appearances[new_detection_index],
                 )
 
         # Remove dead tracklets.
@@ -366,7 +437,11 @@ class OnlineTracker:
             self.__completed_tracks.append(track)
 
     def __add_new_tracks(
-        self, *, assignment_matrix: np.ndarray, detections: np.ndarray
+        self,
+        *,
+        assignment_matrix: np.array,
+        detections: np.array,
+        appearances: np.array,
     ) -> None:
         """
         Adds any new tracks to the set of active tracks.
@@ -376,9 +451,13 @@ class OnlineTracker:
                 Should have shape `[num_tracklets, num_detections]`.
             detections: The current detections corresponding to this
                 assignment matrix.
+            appearances: The current appearance features corresponding to this
+                assignment matrix.
 
         """
-        for detection_index, detection in enumerate(detections):
+        for detection_index, (detection, appearance) in enumerate(
+            zip(detections, appearances)
+        ):
             detection_col = assignment_matrix[:, detection_index]
             if not np.any(detection_col):
                 # There is no associated tracklet with this detection,
@@ -386,13 +465,19 @@ class OnlineTracker:
                 track = Track()
                 logger.info("Adding new track from detection {}.", detection)
                 track.add_new_detection(
-                    frame_num=self.__frame_num, detection=detection
+                    frame_num=self.__frame_num,
+                    detection=detection,
+                    appearance_feature=appearance,
                 )
 
                 self.__active_tracks.add(track)
 
     def __update_tracks(
-        self, *, sinkhorn_matrix: np.ndarray, detections: np.ndarray
+        self,
+        *,
+        sinkhorn_matrix: np.array,
+        detections: np.array,
+        appearances: np.array,
     ) -> None:
         """
         Updates the current set of tracks based on the latest tracking result.
@@ -403,6 +488,8 @@ class OnlineTracker:
                 `[num_detections * num_tracklets]`.
             detections: The current detection bounding boxes. Should have
                 shape `[num_detections, 4]`.
+            appearances: The current appearance features. Should have shape
+                `[num_detections, num_channels]`.
 
         """
         # Un-flatten the assignment matrix.
@@ -419,31 +506,35 @@ class OnlineTracker:
         logger.debug("Expanding assignment matrix to {}.", assignment.shape)
 
         self.__update_active_tracks(
-            assignment_matrix=assignment, detections=detections
+            assignment_matrix=assignment,
+            detections=detections,
+            appearances=appearances,
         )
         self.__add_new_tracks(
-            assignment_matrix=assignment, detections=detections
+            assignment_matrix=assignment,
+            detections=detections,
+            appearances=appearances,
         )
 
-    def __update_saved_state(
-        self, *, frame: np.ndarray, geometry: np.ndarray
-    ) -> None:
+    def __update_saved_state(self, *, frame: np.ndarray) -> None:
         """
-        Updates the saved frames and detections that will be used as the
-        input tracks for the next frame.
+        Updates the saved frames, detections and appearance features that
+        will be used as the input tracks for the next frame.
 
         Args:
             frame: The current frame image. Should be an array of shape
                 `[height, width, channels]`.
-            geometry: The geometry for the detections. Should be an array
-                of shape `[num_detections, 4]`.
 
         """
         active_geometry = []
+        active_appearance = []
         self.__tracks_by_tracklet_index.clear()
 
         for i, track in enumerate(self.__active_tracks):
-            active_geometry.append(track.last_detection)
+            active_geometry.append(track.last_motion_estimate)
+            # Even if the appearance feature is older than the position
+            # estimate, we'll still use it since it might be helpful.
+            active_appearance.append(track.last_appearance)
 
             # Save the track object corresponding to this tracklet.
             self.__tracks_by_tracklet_index[i] = track
@@ -453,12 +544,18 @@ class OnlineTracker:
         if len(active_geometry) > 0:
             self.__previous_geometry = np.stack(active_geometry, axis=0)
 
-    def __create_model_inputs(
-        self, *, frame: np.ndarray
+        self.__previous_appearance = np.empty(
+            (0, self.__num_appearance_features)
+        )
+        if len(active_appearance) > 0:
+            self.__previous_appearance = np.stack(active_appearance, axis=0)
+
+    @staticmethod
+    def __create_detection_inputs(
+        *, frame: np.ndarray
     ) -> Dict[str, Union[tf.RaggedTensor, tf.Tensor]]:
         """
-        Creates an input dictionary for the model based on detections for
-        a single frame.
+        Creates an input dictionary for the detection model.
 
         Args:
             frame: The current frame image. Should be an array of shape
@@ -467,44 +564,48 @@ class OnlineTracker:
         """
         # Expand dimensions since the model expects a batch.
         frame = np.expand_dims(frame, axis=0)
-        previous_frame = np.expand_dims(self.__previous_frame, axis=0)
-        previous_geometry = np.expand_dims(self.__previous_geometry, axis=0)
-
-        # Convert to ragged tensors.
-        previous_geometry = tf.RaggedTensor.from_tensor(previous_geometry)
-
         return {
             ModelInputs.DETECTIONS_FRAME.value: frame,
-            ModelInputs.TRACKLETS_FRAME.value: previous_frame,
-            ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
         }
 
-    @staticmethod
-    def __add_detection_input(
-        inputs: Dict[str, Union[tf.RaggedTensor, tf.Tensor]],
-        *,
-        detections: np.ndarray,
-    ) -> None:
+    def __create_tracking_inputs(
+        self, *, detections: np.ndarray, appearance_features: np.ndarray
+    ) -> Dict[str, Union[tf.RaggedTensor, tf.Tensor]]:
         """
-        Adds an input for the current detections to the model inputs.
+        Creates an input dictionary for the tracking model..
 
         Args:
-            inputs: The dictionary of model inputs.
             detections: The detections to add.
+            appearance_features: The appearance features for the detections.
 
         """
         # Expand dimensions since the model expects a batch.
         detections = np.expand_dims(detections, axis=0)
+        appearance_features = np.expand_dims(appearance_features, axis=0)
+        previous_geometry = np.expand_dims(self.__previous_geometry, axis=0)
+        previous_appearance = np.expand_dims(
+            self.__previous_appearance, axis=0
+        )
+
         # Convert to ragged tensors.
         detections = tf.RaggedTensor.from_tensor(detections)
+        appearance_features = tf.RaggedTensor.from_tensor(appearance_features)
+        previous_geometry = tf.RaggedTensor.from_tensor(previous_geometry)
+        previous_appearance = tf.RaggedTensor.from_tensor(previous_appearance)
 
-        inputs[ModelInputs.DETECTION_GEOMETRY.value] = detections
+        return {
+            ModelInputs.DETECTION_GEOMETRY.value: detections,
+            ModelInputs.TRACKLET_GEOMETRY.value: previous_geometry,
+            ModelInputs.DETECTION_APPEARANCE.value: appearance_features,
+            ModelInputs.TRACKLET_APPEARANCE.value: previous_appearance,
+        }
 
     def __match_frame_pair(
         self,
         *,
         frame: np.ndarray,
         detection_geometry: Optional[np.ndarray] = None,
+        appearance_features: Optional[np.ndarray] = None,
     ) -> None:
         """
         Computes the assignment matrix between the current state and new
@@ -515,16 +616,20 @@ class OnlineTracker:
                 `[height, width, channels]`.
             detection_geometry: Optional detections to use, of shape
                 `[num_boxes, 4]`. Otherwise, the detection model will be used.
+            appearance_features: Optional corresponding appearance features to
+                use, of shape `[num_boxes, num_appearance_features]`.
+                Otherwise, the appearance model will be used.
 
         """
-        model_inputs = self.__create_model_inputs(frame=frame)
+        model_inputs = self.__create_detection_inputs(frame=frame)
         if detection_geometry is None:
             # Apply the detector first.
             logger.info("Applying detection model...")
-            model_outputs = self.__detection_model(
+            detection_geometry, appearance_features = self.__detection_model(
                 model_inputs, training=False
             )
-            detection_geometry = model_outputs[0].numpy()
+            detection_geometry = detection_geometry[0].numpy()
+            appearance_features = appearance_features[0].numpy()
 
         num_tracklets = self.__previous_geometry.shape[0]
         num_detections = detection_geometry.shape[0]
@@ -536,8 +641,9 @@ class OnlineTracker:
             )
         else:
             logger.info("Applying tracking model...")
-            self.__add_detection_input(
-                model_inputs, detections=detection_geometry
+            self.__create_tracking_inputs(
+                detections=detection_geometry,
+                appearance_features=appearance_features,
             )
             model_outputs = self.__tracking_model(model_inputs, training=False)
             sinkhorn = model_outputs[0][0].numpy()
@@ -548,13 +654,18 @@ class OnlineTracker:
 
         # Update the tracks.
         self.__update_tracks(
-            sinkhorn_matrix=sinkhorn, detections=detection_geometry
+            sinkhorn_matrix=sinkhorn,
+            detections=detection_geometry,
+            appearances=appearance_features,
         )
         # Update the state.
-        self.__update_saved_state(frame=frame, geometry=detection_geometry)
+        self.__update_saved_state(frame=frame)
 
     def process_frame(
-        self, frame: np.ndarray, detections: Optional[np.ndarray] = None
+        self,
+        frame: np.array,
+        detections: Optional[np.array] = None,
+        appearances: Optional[np.array] = None,
     ) -> None:
         """
         Use the tracker to process a new frame. It will detect objects in the
@@ -565,10 +676,17 @@ class OnlineTracker:
                 array of shape `[height, width, channels]`.
             detections: Optionally, provide detections instead of using the
                 detector model. Should have shape `[num_boxes, 4]`.
+            appearances: Optionally, provide appearance features instead of
+                using the detector model. Should have shape
+                `[num_boxes, num_features]`.
 
         """
         if not self.__maybe_init_state(frame=frame):
-            self.__match_frame_pair(frame=frame, detection_geometry=detections)
+            self.__match_frame_pair(
+                frame=frame,
+                detection_geometry=detections,
+                appearance_features=appearances,
+            )
 
         self.__frame_num += 1
 

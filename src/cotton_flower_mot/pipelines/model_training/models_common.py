@@ -6,9 +6,37 @@ from ..schemas import ModelInputs, ModelTargets
 import keras
 
 
+def make_geometry_inputs() -> Tuple[layers.Input, layers.Input]:
+    """
+    Creates inputs for bounding box geometry.
+
+    Returns:
+        The tracklet and detection geometry inputs.
+
+    """
+    geometry_input_shape = (None, 4)
+    # In all cases, we need to manually provide the tracklet bounding boxes.
+    # These can either be the ground-truth, during training, or the
+    # detections from the previous frame, during online inference.
+    tracklet_geometry_input = layers.Input(
+        geometry_input_shape,
+        ragged=True,
+        name=ModelInputs.TRACKLET_GEOMETRY.value,
+    )
+    # Detection geometry can either be the ground-truth boxes (during training),
+    # or the detected boxes (during inference).
+    detection_geometry_input = layers.Input(
+        geometry_input_shape,
+        ragged=True,
+        name=ModelInputs.DETECTION_GEOMETRY.value,
+    )
+
+    return tracklet_geometry_input, detection_geometry_input
+
+
 def make_tracking_inputs(
     config: ModelConfig,
-) -> Tuple[tf.Tensor, tf.Tensor, tf.RaggedTensor, tf.RaggedTensor]:
+) -> Tuple[layers.Input, layers.Input, layers.Input, layers.Input]:
     """
     Creates inputs that are used by all tracking models.
 
@@ -31,22 +59,7 @@ def make_tracking_inputs(
         name=ModelInputs.TRACKLETS_FRAME.value,
     )
 
-    geometry_input_shape = (None, 4)
-    # In all cases, we need to manually provide the tracklet bounding boxes.
-    # These can either be the ground-truth, during training, or the
-    # detections from the previous frame, during online inference.
-    tracklet_geometry_input = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.TRACKLET_GEOMETRY.value,
-    )
-    # Detection geometry can either be the ground-truth boxes (during training),
-    # or the detected boxes (during inference).
-    detection_geometry_input = layers.Input(
-        geometry_input_shape,
-        ragged=True,
-        name=ModelInputs.DETECTION_GEOMETRY.value,
-    )
+    tracklet_geometry_input, detection_geometry_input = make_geometry_inputs()
 
     return (
         current_frames_input,
@@ -109,8 +122,8 @@ def apply_detector(
 def apply_tracker(
     tracker: keras.Model,
     *,
-    current_frames: tf.Tensor,
-    previous_frames: tf.Tensor,
+    tracklet_appearance: tf.RaggedTensor,
+    detection_appearance: tf.RaggedTensor,
     tracklet_geometry: tf.RaggedTensor,
     detection_geometry: tf.RaggedTensor,
 ) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
@@ -119,8 +132,8 @@ def apply_tracker(
 
     Args:
         tracker: The tracker model.
-        current_frames: The current input frames.
-        previous_frames: The previous input frames.
+        tracklet_appearance: The appearance features for the tracked objects.
+        detection_appearance: The appearance features for the new detections.
         tracklet_geometry: The bounding boxes for the tracked objects.
         detection_geometry: The bounding boxes for the new detections.
 
@@ -130,8 +143,8 @@ def apply_tracker(
     """
     sinkhorn, assignment = tracker(
         {
-            ModelInputs.DETECTIONS_FRAME.value: current_frames,
-            ModelInputs.TRACKLETS_FRAME.value: previous_frames,
+            ModelInputs.TRACKLET_APPEARANCE.value: tracklet_appearance,
+            ModelInputs.DETECTION_APPEARANCE.value: detection_appearance,
             ModelInputs.DETECTION_GEOMETRY.value: detection_geometry,
             ModelInputs.TRACKLET_GEOMETRY.value: tracklet_geometry,
         }

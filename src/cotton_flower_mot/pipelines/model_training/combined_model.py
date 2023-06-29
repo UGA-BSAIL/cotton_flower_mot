@@ -12,7 +12,7 @@ from loguru import logger
 
 from ..config import ModelConfig
 from .centernet_model import build_detection_model
-from .gcnn_model import build_tracking_model
+from .gcnn_model import build_tracking_model, build_appearance_model
 from .models_common import make_tracking_inputs, apply_detector, apply_tracker
 
 
@@ -109,8 +109,8 @@ def build_separate_models(
 
 
 def build_separate_models_yolo(
-        config: ModelConfig, yolo_model: tf.keras.Model
-) -> Tuple[tf.keras.Model, tf.keras.Model]:
+    config: ModelConfig, yolo_model: tf.keras.Model
+) -> Tuple[tf.keras.Model, tf.keras.Model, tf.keras.Model]:
     """
     Builds compatible detection and tracking models, using a pretrained YOLO
     model for detection.
@@ -120,19 +120,25 @@ def build_separate_models_yolo(
         yolo_model: The pretrained YOLO model to use for detection.
 
     Returns:
-        The detection and tracking models.
+        The detection, appearance, and tracking models.
 
     """
+    logger.debug("Building appearance model...")
+    appearance_model = build_appearance_model(config, detector=yolo_model)
     logger.debug("Building tracking model...")
     tracking_model = build_tracking_model(
-        config=config, feature_extractor=lambda x: yolo_model(x)[0]
+        config=config, feature_extractor=appearance_model
     )
 
-    return yolo_model, tracking_model
+    return yolo_model, appearance_model, tracking_model
 
 
 def build_combined_model(
-    config: ModelConfig, *, detector: keras.Model, tracker: keras.Model
+    config: ModelConfig,
+    *,
+    detector: keras.Model,
+    appearance: keras.Model,
+    tracker: keras.Model
 ) -> tf.keras.Model:
     """
     Builds the combined detection + tracking model.
@@ -140,6 +146,7 @@ def build_combined_model(
     Args:
         config: The model configuration.
         detector: The detection model.
+        appearance: The appearance feature model.
         tracker: The tracking model.
 
     Returns:
@@ -156,17 +163,34 @@ def build_combined_model(
     ) = make_tracking_inputs(config)
 
     # Apply the detection model to the input frames.
-    detection_outputs: Tuple[
-        Union[tf.Tensor, tf.RaggedTensor], ...
-    ] = apply_detector(
-        detector,
-        frames=current_frames_input,
+    # apply_detector() adds names for the outputs, which we only need for the
+    # current frame since those will be outputs of the end-to-end model also.
+    current_detection_outputs = apply_detector(
+        detector, frames=current_frames_input
     )
+    last_detection_outputs = detector(last_frames_input)
+
+    # Apply the appearance feature extractor.
+    current_image_features = current_detection_outputs[0]
+    last_image_features = last_detection_outputs[0]
+    tracklet_app_features = appearance(
+        dict(
+            image_features=last_image_features,
+            geometry=tracklet_geometry_input,
+        ),
+    )
+    detection_app_features = appearance(
+        dict(
+            image_features=current_image_features,
+            geometry=detection_geometry_input,
+        ),
+    )
+
     # Apply the tracking model.
     sinkhorn, assignment = apply_tracker(
         tracker,
-        current_frames=current_frames_input,
-        previous_frames=last_frames_input,
+        tracklet_appearance=tracklet_app_features,
+        detection_appearance=detection_app_features,
         tracklet_geometry=tracklet_geometry_input,
         detection_geometry=detection_geometry_input,
     )
@@ -178,7 +202,7 @@ def build_combined_model(
             tracklet_geometry_input,
             detection_geometry_input,
         ],
-        outputs=list(detection_outputs)
+        outputs=list(current_detection_outputs)
         + [
             sinkhorn,
             assignment,

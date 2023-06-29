@@ -125,7 +125,10 @@ def build_inference_model(
         **kwargs: Will be forwarded to `_filter_detections`.
 
     Returns:
-        The full tracking model, as well as the detection-only model.
+        - The tracking model, which takes appearance and geometry features as
+          and outputs the sinkhorn and assignment matrices.
+        - The detection model, which takes a frame as input and outputs
+          bounding boxes and appearance features.
 
     """
     logger.debug("Building inference model...")
@@ -156,43 +159,30 @@ def build_inference_model(
 
     # Extract the individual detection and tracking models.
     detector = training_model.get_layer("yolo_detector")
+    appearance_extractor = training_model.get_layer("appearance_features")
     tracker = training_model.get_layer("gcnnmatch")
 
     # Use the inference version of the detection model.
-    yolo_raw = tracker.get_layer("yolo_detector").get_layer("pretrained_tf_3")
-    yolo_raw.reload(detector_model_path)
     yolo_raw = detector.get_layer("pretrained_tf_2")
     yolo_raw.reload(detector_model_path)
 
     # Get the detections.
     detector_outputs = apply_detector(detector, frames=current_frames_input)
+    image_features = detector_outputs[0]
     detections = detector_outputs[-1]
     detections = _filter_detections(detections, **kwargs)
     # Ignore the confidence for the detections.
     detections = tf.cast(detections[:, :, :4], tf.float32)
 
-    # Apply the tracker using the detections.
-    sinkhorn, assignment = apply_tracker(
-        tracker,
-        current_frames=current_frames_input,
-        previous_frames=last_frames_input,
-        tracklet_geometry=tracklet_geometry_input,
-        detection_geometry=detection_geometry_input,
+    # Extract appearance features for the detections.
+    appearance_features = appearance_extractor(
+        dict(image_features=image_features, geometry=detections),
+        name="appearance_features",
     )
 
-    tracking_model = keras.Model(
-        inputs=[
-            current_frames_input,
-            last_frames_input,
-            tracklet_geometry_input,
-            detection_geometry_input,
-        ],
-        outputs=[sinkhorn, assignment],
-        name="end_to_end_inference",
-    )
     detection_model = keras.Model(
         inputs=[current_frames_input],
-        outputs=[detections],
+        outputs=[detections, appearance_features],
         name="detector_inference",
     )
-    return tracking_model, detection_model
+    return tracker, detection_model
