@@ -19,7 +19,9 @@ from .tracking_video_maker import draw_tracks
 from ...data_sets.video_data_set import FrameReader
 
 
-DefaultTracker = partial(OnlineTracker, death_window=60)
+DefaultTracker = partial(
+    OnlineTracker, death_window=60, motion_model_min_detections=6
+)
 
 ClipsToTracksType = Dict[str, List[Dict[str, Any]]]
 """

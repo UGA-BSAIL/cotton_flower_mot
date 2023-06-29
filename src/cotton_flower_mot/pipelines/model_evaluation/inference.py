@@ -163,7 +163,7 @@ def build_inference_model(
     tracker = training_model.get_layer("gcnnmatch")
 
     # Use the inference version of the detection model.
-    yolo_raw = detector.get_layer("pretrained_tf_2")
+    yolo_raw = detector.get_layer("pretrained_tf_1")
     yolo_raw.reload(detector_model_path)
 
     # Get the detections.
@@ -177,7 +177,6 @@ def build_inference_model(
     # Extract appearance features for the detections.
     appearance_features = appearance_extractor(
         dict(image_features=image_features, geometry=detections),
-        name="appearance_features",
     )
 
     detection_model = keras.Model(

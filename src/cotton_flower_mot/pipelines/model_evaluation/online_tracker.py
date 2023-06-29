@@ -25,7 +25,15 @@ class Track:
     Allows us to associate a unique ID with each track.
     """
 
-    def __init__(self):
+    def __init__(self, motion_model_min_detections: int = 3):
+        """
+        Args:
+            motion_model_min_detections: The minimum number of (real)
+                detections we need to have before applying the motion model.
+
+        """
+        self.__motion_min_detections = motion_model_min_detections
+
         # Maps frame numbers to detection bounding boxes.
         self.__frames_to_detections = {}
         # Maps frame numbers to appearance features.
@@ -245,7 +253,7 @@ class Track:
         """
         # Get the previous positions. (Only use real detections.)
         frames = [f for f, v in self.__frame_has_detection.items() if v]
-        if len(frames) < 3:
+        if len(frames) < self.__motion_min_detections:
             raise ValueError(
                 "Should have at least three detections to extrapolate."
             )
@@ -271,6 +279,7 @@ class Track:
 
         """
         return dict(
+            motion_model_min_detections=self.__motion_min_detections,
             frames_to_detections=self.__frames_to_detections,
             frame_has_detection=self.__frame_has_detection,
             latest_frame=self.__latest_frame,
@@ -289,7 +298,9 @@ class Track:
             The track that it created.
 
         """
-        track = cls()
+        track = cls(
+            motion_model_min_detections=config["motion_model_min_detections"]
+        )
 
         track.__frames_to_detections = config["frames_to_detections"]
         track.__frame_has_detection = config["frame_has_detection"]
@@ -310,6 +321,7 @@ class OnlineTracker:
         tracking_model: tf.keras.Model,
         detection_model: tf.keras.Model,
         death_window: int = 10,
+        motion_model_min_detections: int = 5,
     ):
         """
         Args:
@@ -317,11 +329,14 @@ class OnlineTracker:
             detection_model: The model to use for tracking.
             death_window: How many consecutive frames we have to not observe
                 a tracklet for before we consider it dead.
+            motion_model_min_detections: Minimum number of (real) detections
+                we must have before applying the motion model.
 
         """
         self.__tracking_model = tracking_model
         self.__detection_model = detection_model
         self.__death_window = death_window
+        self.__motion_min_detections = motion_model_min_detections
 
         # Stores the previous frame.
         self.__previous_frame = None
@@ -462,7 +477,9 @@ class OnlineTracker:
             if not np.any(detection_col):
                 # There is no associated tracklet with this detection,
                 # so it represents a new track.
-                track = Track()
+                track = Track(
+                    motion_model_min_detections=self.__motion_min_detections
+                )
                 logger.info("Adding new track from detection {}.", detection)
                 track.add_new_detection(
                     frame_num=self.__frame_num,
@@ -641,7 +658,7 @@ class OnlineTracker:
             )
         else:
             logger.info("Applying tracking model...")
-            self.__create_tracking_inputs(
+            model_inputs = self.__create_tracking_inputs(
                 detections=detection_geometry,
                 appearance_features=appearance_features,
             )
