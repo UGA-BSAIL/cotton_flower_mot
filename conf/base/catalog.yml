@@ -187,3 +187,15 @@ vertical_displacement_histogram:
   type: matplotlib.MatplotlibWriter
   filepath: ${output_data_dir}/08_reporting/graphs/vertical_displacement_histogram.png
   versioned: true
+
+# MOT Challenge results.
+validation_mot_challenge:
+  type: PartitionedDataSet
+  path: ${output_data_dir}/08_reporting/mot_challenge/validation
+  filename_suffix: ".csv"
+  dataset:
+    type: pandas.CSVDataSet
+    save_args:
+      index: false
+      header: false
+

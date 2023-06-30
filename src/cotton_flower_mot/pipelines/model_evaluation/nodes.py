@@ -7,13 +7,14 @@ from typing import Dict, Callable, Iterable, List, Any, Tuple
 
 import numpy as np
 import cv2
+import pandas as pd
 import tensorflow as tf
 from loguru import logger
 from functools import partial
 from matplotlib import pyplot as plot
 import seaborn as sns
 
-from ..schemas import ModelInputs
+from ..schemas import ModelInputs, MotAnnotationColumns
 from .online_tracker import OnlineTracker, Track
 from .tracking_video_maker import draw_tracks
 from ...data_sets.video_data_set import FrameReader
@@ -162,6 +163,74 @@ def _get_line_for_sequence(
     track_camera = sequences[sequence_id]["camera"]
     track_pos = line_positions[track_camera]
     return track_pos["pos"], track_pos["horizontal"]
+
+
+def _track_to_mot_challenge(track: Track) -> pd.DataFrame:
+    """
+    Converts a track to the MOT Challenge format.
+
+    Args:
+        track: The track to convert.
+
+    Returns:
+        The track in the MOT Challenge format.
+
+    """
+    detections = track.all_detections()
+
+    # It wants bounding boxes in a different format, so fix that.
+    bbox_min_x = detections["center_x"] - detections["width"] / 2
+    bbox_min_y = detections["center_y"] - detections["height"] / 2
+
+    # For confidence, we'll just set it to one for actual detections and zero
+    # for extrapolated bounding boxes.
+    confidence = [
+        track.has_real_detection_for_frame(f) for f in detections.index
+    ]
+    confidence = np.array(confidence).astype(float)
+
+    return pd.DataFrame(
+        data={
+            MotAnnotationColumns.FRAME.value: detections.index,
+            MotAnnotationColumns.ID.value: track.id,
+            MotAnnotationColumns.BBOX_X_MIN_PX.value: bbox_min_x,
+            MotAnnotationColumns.BBOX_Y_MIN_PX.value: bbox_min_y,
+            MotAnnotationColumns.BBOX_WIDTH_PX.value: detections["width"],
+            MotAnnotationColumns.BBOX_HEIGHT_PX.value: detections["height"],
+            MotAnnotationColumns.CONFIDENCE.value: confidence,
+            # These are only used for 3D tracking, which we're not doing.
+            "x": -1,
+            "y": -1,
+            "z": -1,
+        }
+    )
+
+
+def create_mot_challenge_results(
+    tracks_from_clips: ClipsToTracksType,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Converts tracking results to the MOT Challenge format for easy comparison.
+
+    Args:
+        tracks_from_clips: The track data for each clip.
+
+    Returns:
+        The tracking results in the MOT Challenge format, keyed by sequence.
+
+    """
+    partitions = {}
+    for sequence_id, tracks in tracks_from_clips.items():
+        # Deserialize the tracks.
+        tracks = [Track.from_dict(t) for t in tracks]
+
+        mot_results = []
+        for track in tracks:
+            mot_results.append(_track_to_mot_challenge(track))
+
+        partitions[sequence_id] = pd.concat(mot_results, ignore_index=True)
+
+    return partitions
 
 
 def filter_countable_tracks(

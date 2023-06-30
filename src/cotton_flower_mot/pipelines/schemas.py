@@ -58,9 +58,9 @@ class MotAnnotationColumns(enum.Enum):
     """
     The height of the bounding box, in pixels.
     """
-    NOT_IGNORED = "not_ignored"
+    CONFIDENCE = "confidence"
     """
-    Attribute from CVAT specifying whether the annotation is ignored.
+    Detection confidence. If zero, this detection will be ignored.
     """
     CLASS_ID = "class_id"
     """

@@ -30,4 +30,4 @@ shuffle_buffer_size: 5
 # Native number of examples in the dataset without frame dropping.
 num_dataset_examples: 7040
 # Probability of dropping a particular example to use.
-drop_probability: 0.75
+drop_probability: 0.9

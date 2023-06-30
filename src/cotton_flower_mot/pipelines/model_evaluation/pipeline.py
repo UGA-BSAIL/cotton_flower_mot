@@ -16,6 +16,7 @@ from .nodes import (
     filter_countable_tracks,
     make_horizontal_displacement_histogram,
     make_vertical_displacement_histogram,
+    create_mot_challenge_results,
 )
 from .inference import build_inference_model
 from ..training_utils import set_mixed_precision
@@ -99,6 +100,12 @@ def create_pipeline(**kwargs):
                     # "2022-08-31_SPL_tracks",
                 ],
                 "validation_tracks",
+            ),
+            # Save the results in MOT challenge format.
+            node(
+                create_mot_challenge_results,
+                "validation_tracks",
+                "validation_mot_challenge",
             ),
             # Create count reports.
             # node(

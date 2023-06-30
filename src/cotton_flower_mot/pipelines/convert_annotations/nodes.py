@@ -96,7 +96,7 @@ def convert_to_mot_format(
     annotations.drop(["class"], axis=1, inplace=True)
 
     # Fill extraneous columns with default values.
-    annotations[Mot.NOT_IGNORED.value] = 1
+    annotations[Mot.CONFIDENCE.value] = 1
     annotations[Mot.CLASS_ID.value] = 1
     annotations[Mot.VISIBILITY.value] = 1.0
 

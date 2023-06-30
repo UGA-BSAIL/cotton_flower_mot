@@ -287,7 +287,7 @@ def convert_to_mot(
 
     # Fill in extraneous columns with default values.
     mot_detections[MotAnnotationColumns.CLASS_ID.value] = 1
-    mot_detections[MotAnnotationColumns.NOT_IGNORED.value] = 1
+    mot_detections[MotAnnotationColumns.CONFIDENCE.value] = 1
     mot_detections[MotAnnotationColumns.VISIBILITY.value] = 1.0
 
     return mot_detections
