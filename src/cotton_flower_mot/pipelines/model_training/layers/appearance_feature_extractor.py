@@ -22,13 +22,21 @@ class AppearanceFeatureExtractor(layers.Layer):
         super().__init__(*args, **kwargs)
         self._roi_pooling_size = roi_pooling_size
 
-        self._dropout = layers.Dropout(0.5)
-        self._conv_1 = BnActConv(128, 3, padding="same", name="app_conv_1")
-        self._conv_2 = BnActConv(256, 1, padding="same", name="app_conv_2")
-        self._conv_3 = BnActConv(256, 1, padding="same", name="app_conv_3")
+        self._dropout_1 = layers.Dropout(0.5)
+        self._conv_1_1 = BnActConv(128, 3, padding="same", name="app_conv_1")
+        self._conv_1_2 = BnActConv(256, 1, padding="same", name="app_conv_2")
+        self._conv_1_3 = BnActConv(256, 1, padding="same", name="app_conv_3")
 
-        self._res_conv = BnActConv(256, 1, padding="same", name="app_res")
-        self._res_add = layers.Add()
+        self._res_1_conv = BnActConv(256, 1, padding="same", name="app_res")
+        self._res_1_add = layers.Add()
+
+        self._dropout_2 = layers.Dropout(0.5)
+        self._conv_2_1 = BnActConv(256, 3, padding="same", name="app_conv_1")
+        self._conv_2_2 = BnActConv(384, 1, padding="same", name="app_conv_2")
+        self._conv_2_3 = BnActConv(384, 1, padding="same", name="app_conv_3")
+
+        self._res_2_conv = BnActConv(384, 1, padding="same", name="app_res")
+        self._res_2_add = layers.Add()
 
         self._conv_squeeze = BnActConv(
             8, 1, activation="relu", name="app_squeeze"
@@ -74,13 +82,22 @@ class AppearanceFeatureExtractor(layers.Layer):
         bbox_geometry, image_features = inputs
         image_features_res = image_features
 
-        image_features = self._dropout(image_features)
-        image_features = self._conv_1(image_features)
-        image_features = self._conv_2(image_features)
-        image_features = self._conv_3(image_features)
+        image_features = self._dropout_1(image_features)
+        image_features = self._conv_1_1(image_features)
+        image_features = self._conv_1_2(image_features)
+        image_features = self._conv_1_3(image_features)
 
-        image_features_res = self._res_conv(image_features_res)
-        image_features = self._res_add((image_features_res, image_features))
+        image_features_res = self._res_1_conv(image_features_res)
+        image_features = self._res_1_add((image_features_res, image_features))
+
+        image_features_res = image_features
+        image_features = self._dropout_2(image_features)
+        image_features = self._conv_2_1(image_features)
+        image_features = self._conv_2_2(image_features)
+        image_features = self._conv_2_3(image_features)
+
+        image_features_res = self._res_2_conv(image_features_res)
+        image_features = self._res_2_add((image_features_res, image_features))
 
         image_features = self._conv_squeeze(image_features)
         feature_crops = self._roi_pooling((image_features, bbox_geometry))
