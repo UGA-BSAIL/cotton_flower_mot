@@ -10,7 +10,7 @@ conf/**/*credentials*
 
 # ignore everything in the following folders
 data/**
-!data/01_raw/counting_line_params.yml
+!data/01_raw/sequence_meta.yml
 logs/**
 
 # except their sub-folders

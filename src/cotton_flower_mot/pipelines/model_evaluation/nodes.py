@@ -20,22 +20,65 @@ from .tracking_video_maker import draw_tracks
 from ...data_sets.video_data_set import FrameReader
 
 
-DefaultTracker = partial(
-    OnlineTracker, death_window=60, motion_model_min_detections=6
-)
-
 ClipsToTracksType = Dict[str, List[Dict[str, Any]]]
 """
 Type alias for the mapping of sequences to tracks.
 """
+
+_DEATH_WINDOW_S = 1.0
+"""
+The number of seconds to use for the death window.
+"""
+_MOTION_MODEL_MIN_DETECTIONS = 6
+"""
+The minimum number of detections to use when applying the motion model.
+"""
+
+
+def _make_tracker(
+    sequence_meta: Dict[str, Any],
+    *,
+    sequence_id: str,
+    tracking_model: tf.keras.Model,
+    detection_model: tf.keras.Model,
+) -> OnlineTracker:
+    """
+    Creates an OnlineTracker instance for a given sequence.
+
+    Args:
+        sequence_meta: Metadata for the sequences.
+        sequence_id: The ID of the sequence.
+        tracking_model: The model to use for tracking.
+        detection_model: The model to use for detection.
+
+    Returns:
+        An OnlineTracker instance.
+
+    """
+    # Convert death window to frames.
+    video_fps = float(sequence_meta["sequences"][sequence_id]["fps"])
+    death_window_frames = int(video_fps * _DEATH_WINDOW_S)
+    logger.debug(
+        "Using {} frame death window for sequence {}.",
+        death_window_frames,
+        sequence_id,
+    )
+
+    return OnlineTracker(
+        detection_model=detection_model,
+        tracking_model=tracking_model,
+        death_window=death_window_frames,
+        motion_model_min_detections=_MOTION_MODEL_MIN_DETECTIONS,
+    )
 
 
 def compute_tracks_for_clip(
     *,
     tracking_model: tf.keras.Model,
     detection_model: tf.keras.Model,
+    sequence_meta: Dict[str, Any],
     clip: FrameReader,
-    name: str,
+    sequence_id: str,
 ) -> ClipsToTracksType:
     """
     Computes tracks for a single contiguous clip.
@@ -43,8 +86,9 @@ def compute_tracks_for_clip(
     Args:
         tracking_model: The model to use for track computation.
         detection_model: The model to use for detection.
+        sequence_meta: The sequence metadata.
         clip: The clip frames, in order.
-        name: The name to use for this particular clip.
+        sequence_id: The sequence ID to use for this particular clip.
 
     Returns:
         A mapping of the clip name to the tracks in this clip.
@@ -52,20 +96,24 @@ def compute_tracks_for_clip(
     """
     logger.info("Computing tracks for clip...")
 
-    tracker = DefaultTracker(
-        detection_model=detection_model, tracking_model=tracking_model
+    tracker = _make_tracker(
+        sequence_meta,
+        detection_model=detection_model,
+        tracking_model=tracking_model,
+        sequence_id=sequence_id,
     )
     for frame in clip.read(0):
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if sequence_meta["sequences"][sequence_id]["flip_color"]:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         tracker.process_frame(frame)
 
     # Serialize the tracks.
     tracks = []
     for track in tracker.tracks:
         tracks.append(track.to_dict())
-    return {name: tracks}
+    return {sequence_id: tracks}
 
 
 def compute_tracks_for_clip_dataset(
@@ -73,6 +121,7 @@ def compute_tracks_for_clip_dataset(
     tracking_model: tf.keras.Model,
     detection_model: tf.keras.Model,
     clip_dataset: tf.data.Dataset,
+    sequence_meta: Dict[str, Any],
 ) -> ClipsToTracksType:
     """
     Computes the tracks for a given sequence of clips.
@@ -82,6 +131,7 @@ def compute_tracks_for_clip_dataset(
         detection_model: The model to use for detection.
         clip_dataset: The dataset containing detections for each frame in the
             clip.
+        sequence_meta: The sequence metadata.
 
     Returns:
         Mapping of sequence IDs to tracks from that clip.
@@ -98,24 +148,27 @@ def compute_tracks_for_clip_dataset(
     tracker = None
     for inputs, _ in clip_dataset:
         # The two IDs should be identical anyway.
-        sequence_id = int(inputs[ModelInputs.SEQUENCE_ID.value][0])
+        sequence_id = str(inputs[ModelInputs.SEQUENCE_ID.value].numpy()[0])
         if sequence_id != current_sequence_id:
             # Start of a new clip.
             logger.info("Starting tracking for clip {}.", sequence_id)
 
             if tracker is not None:
-                tracks_from_clips[str(current_sequence_id)] = tracker.tracks
+                tracks_from_clips[current_sequence_id] = tracker.tracks
             current_sequence_id = sequence_id
-            tracker = DefaultTracker(
+            tracker = _make_tracker(
+                sequence_meta,
                 tracking_model=tracking_model,
                 detection_model=detection_model,
+                sequence_id=sequence_id,
             )
 
-        tracker.process_frame(
-            inputs[ModelInputs.DETECTIONS_FRAME.value].numpy(),
-        )
+        frame = inputs[ModelInputs.DETECTIONS_FRAME.value].numpy()
+        if sequence_meta["sequences"][sequence_id]["flip_color"]:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        tracker.process_frame(frame)
     # Add the last one.
-    tracks_from_clips[str(current_sequence_id)] = tracker.tracks
+    tracks_from_clips[current_sequence_id] = tracker.tracks
 
     # Serialize the tracks.
     for sequence, tracks in tracks_from_clips.items():
@@ -145,21 +198,21 @@ def merge_track_datasets(
 
 
 def _get_line_for_sequence(
-    counting_line_params: Dict[str, Any], sequence_id: str
+    sequence_meta: Dict[str, Any], sequence_id: str
 ) -> Tuple[float, bool]:
     """
     Gets the counting line for a particular sequence.
 
     Args:
-        counting_line_params: The loaded counting line parameters.
+        sequence_meta: The sequence metadata.
         sequence_id: The ID of the sequence to get the line for.
 
     Returns:
         The line position, and whether it is horizontal or not.
 
     """
-    line_positions = counting_line_params["line_positions"]
-    sequences = counting_line_params["sequences"]
+    line_positions = sequence_meta["line_positions"]
+    sequences = sequence_meta["sequences"]
     track_camera = sequences[sequence_id]["camera"]
     track_pos = line_positions[track_camera]
     return track_pos["pos"], track_pos["horizontal"]
@@ -236,7 +289,7 @@ def create_mot_challenge_results(
 def filter_countable_tracks(
     *,
     tracks_from_clips: ClipsToTracksType,
-    counting_line_params: Dict[str, Any],
+    sequence_meta: Dict[str, Any],
 ) -> ClipsToTracksType:
     """
     Filters the provided tracks to include only the ones that cross the
@@ -244,7 +297,7 @@ def filter_countable_tracks(
 
     Args:
         tracks_from_clips: The extracted tracks from each clip.
-        counting_line_params: Parameters describing the counting line to use.
+        sequence_meta: The sequence metadata.
 
     Returns:
         The same tracks, but filtered.
@@ -255,7 +308,7 @@ def filter_countable_tracks(
         # Deserialize the tracks.
         tracks = [Track.from_dict(t) for t in tracks]
         line_pos, horizontal = _get_line_for_sequence(
-            counting_line_params, sequence_id
+            sequence_meta, sequence_id
         )
 
         crossing_tracks = []
@@ -407,7 +460,7 @@ def make_track_videos_clip_dataset(
     *,
     tracks_from_clips: ClipsToTracksType,
     clip_dataset: tf.data.Dataset,
-    counting_line_params: Dict[str, Any],
+    sequence_meta: Dict[str, Any],
 ) -> Dict[str, Callable[[], Iterable[np.ndarray]]]:
     """
     Creates track videos for all the tracks and all the clips in a TFRecords
@@ -417,7 +470,7 @@ def make_track_videos_clip_dataset(
         tracks_from_clips: The tracks that were found for each clip.
         clip_dataset: A dataset containing the input data for all the clips,
             sequentially.
-        counting_line_params: Parameters describing the counting line to use.
+        sequence_meta: The sequence metadata.
 
     Returns:
         Dictionary mapping sequence IDs to a callable that produces video
@@ -450,7 +503,7 @@ def make_track_videos_clip_dataset(
         single_clip = (f.numpy() for f in single_clip)
 
         line_pos, horizontal = _get_line_for_sequence(
-            counting_line_params, sequence_id_
+            sequence_meta, sequence_id_
         )
         return draw_tracks(
             single_clip,
@@ -473,7 +526,7 @@ def make_track_videos_clip(
     tracks_from_clips: ClipsToTracksType,
     clip: FrameReader,
     sequence_id: str,
-    counting_line_params: Dict[str, Any],
+    sequence_meta: Dict[str, Any],
 ) -> Dict[str, Callable[[], Iterable[np.ndarray]]]:
     """
     Creates track videos for all the tracks in a clip.
@@ -482,7 +535,7 @@ def make_track_videos_clip(
         tracks_from_clips: The tracks that were found for each clip.
         clip: The clip to draw tracks for.
         sequence_id: The sequence ID of the clip.
-        counting_line_params: Parameters describing the counting line to use.
+        sequence_meta: The sequence metadata.
 
     Returns:
         Dictionary mapping sequence IDs to a callable that produces video
@@ -499,7 +552,7 @@ def make_track_videos_clip(
         )
 
         line_pos, horizontal = _get_line_for_sequence(
-            counting_line_params, sequence_id
+            sequence_meta, sequence_id
         )
         return draw_tracks(
             clip.read(0),

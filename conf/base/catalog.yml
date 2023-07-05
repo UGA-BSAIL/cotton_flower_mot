@@ -1,7 +1,7 @@
-# Configuration to use for counting lines.
-counting_line_params:
+# Sequence metadata.
+sequence_meta:
   type: yaml.YAMLDataSet
-  filepath: data/01_raw/counting_line_params.yml
+  filepath: data/01_raw/sequence_meta.yml
 
 # Cleaned and wrangled annotations.
 annotations_pandas:
@@ -122,6 +122,7 @@ video_2021_08_25_SPL:
 video_2022_08_23_ENGR:
   type: cotton_flower_mot.data_sets.VideoDataSet
   filepath: data/01_raw/2022-08-23_ENGR.avi
+  bgr_color: False
 
 video_2022_08_31_SPL:
   type: cotton_flower_mot.data_sets.VideoDataSet
@@ -192,6 +193,16 @@ vertical_displacement_histogram:
 validation_mot_challenge:
   type: PartitionedDataSet
   path: ${output_data_dir}/08_reporting/mot_challenge/validation
+  filename_suffix: ".csv"
+  dataset:
+    type: pandas.CSVDataSet
+    save_args:
+      index: false
+      header: false
+
+testing_mot_challenge:
+  type: PartitionedDataSet
+  path: ${output_data_dir}/08_reporting/mot_challenge/testing
   filename_suffix: ".csv"
   dataset:
     type: pandas.CSVDataSet
