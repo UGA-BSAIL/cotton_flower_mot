@@ -31,10 +31,8 @@ def _preprocess_inputs(images: tf.Tensor) -> tf.Tensor:
         The preprocessed images.
 
     """
-    # Convert from BGR to RGB.
-    images_rgb = images[:, :, :, ::-1]
     # Convert to floats.
-    images_float = tf.cast(images_rgb, tf.float32)
+    images_float = tf.cast(images, tf.float32)
     # Resize to the correct input size.
     images_float = tf.image.resize(images_float, _RAW_MODEL_INPUT_SHAPE[:2])
     return images_float / 255.0
