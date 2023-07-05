@@ -14,6 +14,8 @@
 #SBATCH --gres=gpu:a100:1
 #SBATCH --time=48:00:00
 #SBATCH --mem=64gb
+#SBATCH --account=lift-phenomics
+#SBATCH --qos=lift-phenomics
 #SBATCH --mail-user=djpetti@gmail.com
 #SBATCH --mail-type=END,FAIL
 #SBATCH --output=cotton_mot_model_train.%j.out    # Standard output log
@@ -22,9 +24,9 @@
 set -e
 
 # Base directory we use for job output.
-OUTPUT_BASE_DIR="/blue/cli2/$(whoami)/job_scratch/"
+OUTPUT_BASE_DIR="/blue/lift-phenomics/$(whoami)/job_scratch/"
 # Directory where our data and venv are located.
-LARGE_FILES_DIR="/blue/cli2/$(whoami)/mot/"
+LARGE_FILES_DIR="/blue/lift-phenomics/$(whoami)/mot/"
 # Local copy of the dataset.
 LOCAL_DATA_DIR="${SLURM_TMPDIR}/data/"
 
