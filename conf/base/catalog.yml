@@ -200,10 +200,31 @@ validation_mot_challenge:
       index: false
       header: false
 
+# *Of course* CVAT uses a slightly different version of this format...
+validation_mot_challenge_cvat:
+  type: PartitionedDataSet
+  path: ${output_data_dir}/08_reporting/mot_challenge/validation_cvat/
+  filename_suffix: ".txt"
+  dataset:
+    type: pandas.CSVDataSet
+    save_args:
+      index: false
+      header: false
+
 testing_mot_challenge:
   type: PartitionedDataSet
   path: ${output_data_dir}/08_reporting/mot_challenge/testing
   filename_suffix: ".csv"
+  dataset:
+    type: pandas.CSVDataSet
+    save_args:
+      index: false
+      header: false
+
+testing_mot_challenge_cvat:
+  type: PartitionedDataSet
+  path: ${output_data_dir}/08_reporting/mot_challenge/testing_cvat/
+  filename_suffix: ".txt"
   dataset:
     type: pandas.CSVDataSet
     save_args:

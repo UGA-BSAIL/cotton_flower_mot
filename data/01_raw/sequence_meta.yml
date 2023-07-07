@@ -18,59 +18,75 @@ sequences:
     fps: 30
     # Whether to flip the R and B color channels during inference.
     flip_color: false
+    # Resolution of the raw clip data. (width, height)
+    resolution: [960, 540]
   "21":
     camera: left
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "23":
     camera: top
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "33":
     camera: left
     fps: 30
-    flip_color: false
+    flip_color: true
+    resolution: [960, 540]
   "38":
     camera: left
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "45":
     camera: right
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "12":
     camera: left
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "20":
     camera: left
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "26":
     camera: top
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "28":
     camera: top
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "29":
     camera: left
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   "40":
     camera: right
     fps: 30
     flip_color: false
+    resolution: [960, 540]
   2021-08-25_SPL:
     camera: top
     fps: 60
     flip_color: false
+    resolution: [1920, 1080]
   2022-08-23_ENGR:
     camera: top
     fps: 20
     flip_color: false
+    resolution: [640, 480]
   2022-08-31_SPL:
     camera: top
     fps: 24
     flip_color: false
+    resolution: [1920, 1080]

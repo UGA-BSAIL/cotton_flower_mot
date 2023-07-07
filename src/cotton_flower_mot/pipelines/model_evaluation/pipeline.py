@@ -22,7 +22,7 @@ from .inference import build_inference_model
 from ..training_utils import set_mixed_precision
 
 
-_ANALYSIS_SESSIONS = {"2021-08-25_SPL", "2022-08-31_SPL"}
+_ANALYSIS_SESSIONS = {"2021-08-25_SPL"}
 """
 Sessions to perform more advanced analysis on.
 """
@@ -45,38 +45,38 @@ def create_pipeline(**kwargs):
                 ["inference_tracking_model", "inference_detection_model"],
             ),
             # Compute online tracks.
-            node(
-                compute_tracks_for_clip_dataset,
-                dict(
-                    tracking_model="inference_tracking_model",
-                    detection_model="inference_detection_model",
-                    clip_dataset="testing_data_clips",
-                    sequence_meta="sequence_meta",
-                ),
-                "testing_tracks",
-            ),
-            node(
-                compute_tracks_for_clip_dataset,
-                dict(
-                    tracking_model="inference_tracking_model",
-                    detection_model="inference_detection_model",
-                    clip_dataset="validation_data_clips",
-                    sequence_meta="sequence_meta",
-                ),
-                "validation_tracks_tfrecord",
-            ),
-            node(
-                partial(
-                    compute_tracks_for_clip, sequence_id="2022-08-23_ENGR"
-                ),
-                dict(
-                    tracking_model="inference_tracking_model",
-                    detection_model="inference_detection_model",
-                    clip="video_2022_08_23_ENGR",
-                    sequence_meta="sequence_meta",
-                ),
-                "2022-08-23_ENGR_tracks",
-            ),
+            # node(
+            #     compute_tracks_for_clip_dataset,
+            #     dict(
+            #         tracking_model="inference_tracking_model",
+            #         detection_model="inference_detection_model",
+            #         clip_dataset="testing_data_clips",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "testing_tracks",
+            # ),
+            # node(
+            #     compute_tracks_for_clip_dataset,
+            #     dict(
+            #         tracking_model="inference_tracking_model",
+            #         detection_model="inference_detection_model",
+            #         clip_dataset="validation_data_clips",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "validation_tracks_tfrecord",
+            # ),
+            # node(
+            #     partial(
+            #         compute_tracks_for_clip, sequence_id="2022-08-23_ENGR"
+            #     ),
+            #     dict(
+            #         tracking_model="inference_tracking_model",
+            #         detection_model="inference_detection_model",
+            #         clip="video_2022_08_23_ENGR",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "2022-08-23_ENGR_tracks",
+            # ),
             node(
                 partial(compute_tracks_for_clip, sequence_id="2021-08-25_SPL"),
                 dict(
@@ -87,37 +87,59 @@ def create_pipeline(**kwargs):
                 ),
                 "2021-08-25_SPL_tracks",
             ),
-            node(
-                partial(compute_tracks_for_clip, sequence_id="2022-08-31_SPL"),
-                dict(
-                    tracking_model="inference_tracking_model",
-                    detection_model="inference_detection_model",
-                    clip="video_2022_08_31_SPL",
-                    sequence_meta="sequence_meta",
-                ),
-                "2022-08-31_SPL_tracks",
-            ),
+            # node(
+            #     partial(compute_tracks_for_clip, sequence_id="2022-08-31_SPL"),
+            #     dict(
+            #         tracking_model="inference_tracking_model",
+            #         detection_model="inference_detection_model",
+            #         clip="video_2022_08_31_SPL",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "2022-08-31_SPL_tracks",
+            # ),
             # Merge all the tracks.
             node(
                 merge_track_datasets,
                 [
-                    "validation_tracks_tfrecord",
+                    # "validation_tracks_tfrecord",
                     "2021-08-25_SPL_tracks",
-                    "2022-08-23_ENGR_tracks",
-                    "2022-08-31_SPL_tracks",
+                    # "2022-08-23_ENGR_tracks",
+                    # "2022-08-31_SPL_tracks",
                 ],
                 "validation_tracks",
             ),
             # Save the results in MOT challenge format.
             node(
                 create_mot_challenge_results,
-                "validation_tracks",
+                dict(
+                    tracks_from_clips="validation_tracks",
+                    sequence_meta="sequence_meta",
+                ),
                 "validation_mot_challenge",
             ),
             node(
+                partial(create_mot_challenge_results, cvat=True),
+                dict(
+                    tracks_from_clips="validation_tracks",
+                    sequence_meta="sequence_meta",
+                ),
+                "validation_mot_challenge_cvat",
+            ),
+            node(
                 create_mot_challenge_results,
-                "testing_tracks",
+                dict(
+                    tracks_from_clips="testing_tracks",
+                    sequence_meta="sequence_meta",
+                ),
                 "testing_mot_challenge",
+            ),
+            node(
+                partial(create_mot_challenge_results, cvat=True),
+                dict(
+                    tracks_from_clips="testing_tracks",
+                    sequence_meta="sequence_meta",
+                ),
+                "testing_mot_challenge_cvat",
             ),
             # Create count reports.
             node(
@@ -165,24 +187,24 @@ def create_pipeline(**kwargs):
                 "vertical_displacement_histogram",
             ),
             # Create tracking videos.
-            node(
-                make_track_videos_clip_dataset,
-                dict(
-                    tracks_from_clips="testing_tracks",
-                    clip_dataset="testing_data_clips",
-                    sequence_meta="sequence_meta",
-                ),
-                "tracking_videos_test",
-            ),
-            node(
-                make_track_videos_clip_dataset,
-                dict(
-                    tracks_from_clips="validation_tracks",
-                    clip_dataset="validation_data_clips",
-                    sequence_meta="sequence_meta",
-                ),
-                "tracking_videos_valid_tfrecord",
-            ),
+            # node(
+            #     make_track_videos_clip_dataset,
+            #     dict(
+            #         tracks_from_clips="testing_tracks",
+            #         clip_dataset="testing_data_clips",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "tracking_videos_test",
+            # ),
+            # node(
+            #     make_track_videos_clip_dataset,
+            #     dict(
+            #         tracks_from_clips="validation_tracks",
+            #         clip_dataset="validation_data_clips",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "tracking_videos_valid_tfrecord",
+            # ),
             node(
                 partial(make_track_videos_clip, sequence_id="2021-08-25_SPL"),
                 dict(
@@ -192,31 +214,31 @@ def create_pipeline(**kwargs):
                 ),
                 "tracking_video_2021-08-25_SPL",
             ),
-            node(
-                partial(make_track_videos_clip, sequence_id="2022-08-23_ENGR"),
-                dict(
-                    tracks_from_clips="validation_tracks",
-                    clip="video_2022_08_23_ENGR",
-                    sequence_meta="sequence_meta",
-                ),
-                "tracking_video_2022-08-23_ENGR",
-            ),
-            node(
-                partial(make_track_videos_clip, sequence_id="2022-08-31_SPL"),
-                dict(
-                    tracks_from_clips="validation_tracks",
-                    clip="video_2022_08_31_SPL",
-                    sequence_meta="sequence_meta",
-                ),
-                "tracking_video_2022-08-31_SPL",
-            ),
+            # node(
+            #     partial(make_track_videos_clip, sequence_id="2022-08-23_ENGR"),
+            #     dict(
+            #         tracks_from_clips="validation_tracks",
+            #         clip="video_2022_08_23_ENGR",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "tracking_video_2022-08-23_ENGR",
+            # ),
+            # node(
+            #     partial(make_track_videos_clip, sequence_id="2022-08-31_SPL"),
+            #     dict(
+            #         tracks_from_clips="validation_tracks",
+            #         clip="video_2022_08_31_SPL",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "tracking_video_2022-08-31_SPL",
+            # ),
             node(
                 merge_track_datasets,
                 [
-                    "tracking_videos_valid_tfrecord",
+                    # "tracking_videos_valid_tfrecord",
                     "tracking_video_2021-08-25_SPL",
-                    "tracking_video_2022-08-23_ENGR",
-                    "tracking_video_2022-08-31_SPL",
+                    # "tracking_video_2022-08-23_ENGR",
+                    # "tracking_video_2022-08-31_SPL",
                 ],
                 "tracking_videos_valid",
             ),

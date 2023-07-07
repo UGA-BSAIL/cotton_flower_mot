@@ -13,6 +13,7 @@ from loguru import logger
 from functools import partial
 from matplotlib import pyplot as plot
 import seaborn as sns
+from collections import OrderedDict
 
 from ..schemas import ModelInputs, MotAnnotationColumns
 from .online_tracker import OnlineTracker, Track
@@ -218,12 +219,18 @@ def _get_line_for_sequence(
     return track_pos["pos"], track_pos["horizontal"]
 
 
-def _track_to_mot_challenge(track: Track) -> pd.DataFrame:
+def _track_to_mot_challenge(
+    track: Track,
+    resolution: Tuple[int, int],
+    cvat: bool = False,
+) -> pd.DataFrame:
     """
     Converts a track to the MOT Challenge format.
 
     Args:
         track: The track to convert.
+        resolution: The width and height of the clip.
+        cvat: Whether to use the CVAT flavor of this annotation format.
 
     Returns:
         The track in the MOT Challenge format.
@@ -231,42 +238,69 @@ def _track_to_mot_challenge(track: Track) -> pd.DataFrame:
     """
     detections = track.all_detections()
 
+    has_detection = np.array(
+        [track.has_real_detection_for_frame(f) for f in detections.index]
+    )
+    if cvat:
+        # For CVAT, we'll ignore any boxes that are not associated with true
+        # detections.
+        detections = detections[has_detection]
+
     # It wants bounding boxes in a different format, so fix that.
+    frame_width, frame_height = resolution
     bbox_min_x = detections["center_x"] - detections["width"] / 2
     bbox_min_y = detections["center_y"] - detections["height"] / 2
+    # Convert to pixels.
+    bbox_min_x *= frame_width
+    bbox_min_y *= frame_height
 
-    # For confidence, we'll just set it to one for actual detections and zero
-    # for extrapolated bounding boxes.
-    confidence = [
-        track.has_real_detection_for_frame(f) for f in detections.index
-    ]
-    confidence = np.array(confidence).astype(float)
+    box_width = detections["width"] * frame_width
+    box_height = detections["height"] * frame_height
 
-    return pd.DataFrame(
-        data={
-            MotAnnotationColumns.FRAME.value: detections.index,
-            MotAnnotationColumns.ID.value: track.id,
-            MotAnnotationColumns.BBOX_X_MIN_PX.value: bbox_min_x,
-            MotAnnotationColumns.BBOX_Y_MIN_PX.value: bbox_min_y,
-            MotAnnotationColumns.BBOX_WIDTH_PX.value: detections["width"],
-            MotAnnotationColumns.BBOX_HEIGHT_PX.value: detections["height"],
-            MotAnnotationColumns.CONFIDENCE.value: confidence,
-            # These are only used for 3D tracking, which we're not doing.
-            "x": -1,
-            "y": -1,
-            "z": -1,
-        }
+    if not cvat:
+        # For confidence, we'll just set it to one for actual detections and
+        # zero for extrapolated bounding boxes.
+        confidence = has_detection.astype(float)
+    else:
+        confidence = 1.0
+
+    annotation_data = OrderedDict(
+        [
+            (MotAnnotationColumns.FRAME.value, detections.index),
+            (MotAnnotationColumns.ID.value, track.id),
+            (MotAnnotationColumns.BBOX_X_MIN_PX.value, bbox_min_x),
+            (MotAnnotationColumns.BBOX_Y_MIN_PX.value, bbox_min_y),
+            (MotAnnotationColumns.BBOX_WIDTH_PX.value, box_width),
+            (MotAnnotationColumns.BBOX_HEIGHT_PX.value, box_height),
+        ]
     )
+    if cvat:
+        annotation_data[MotAnnotationColumns.CLASS_ID.value] = 1
+        annotation_data[MotAnnotationColumns.VISIBILITY.value] = 1
+        # Confidence goes at the end.
+        annotation_data[MotAnnotationColumns.CONFIDENCE.value] = confidence
+    else:
+        annotation_data[MotAnnotationColumns.CONFIDENCE.value] = confidence
+        # These are for 3D tracking, which we're not doing.
+        annotation_data["x"] = -1
+        annotation_data["y"] = -1
+        annotation_data["z"] = -1
+
+    return pd.DataFrame(data=annotation_data)
 
 
 def create_mot_challenge_results(
     tracks_from_clips: ClipsToTracksType,
+    sequence_meta: Dict[str, Any],
+    cvat: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """
     Converts tracking results to the MOT Challenge format for easy comparison.
 
     Args:
         tracks_from_clips: The track data for each clip.
+        sequence_meta: The sequence metadata.
+        cvat: Whether to use the CVAT flavor of this annotation format.
 
     Returns:
         The tracking results in the MOT Challenge format, keyed by sequence.
@@ -279,7 +313,12 @@ def create_mot_challenge_results(
 
         mot_results = []
         for track in tracks:
-            mot_results.append(_track_to_mot_challenge(track))
+            resolution = sequence_meta["sequences"][sequence_id]["resolution"]
+            mot_results.append(
+                _track_to_mot_challenge(
+                    track, resolution=resolution, cvat=cvat
+                )
+            )
 
         partitions[sequence_id] = pd.concat(mot_results, ignore_index=True)
 
