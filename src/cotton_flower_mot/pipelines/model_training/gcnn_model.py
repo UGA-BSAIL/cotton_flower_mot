@@ -21,13 +21,14 @@ from .graph_utils import (
     make_complete_bipartite_adjacency_matrices,
 )
 from .layers import AssociationLayer, BnActConv, ResidualCensNet
-from .models_common import make_tracking_inputs, make_geometry_inputs
+from .models_common import make_geometry_inputs
 from .similarity_utils import (
     aspect_ratio_penalty,
     compute_ious,
     cosine_similarity,
     distance_penalty,
 )
+from ..training_utils import bound_numerics
 
 
 def _build_edge_mlp(
@@ -134,12 +135,8 @@ def _build_affinity_mlp(
         Will have a shape of `[batch_size, max_n_tracklets, max_n_detections]`.
 
     """
-    tracklet_inter_features = tf.debugging.assert_all_finite(
-        tracklet_inter_features, "tracklet_inter_features"
-    )
-    detection_inter_features = tf.debugging.assert_all_finite(
-        detection_inter_features, "detection_inter_features"
-    )
+    tracklet_inter_features = bound_numerics(tracklet_inter_features)
+    detection_inter_features = bound_numerics(detection_inter_features)
 
     # Compute similarity parameters.
     iou = layers.Lambda(
