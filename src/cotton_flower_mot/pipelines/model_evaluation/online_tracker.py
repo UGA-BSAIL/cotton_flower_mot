@@ -124,7 +124,34 @@ class Track:
             The frame number at which this object was last detected.
 
         """
+        if self.__latest_frame < 0:
+            return None
+
         return self.__latest_frame
+
+    @property
+    def last_tracked_frame(self) -> Optional[int]:
+        """
+        Returns:
+            The frame number at which this object's position was last
+            estimated. It might be extrapolated from the motion model instead
+            of directly detected.
+        """
+        if self.__latest_motion_frame < 0:
+            return None
+
+        return self.__latest_motion_frame
+
+    @property
+    def first_detection_frame(self) -> Optional[int]:
+        """
+        Returns:
+            The frame number at which this object was first detected.
+
+        """
+        if len(self.__frames_to_detections) == 0:
+            return None
+        return min(self.__frames_to_detections.keys())
 
     def detection_for_frame(self, frame_num: int) -> Optional[np.array]:
         """

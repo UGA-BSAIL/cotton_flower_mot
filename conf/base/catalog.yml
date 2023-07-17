@@ -130,6 +130,12 @@ video_2022_08_31_SPL:
   fps: 24
   bgr_color: False
 
+video_2020_08_11_row1:
+  type: cotton_flower_mot.data_sets.VideoDataSet
+  filepath: data/01_raw/2020-08-11_row1.mp4
+  fps: 60
+  bgr_color: False
+
 # Don't bother copying the untrained model, as this wastes a lot of time
 # if your disk is slow.
 initial_model:

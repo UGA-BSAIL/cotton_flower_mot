@@ -219,6 +219,52 @@ def _get_line_for_sequence(
     return track_pos["pos"], track_pos["horizontal"]
 
 
+def _filter_extrapolated_track_end(track: Track) -> pd.DataFrame:
+    """
+    Filters the part of the track at the end that has been extrapolated by
+    the motion model.
+
+    Args:
+        track: The track to filter.
+
+    Returns:
+        The filtered track.
+
+    """
+    if track.last_detection_frame is None:
+        # No detections.
+        return track.all_detections()
+
+    return track.all_detections().loc[: (track.last_detection_frame + 1)]
+
+
+def _filter_short_tracks(
+    tracks: Iterable[Track], min_length: int = 60
+) -> Iterable[Track]:
+    """
+    Filters any tracks that span less than the minimum number of frames. Note
+    that it will not include motion model extrapolation at the end of the
+    track in this calculation.
+
+    Args:
+        tracks: The tracks to filter.
+        min_length: The minimum length of a track.
+
+    Returns:
+        The filtered tracks.
+
+    """
+    for track in tracks:
+        track_length = 0
+        if track.last_detection_frame is not None:
+            track_length = (
+                track.last_detection_frame - track.first_detection_frame
+            )
+
+        if track_length >= min_length:
+            yield track
+
+
 def _track_to_mot_challenge(
     track: Track,
     resolution: Tuple[int, int],
@@ -236,15 +282,10 @@ def _track_to_mot_challenge(
         The track in the MOT Challenge format.
 
     """
-    detections = track.all_detections()
-
+    detections = _filter_extrapolated_track_end(track)
     has_detection = np.array(
         [track.has_real_detection_for_frame(f) for f in detections.index]
     )
-    if cvat:
-        # For CVAT, we'll ignore any boxes that are not associated with true
-        # detections.
-        detections = detections[has_detection]
 
     # It wants bounding boxes in a different format, so fix that.
     frame_width, frame_height = resolution
@@ -310,6 +351,10 @@ def create_mot_challenge_results(
     for sequence_id, tracks in tracks_from_clips.items():
         # Deserialize the tracks.
         tracks = [Track.from_dict(t) for t in tracks]
+        # Filter out tracks that are very short, which are quite likely to be
+        # false positives.
+        fps = sequence_meta["sequences"][sequence_id]["fps"]
+        tracks = _filter_short_tracks(tracks, min_length=fps)
 
         mot_results = []
         for track in tracks:
@@ -320,7 +365,8 @@ def create_mot_challenge_results(
                 )
             )
 
-        partitions[sequence_id] = pd.concat(mot_results, ignore_index=True)
+        if mot_results:
+            partitions[sequence_id] = pd.concat(mot_results, ignore_index=True)
 
     return partitions
 

@@ -9,7 +9,7 @@ license = "MIT"
 python = "~3.10"
 kedro = {extras = ["matplotlib", "pandas"], version = "^0.18.1"}
 pycvat = {path = "pycvat", develop = false}
-pandas = "1.4.2"
+pandas = "1.4.3"
 loguru = "^0.5.3"
 spektral = "^1.2.0"
 seaborn = "^0.11.1"

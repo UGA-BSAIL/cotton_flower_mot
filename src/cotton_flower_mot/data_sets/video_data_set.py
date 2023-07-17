@@ -120,6 +120,11 @@ class VideoDataSet(AbstractVersionedDataSet):
 
         """
         reader = cv2.VideoCapture(self._get_load_path().as_posix())
+        if not reader.isOpened():
+            raise OSError(
+                f"Could not open video {self._get_load_path()}. "
+                f"Are you sure it exists?"
+            )
         return FrameReader(reader, bgr_color=self.__bgr_color)
 
     def _save(self, data: Iterable[np.ndarray]) -> None:
