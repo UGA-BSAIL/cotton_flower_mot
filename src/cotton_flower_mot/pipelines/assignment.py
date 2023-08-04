@@ -230,7 +230,6 @@ def do_hard_assignment(
         ) + optimize.linear_sum_assignment(affinity_padded, maximize=True)
 
     # Apply Hungarian matching.
-    tf.print("Sinkhorn:", sinkhorn, summarize=-1)
     binarized = tf.greater(sinkhorn, threshold)
     padded_shape, row_indices, col_indices = tf.numpy_function(
         _hungarian,
