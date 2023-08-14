@@ -119,6 +119,12 @@ video_2021_08_25_SPL:
   fps: 60
   bgr_color: False
 
+video_2021_09_03_SPL:
+  type: cotton_flower_mot.data_sets.VideoDataSet
+  filepath: data/01_raw/2021-09-03_SPL.MP4
+  fps: 60
+  bgr_color: False
+
 video_2022_08_23_ENGR:
   type: cotton_flower_mot.data_sets.VideoDataSet
   filepath: data/01_raw/2022-08-23_ENGR.avi
