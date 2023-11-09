@@ -20,7 +20,7 @@ opencv-python = "^4.7.0"
 tenacity = "^8.0.1"
 tensorflow-datasets = "^4.4.0"
 tensorflow = "2.11"
-numpy = "1.22"
+numpy = "^1.26.1"
 opencv-contrib-python = "^4.7.0"
 tqdm = "^4.64.0"
 tensorflow-addons = "^0.19.0"
@@ -41,6 +41,9 @@ PyYAML = "^5.4.1"
 pytest-flake8 = "^1.0.7"
 pydot = "^1.4.2"
 jupyterlab = "^3.4.2"
+
+[tool.poetry.group.dev.dependencies]
+ultralytics = "^8.0.208"
 
 [tool.black]
 line-length = 79
