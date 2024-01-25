@@ -19,7 +19,6 @@ from .gnn import DynamicEdgeGcn, ResidualCensNet
 from .mlp_conv import MlpConv
 from .pooling import PeakLayer
 from .utility import BnActConv, BnActDense
-from .future.convnext import LayerScale
 from .pooling import RoiPooling
 from .pretrained_tf import PretrainedTf
 from .appearance_feature_extractor import AppearanceFeatureExtractor
@@ -44,7 +43,6 @@ CUSTOM_LAYERS = {
         BottleneckBlock,
         ReductionStages,
         CenterSizes,
-        LayerScale,
         RoiPooling,
         PretrainedTf,
         AppearanceFeatureExtractor,

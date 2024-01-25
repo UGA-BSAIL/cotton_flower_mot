@@ -3,7 +3,8 @@ Framework for online tracking.
 """
 
 
-from typing import Dict, Iterable, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Union, Any
+import time
 
 import numpy as np
 import pandas as pd
@@ -689,7 +690,11 @@ class OnlineTracker:
                 detections=detection_geometry,
                 appearance_features=appearance_features,
             )
+            tracking_start_time = time.time()
             model_outputs = self.__tracking_model(model_inputs, training=False)
+            logger.debug(
+                "Tracking model took {} s.", time.time() - tracking_start_time
+            )
             sinkhorn = model_outputs[0][0].numpy()
 
         logger.debug("Got {} detections.", len(detection_geometry))

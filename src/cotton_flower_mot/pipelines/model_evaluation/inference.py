@@ -10,6 +10,7 @@ import tensorflow as tf
 from keras import layers
 from loguru import logger
 from pathlib import Path
+from keras.src.saving import serialization_lib
 
 from ..config import ModelConfig
 from ..model_training.models_common import (
@@ -145,8 +146,10 @@ def build_inference_model(
 
         return layer_copy
 
-    with tf.keras.utils.custom_object_scope(CUSTOM_LAYERS):
-        training_model = tf.keras.models.clone_model(
+    # Enable unsafe deserialization so cloning this model works.
+    serialization_lib.enable_unsafe_deserialization()
+    with keras.utils.custom_object_scope(CUSTOM_LAYERS):
+        training_model = keras.models.clone_model(
             training_model, clone_function=_clone_layer
         )
 

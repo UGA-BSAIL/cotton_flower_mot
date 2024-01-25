@@ -10,7 +10,7 @@ from keras import layers
 from keras.applications.efficientnet_v2 import EfficientNetV2S
 from keras.applications.resnet_v2 import ResNet101V2
 
-from .future.convnext import ConvNeXtBase
+from keras.applications.convnext import ConvNeXtBase
 
 
 def convnext(
