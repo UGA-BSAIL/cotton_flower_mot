@@ -4,7 +4,7 @@ https://arxiv.org/pdf/2010.00067.pdf
 """
 
 from functools import partial
-from typing import Tuple, Callable
+from typing import Tuple
 
 import keras
 import tensorflow as tf
@@ -284,18 +284,18 @@ def _incidence_matrix_single(triangular_adjacency, *, num_edges):
     # We now have all the points that should go in the sparse binary
     # transformation matrix.
     edge_indicators = tf.ones_like(edge_indices, dtype=tf.float32)
-    num_nodes = tf.cast(tf.shape(triangular_adjacency)[0], tf.int64)
+    num_nodes = tf.cast(tf.shape(triangular_adjacency)[0], num_edges.dtype)
     output_shape = tf.stack([num_nodes, num_edges])
     left_sparse = tf.SparseTensor(
         indices=edges_with_left_nodes,
         values=edge_indicators,
-        dense_shape=output_shape,
+        dense_shape=tf.cast(output_shape, tf.int64),
     )
     left_sparse = tf.sparse.reorder(left_sparse)
     right_sparse = tf.SparseTensor(
         indices=edges_with_right_nodes,
         values=edge_indicators,
-        dense_shape=output_shape,
+        dense_shape=tf.cast(output_shape, tf.int64),
     )
     right_sparse = tf.sparse.reorder(right_sparse)
     # Combine the matrices for the left and right nodes.
@@ -509,7 +509,7 @@ def compute_association(
         config: The model configuration.
 
     Returns:
-        The association and assignment matrices. Will have shape
+        The sinkhorn and assignment matrices. Will have shape
         `[batch_size, n_tracklets * n_detections]`, where the inner
         dimension is ragged and represents the flattened matrix. The association
         matrix is simply the Sinkhorn-normalized associations, whereas the

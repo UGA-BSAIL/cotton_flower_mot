@@ -77,7 +77,7 @@ class AssociationLayer(tf.keras.layers.Layer):
 
         """
         affinity_scores, num_detections, num_tracklets = inputs
-        one = tf.constant(1, dtype=tf.int64)
+        one = tf.constant(1, dtype=num_detections.dtype)
 
         def _normalize(
             element: Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
@@ -89,7 +89,8 @@ class AssociationLayer(tf.keras.layers.Layer):
             output_flat_length = tf.math.reduce_prod(
                 affinity_shape + tf.ones_like(affinity_shape)
             )
-            output_flat_length = tf.cast(output_flat_length, tf.int64)
+            output_flat_length = tf.cast(output_flat_length,
+                                         _num_detections.dtype)
 
             def _pad_and_flatten(association: tf.Tensor) -> tf.Tensor:
                 # Flatten.
@@ -140,7 +141,7 @@ class AssociationLayer(tf.keras.layers.Layer):
 
         # Unfortunately, we can't have padding for the affinity scores, because
         # it affects the optimization. Therefore, this process has to be done
-        # with map_fn instead of vectorized.gg
+        # with map_fn instead of vectorized.
         sinkhorn_dense, assignment_dense = tf.map_fn(
             _normalize,
             (affinity_scores, num_detections, num_tracklets),
