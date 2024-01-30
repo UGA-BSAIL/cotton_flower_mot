@@ -10,7 +10,7 @@ import io
 from collections import OrderedDict
 import argparse
 import pandas as pd
-from src.cotton_flower_mot.pipelines.schemas import MotAnnotationColumns
+from src.cotton_flower_mot.schemas import MotAnnotationColumns
 
 
 _LABEL_FILE_FRAME_NUM_PATTERN = re.compile(r".+_(\d+).txt")

@@ -4,15 +4,15 @@ Framework for creating tracking videos.
 
 import random
 from functools import lru_cache
-from typing import Dict, Iterable, List, Tuple
+from typing import Iterable, List, Tuple
 
 import cv2
 import numpy as np
-import tensorflow as tf
 from PIL import Image, ImageDraw, ImageFont
 
-from ..schemas import ModelInputs
-from .online_tracker import Track
+from loguru import logger
+
+from src.cotton_flower_mot.online_tracker import Track
 
 _TAG_FONT = ImageFont.truetype("fonts/VeraBd.ttf", 24)
 """
@@ -107,6 +107,9 @@ def _draw_bounding_box(
     # Convert the box to a form we can draw with.
     center = box[:2]
     size = box[2:]
+    if size.min() < 0:
+        logger.warning("Not drawing box with negative size.")
+        return
     min_point = center - size // 2
     max_point = center + size // 2
     min_point = tuple(min_point)
@@ -226,8 +229,8 @@ def draw_tracks(
     clip_frames: Iterable[np.ndarray],
     *,
     tracks: List[Track],
-    line_pos: float,
-    line_horizontal: bool,
+    line_pos: float = 0.5,
+    line_horizontal: bool = True,
 ) -> Iterable[np.ndarray]:
     """
     Draws the tracks on top of a video.
@@ -255,3 +258,30 @@ def draw_tracks(
         )
 
         yield frame
+
+
+def filter_short_tracks(
+    tracks: Iterable[Track], min_length: int = 60
+) -> Iterable[Track]:
+    """
+    Filters any tracks that span less than the minimum number of frames. Note
+    that it will not include motion model extrapolation at the end of the
+    track in this calculation.
+
+    Args:
+        tracks: The tracks to filter.
+        min_length: The minimum length of a track.
+
+    Returns:
+        The filtered tracks.
+
+    """
+    for track in tracks:
+        track_length = 0
+        if track.last_detection_frame is not None:
+            track_length = (
+                track.last_detection_frame - track.first_detection_frame
+            )
+
+        if track_length >= min_length:
+            yield track

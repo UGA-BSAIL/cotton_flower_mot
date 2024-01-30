@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, cast
 
 import tensorflow as tf
 
-from ..schemas import ModelTargets
+from src.cotton_flower_mot.schemas import ModelTargets
 from .graph_utils import compute_pairwise_similarities
 from .loss_metric_utilities import MaybeRagged, correct_ragged_mismatch
 from .ragged_utils import ragged_map_fn

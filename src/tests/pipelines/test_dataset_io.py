@@ -11,7 +11,7 @@ from faker import Faker
 from src.cotton_flower_mot.pipelines import dataset_io
 from src.cotton_flower_mot.pipelines.dataset_io import DataAugmentationConfig
 from src.cotton_flower_mot.pipelines.dataset_io import HeatMapSource
-from src.cotton_flower_mot.pipelines.schemas import ModelInputs, ModelTargets
+from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
 
 from .data import TESTING_DATASET_PATH
 

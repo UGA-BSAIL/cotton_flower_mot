@@ -6,12 +6,11 @@ Implementation of the CenterNet detector model.
 from typing import Optional, Tuple
 
 import tensorflow as tf
-from keras import backend, layers
+from keras import layers
 from keras.layers import (
     BatchNormalization,
     Concatenate,
     Conv2D,
-    Cropping2D,
     Dropout,
     ReLU,
     UpSampling2D,
@@ -20,7 +19,7 @@ from keras.layers import (
 from tensorflow.python.keras.regularizers import l2
 
 from ..config import ModelConfig
-from ..schemas import (
+from src.cotton_flower_mot.schemas import (
     ColorizationTargets,
     ModelInputs,
     ModelTargets,

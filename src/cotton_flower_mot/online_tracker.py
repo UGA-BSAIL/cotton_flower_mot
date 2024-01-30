@@ -3,8 +3,8 @@ Framework for online tracking.
 """
 
 
-from typing import Dict, List, Optional, Union, Any
-import time
+from functools import singledispatch
+from typing import Dict, List, Optional, Union, Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -12,8 +12,14 @@ import tensorflow as tf
 from loguru import logger
 from sklearn.linear_model import RANSACRegressor
 
-from ..schemas import ModelInputs
-from ..assignment import do_hard_assignment, add_births_and_deaths
+from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
+from src.cotton_flower_mot.assignment import do_hard_assignment
+
+
+GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
+"""
+Type alias for a function that runs the TF graph.
+"""
 
 
 class Track:
@@ -338,6 +344,99 @@ class Track:
         return track
 
 
+@singledispatch
+def _adapt_detection_model(model: GraphFunc) -> GraphFunc:
+    """
+    Adapts the model to use standardized inputs and produce standardized
+    outputs.
+
+    Args:
+        model: The model to adapt.
+
+    Returns:
+        The adapted model.
+
+    """
+
+    def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # This model expects float inputs...
+        input_frame = inputs[ModelInputs.DETECTIONS_FRAME.value]
+        inputs[ModelInputs.DETECTIONS_FRAME.value] = tf.cast(
+            input_frame, tf.float32
+        )
+
+        appearance, geometry, _ = model(**inputs).values()
+        return dict(appearance=appearance, geometry=geometry)
+
+    return _adapted_model
+
+
+@_adapt_detection_model.register
+def _(model: tf.keras.Model) -> GraphFunc:
+    def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        geometry, appearance = model(inputs, training=False)
+        return dict(appearance=appearance, geometry=geometry)
+
+    return _adapted_model
+
+
+@singledispatch
+def _adapt_tracking_model(model: GraphFunc) -> GraphFunc:
+    """
+    Adapts the model to use standardized inputs and produce standardized
+    outputs.
+
+    Args:
+        model: The model to adapt.
+
+    Returns:
+        The adapted model.
+
+    """
+
+    def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # Add the row length inputs.
+        detection_geometry = inputs[ModelInputs.DETECTION_GEOMETRY.value]
+        tracklet_geometry = inputs[ModelInputs.TRACKLET_GEOMETRY.value]
+        detection_row_lengths = tf.reshape(
+            tf.shape(detection_geometry)[1], (1, 1)
+        )
+        tracklet_row_lengths = tf.reshape(
+            tf.shape(tracklet_geometry)[1], (1, 1)
+        )
+        flat_inputs = {
+            "detection_appearance_row_lengths": detection_row_lengths,
+            "detection_geometry_row_lengths": detection_row_lengths,
+            "tracklet_appearance_row_lengths": tracklet_row_lengths,
+            "tracklet_geometry_row_lengths": tracklet_row_lengths,
+            "detection_appearance_flat": inputs[
+                ModelInputs.DETECTION_APPEARANCE.value
+            ],
+            "detection_geometry_flat": detection_geometry,
+            "tracklet_appearance_flat": inputs[
+                ModelInputs.TRACKLET_APPEARANCE.value
+            ],
+            "tracklet_geometry_flat": tracklet_geometry,
+        }
+
+        sinkhorn, _ = model(**flat_inputs).values()
+        return {ModelTargets.SINKHORN.value: sinkhorn}
+
+    return _adapted_model
+
+
+@_adapt_tracking_model.register
+def _(model: tf.keras.Model) -> GraphFunc:
+    def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
+        # Use ragged inputs.
+        for input_name, input_value in inputs.items():
+            inputs[input_name] = tf.RaggedTensor.from_tensor(input_value)
+
+        sinkhorn, _ = model(inputs, training=False)
+
+        return {ModelTargets.SINKHORN.value: sinkhorn}
+
+
 class OnlineTracker:
     """
     Performs online tracking using a given model.
@@ -346,8 +445,8 @@ class OnlineTracker:
     def __init__(
         self,
         *,
-        tracking_model: tf.keras.Model,
-        detection_model: tf.keras.Model,
+        tracking_model: Union[GraphFunc, tf.keras.Model],
+        detection_model: Union[GraphFunc, tf.keras.Model],
         death_window: int = 10,
         motion_model_min_detections: int = 5,
     ):
@@ -361,8 +460,8 @@ class OnlineTracker:
                 we must have before applying the motion model.
 
         """
-        self.__tracking_model = tracking_model
-        self.__detection_model = detection_model
+        self.__tracking_model = _adapt_tracking_model(tracking_model)
+        self.__detection_model = _adapt_detection_model(detection_model)
         self.__death_window = death_window
         self.__motion_min_detections = motion_model_min_detections
 
@@ -370,13 +469,9 @@ class OnlineTracker:
         self.__previous_frame = None
         # Stores the detection geometry from the previous frame.
         self.__previous_geometry = np.empty((0, 4), dtype=np.float32)
+        self.__num_appearance_features = None
         # Stores the appearance features from the previous frame.
-        self.__num_appearance_features = self.__detection_model.output_shape[
-            1
-        ][-1]
-        self.__previous_appearance = np.empty(
-            (0, self.__num_appearance_features), dtype=np.float32
-        )
+        self.__previous_appearance = None
 
         # Stores all the tracks that are currently active.
         self.__active_tracks = set()
@@ -409,6 +504,25 @@ class OnlineTracker:
 
             return True
         return False
+
+    def __maybe_init_appearance(self, appearance_features: np.array) -> None:
+        """
+        Initialize the saved appearance features if necessary.
+
+        Args:
+            appearance_features: The current appearance features.
+
+        """
+        if self.__previous_appearance is None:
+            self.__num_appearance_features = appearance_features.shape[-1]
+            logger.debug(
+                "Initializing with {} appearance features.",
+                self.__num_appearance_features,
+            )
+            # Stores the appearance features from the previous frame.
+            self.__previous_appearance = np.empty(
+                (0, self.__num_appearance_features), dtype=np.float32
+            )
 
     def __update_active_tracks(
         self,
@@ -625,18 +739,16 @@ class OnlineTracker:
 
         """
         # Expand dimensions since the model expects a batch.
-        detections = np.expand_dims(detections, axis=0)
-        appearance_features = np.expand_dims(appearance_features, axis=0)
-        previous_geometry = np.expand_dims(self.__previous_geometry, axis=0)
+        detections = np.expand_dims(detections, axis=0).astype(np.float32)
+        appearance_features = np.expand_dims(
+            appearance_features, axis=0
+        ).astype(np.float32)
+        previous_geometry = np.expand_dims(
+            self.__previous_geometry, axis=0
+        ).astype(np.float32)
         previous_appearance = np.expand_dims(
             self.__previous_appearance, axis=0
-        )
-
-        # Convert to ragged tensors.
-        detections = tf.RaggedTensor.from_tensor(detections)
-        appearance_features = tf.RaggedTensor.from_tensor(appearance_features)
-        previous_geometry = tf.RaggedTensor.from_tensor(previous_geometry)
-        previous_appearance = tf.RaggedTensor.from_tensor(previous_appearance)
+        ).astype(np.float32)
 
         return {
             ModelInputs.DETECTION_GEOMETRY.value: detections,
@@ -649,8 +761,6 @@ class OnlineTracker:
         self,
         *,
         frame: np.ndarray,
-        detection_geometry: Optional[np.ndarray] = None,
-        appearance_features: Optional[np.ndarray] = None,
     ) -> None:
         """
         Computes the assignment matrix between the current state and new
@@ -659,22 +769,15 @@ class OnlineTracker:
         Args:
             frame: The current frame. Should be an array of shape
                 `[height, width, channels]`.
-            detection_geometry: Optional detections to use, of shape
-                `[num_boxes, 4]`. Otherwise, the detection model will be used.
-            appearance_features: Optional corresponding appearance features to
-                use, of shape `[num_boxes, num_appearance_features]`.
-                Otherwise, the appearance model will be used.
 
         """
         model_inputs = self.__create_detection_inputs(frame=frame)
-        if detection_geometry is None:
-            # Apply the detector first.
-            logger.info("Applying detection model...")
-            detection_geometry, appearance_features = self.__detection_model(
-                model_inputs, training=False
-            )
-            detection_geometry = detection_geometry[0].numpy()
-            appearance_features = appearance_features[0].numpy()
+        # Apply the detector first.
+        logger.info("Applying detection model...")
+        detections = self.__detection_model(model_inputs)
+        detection_geometry = detections["geometry"][0].numpy()
+        appearance_features = detections["appearance"][0].numpy()
+        self.__maybe_init_appearance(appearance_features)
 
         num_tracklets = self.__previous_geometry.shape[0]
         num_detections = detection_geometry.shape[0]
@@ -690,12 +793,8 @@ class OnlineTracker:
                 detections=detection_geometry,
                 appearance_features=appearance_features,
             )
-            tracking_start_time = time.time()
-            model_outputs = self.__tracking_model(model_inputs, training=False)
-            logger.debug(
-                "Tracking model took {} s.", time.time() - tracking_start_time
-            )
-            sinkhorn = model_outputs[0][0].numpy()
+            model_outputs = self.__tracking_model(model_inputs)
+            sinkhorn = model_outputs[ModelTargets.SINKHORN.value][0].numpy()
 
         logger.debug("Got {} detections.", len(detection_geometry))
         # Remove the confidence, since we don't use that for tracking.
@@ -713,8 +812,6 @@ class OnlineTracker:
     def process_frame(
         self,
         frame: np.array,
-        detections: Optional[np.array] = None,
-        appearances: Optional[np.array] = None,
     ) -> None:
         """
         Use the tracker to process a new frame. It will detect objects in the
@@ -723,18 +820,11 @@ class OnlineTracker:
         Args:
             frame: The original image frame from the video. Should be an
                 array of shape `[height, width, channels]`.
-            detections: Optionally, provide detections instead of using the
-                detector model. Should have shape `[num_boxes, 4]`.
-            appearances: Optionally, provide appearance features instead of
-                using the detector model. Should have shape
-                `[num_boxes, num_features]`.
 
         """
         if not self.__maybe_init_state(frame=frame):
             self.__match_frame_pair(
                 frame=frame,
-                detection_geometry=detections,
-                appearance_features=appearances,
             )
 
         self.__frame_num += 1

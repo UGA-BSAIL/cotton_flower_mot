@@ -20,6 +20,20 @@ InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
 Type alias for a function that returns fake inputs to a model.
 """
 
+_MAX_MEMORY = 9000
+"""
+Maximum memory usage to allow for TF, in MB.
+"""
+
+
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    # The Jetson has unified memory, so if we let TF gobble up all the GPU
+    # memory like it wants to by default, that leaves nothing for the CPU.
+    tf.config.set_logical_device_configuration(
+        gpus[0],
+        [tf.config.LogicalDeviceConfiguration(memory_limit=_MAX_MEMORY)])
+
 
 def _generate_detector_inputs(
     batch_size: int = 1, *, input_shape: Tuple[int, int]

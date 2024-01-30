@@ -5,7 +5,7 @@ Utility for profiling the performance of TFRT models.
 
 import argparse
 from pathlib import Path
-from typing import Dict, Callable, Tuple, Any
+from typing import Dict
 
 import cv2
 import time
@@ -13,37 +13,13 @@ import time
 from loguru import logger
 
 import tensorflow as tf
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.saved_model import tag_constants
 
 from tqdm import trange
 
-
-GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
-"""
-Type alias for a function that runs the TF graph.
-"""
-
-
-def _get_func_from_saved_model(saved_model_dir: Path) -> Tuple[GraphFunc, Any]:
-    """
-    Generates a graph function from a saved TFRT model.
-
-    Args:
-        saved_model_dir: The saved model directory.
-
-    Returns:
-        The graph function, and the saved model.
-
-    """
-    saved_model_loaded = tf.saved_model.load(
-        saved_model_dir, tags=[tag_constants.SERVING]
-    )
-    graph_func = saved_model_loaded.signatures[
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY
-    ]
-
-    return graph_func, saved_model_loaded
+from src.cotton_flower_mot.tfrt_utils import (
+    GraphFunc,
+    get_func_from_saved_model,
+)
 
 
 def _get_test_image() -> tf.Tensor:
@@ -80,18 +56,10 @@ def _get_test_tracking_inputs(
     """
     # We always input the maximum number of detections to the tracking model,
     # and limit it using the row lengths.
-    detections_boxes = tf.random.uniform(
-        shape=(1, 20, 4), minval=0, maxval=1
-    )
-    tracklets_boxes = tf.random.uniform(
-        shape=(1, 20, 4), minval=0, maxval=1
-    )
-    detections_appearance = tf.random.normal(
-        shape=(1, 20, 392)
-    )
-    tracklets_appearance = tf.random.normal(
-        shape=(1, 20, 392)
-    )
+    detections_boxes = tf.random.uniform(shape=(1, 20, 4), minval=0, maxval=1)
+    tracklets_boxes = tf.random.uniform(shape=(1, 20, 4), minval=0, maxval=1)
+    detections_appearance = tf.random.normal(shape=(1, 20, 392))
+    tracklets_appearance = tf.random.normal(shape=(1, 20, 392))
     detections_row_lengths = tf.constant([[num_detections]], dtype=tf.int32)
     tracklets_row_lengths = tf.constant([[num_tracklets]], dtype=tf.int32)
 
@@ -124,9 +92,8 @@ def _profile_model(model: GraphFunc, inputs: Dict[str, tf.Tensor]) -> None:
     # Now do the actual profiling.
     logger.info("Profiling...")
     start_time = time.time()
-    outputs = {}
     for _ in trange(0, 100):
-        outputs = model(**inputs)
+        model(**inputs)
     elapsed_time = time.time() - start_time
 
     logger.info(
@@ -136,7 +103,7 @@ def _profile_model(model: GraphFunc, inputs: Dict[str, tf.Tensor]) -> None:
     )
 
 
-def _profile_detector(saved_model_dir: Path) -> None:
+def _profile_detector(model: GraphFunc) -> None:
     """
     Profiles the performance of the detector model.
 
@@ -144,14 +111,13 @@ def _profile_detector(saved_model_dir: Path) -> None:
         saved_model_dir: The saved model directory.
 
     """
-    logger.info("Profiling detector model {}.", saved_model_dir)
+    logger.info("Profiling detector model...")
 
-    model, _ = _get_func_from_saved_model(saved_model_dir)
     inputs = {"detections_frame": _get_test_image()}
     _profile_model(model, inputs)
 
 
-def _profile_tracker(saved_model_dir: Path) -> None:
+def _profile_tracker(model: GraphFunc) -> None:
     """
     Profiles the performance of the tracker model.
 
@@ -159,9 +125,8 @@ def _profile_tracker(saved_model_dir: Path) -> None:
         saved_model_dir: The saved model directory.
 
     """
-    logger.info("Profiling tracker model {}.", saved_model_dir)
+    logger.info("Profiling tracker model....")
 
-    model, _ = _get_func_from_saved_model(saved_model_dir)
     inputs = _get_test_tracking_inputs()
     _profile_model(model, inputs)
 
@@ -190,8 +155,15 @@ def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
 
-    _profile_detector(cli_args.model_dir / "detection_model")
-    _profile_tracker(cli_args.model_dir / "tracking_model")
+    detector_model, _ = get_func_from_saved_model(
+        cli_args.model_dir / "detection_model"
+    )
+    tracker_model, __ = get_func_from_saved_model(
+        cli_args.model_dir / "tracking_model"
+    )
+
+    _profile_detector(detector_model)
+    _profile_tracker(tracker_model)
 
 
 if __name__ == "__main__":

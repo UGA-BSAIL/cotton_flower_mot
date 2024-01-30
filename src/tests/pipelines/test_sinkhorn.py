@@ -11,7 +11,7 @@ import tensorflow as tf
 import yaml
 from pytest_snapshot.plugin import Snapshot
 
-from src.cotton_flower_mot.pipelines import assignment
+from src.cotton_flower_mot import assignment
 
 
 def test_solve_optimal_transport_obvious() -> None:

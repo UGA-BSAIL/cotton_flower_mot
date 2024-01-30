@@ -13,7 +13,7 @@ import tensorflow.keras as keras
 import tensorflow.keras.callbacks as callbacks
 from loguru import logger
 
-from ..schemas import ModelInputs, ModelTargets
+from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
 from .visualization import visualize_heat_maps
 
 

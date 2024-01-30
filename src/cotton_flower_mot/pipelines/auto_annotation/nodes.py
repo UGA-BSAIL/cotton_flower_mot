@@ -22,7 +22,7 @@ from tenacity import (
 
 from pycvat import Task
 
-from ..schemas import MotAnnotationColumns
+from src.cotton_flower_mot.schemas import MotAnnotationColumns
 
 
 @enum.unique

@@ -8,7 +8,7 @@ from typing import Any, Dict
 import tensorflow as tf
 
 from ..heat_maps import make_point_annotation_map, trim_out_of_bounds
-from ..schemas import ModelTargets
+from src.cotton_flower_mot.schemas import ModelTargets
 from .loss_metric_utilities import MaybeRagged, correct_ragged_mismatch
 from .ragged_utils import ragged_map_fn
 

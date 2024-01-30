@@ -7,11 +7,10 @@ import numpy as np
 import tensorflow as tf
 from loguru import logger
 
-from ...data_sets.video_data_set import FrameReader
-from ..schemas import UnannotatedFeatures as Uf
+from src.cotton_flower_mot.frame_reader import FrameReader
+from src.cotton_flower_mot.schemas import UnannotatedFeatures as Uf
 from ..tfrecords_utils import bytes_feature, int_feature
 from ..color_utils import rgb_to_hcl
-from ..config import ModelConfig
 
 _FEATURES_TO_FACTORIES = {
     Uf.IMAGE_ENCODED: bytes_feature,

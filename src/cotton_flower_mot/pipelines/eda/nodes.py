@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plot
 
-from ..schemas import ObjectTrackingFeatures as Otf
+from src.cotton_flower_mot.schemas import ObjectTrackingFeatures as Otf
 
 sns.set()
 

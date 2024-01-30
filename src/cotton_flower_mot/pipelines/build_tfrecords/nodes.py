@@ -20,7 +20,7 @@ from pycvat import Task
 
 from ..config import ModelConfig
 from ..heat_maps import make_object_heat_map
-from ..schemas import ObjectTrackingFeatures as Otf
+from src.cotton_flower_mot.schemas import ObjectTrackingFeatures as Otf
 from ..tfrecords_utils import bytes_feature, float_feature, int_feature
 
 _FEATURES_TO_FACTORIES = {

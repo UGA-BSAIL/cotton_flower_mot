@@ -13,7 +13,7 @@ from spektral.utils.convolution import line_graph
 
 from .layers.appearance_feature_extractor import AppearanceFeatureExtractor
 from ..config import ModelConfig
-from ..schemas import ModelTargets, ModelInputs
+from src.cotton_flower_mot.schemas import ModelTargets, ModelInputs
 from .graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,

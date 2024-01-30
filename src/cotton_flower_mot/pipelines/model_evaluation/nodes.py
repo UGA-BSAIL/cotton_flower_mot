@@ -13,13 +13,14 @@ from loguru import logger
 from functools import partial
 from matplotlib import pyplot as plot
 import seaborn as sns
-from collections import OrderedDict
 
-from ..schemas import ModelInputs, MotAnnotationColumns
-from .online_tracker import OnlineTracker, Track
-from .tracking_video_maker import draw_tracks
-from ...data_sets.video_data_set import FrameReader
+from src.cotton_flower_mot.schemas import ModelInputs
+from src.cotton_flower_mot.online_tracker import OnlineTracker, Track
+from src.cotton_flower_mot.tracking_video_maker import draw_tracks, \
+    filter_short_tracks
+from src.cotton_flower_mot.frame_reader import FrameReader
 
+from ...mot_challenge import track_to_mot_challenge
 
 ClipsToTracksType = Dict[str, List[Dict[str, Any]]]
 """
@@ -219,117 +220,6 @@ def _get_line_for_sequence(
     return track_pos["pos"], track_pos["horizontal"]
 
 
-def _filter_extrapolated_track_end(track: Track) -> pd.DataFrame:
-    """
-    Filters the part of the track at the end that has been extrapolated by
-    the motion model.
-
-    Args:
-        track: The track to filter.
-
-    Returns:
-        The filtered track.
-
-    """
-    if track.last_detection_frame is None:
-        # No detections.
-        return track.all_detections()
-
-    return track.all_detections().loc[: (track.last_detection_frame + 1)]
-
-
-def _filter_short_tracks(
-    tracks: Iterable[Track], min_length: int = 60
-) -> Iterable[Track]:
-    """
-    Filters any tracks that span less than the minimum number of frames. Note
-    that it will not include motion model extrapolation at the end of the
-    track in this calculation.
-
-    Args:
-        tracks: The tracks to filter.
-        min_length: The minimum length of a track.
-
-    Returns:
-        The filtered tracks.
-
-    """
-    for track in tracks:
-        track_length = 0
-        if track.last_detection_frame is not None:
-            track_length = (
-                track.last_detection_frame - track.first_detection_frame
-            )
-
-        if track_length >= min_length:
-            yield track
-
-
-def _track_to_mot_challenge(
-    track: Track,
-    resolution: Tuple[int, int],
-    cvat: bool = False,
-) -> pd.DataFrame:
-    """
-    Converts a track to the MOT Challenge format.
-
-    Args:
-        track: The track to convert.
-        resolution: The width and height of the clip.
-        cvat: Whether to use the CVAT flavor of this annotation format.
-
-    Returns:
-        The track in the MOT Challenge format.
-
-    """
-    detections = _filter_extrapolated_track_end(track)
-    has_detection = np.array(
-        [track.has_real_detection_for_frame(f) for f in detections.index]
-    )
-
-    # It wants bounding boxes in a different format, so fix that.
-    frame_width, frame_height = resolution
-    bbox_min_x = detections["center_x"] - detections["width"] / 2
-    bbox_min_y = detections["center_y"] - detections["height"] / 2
-    # Convert to pixels.
-    bbox_min_x *= frame_width
-    bbox_min_y *= frame_height
-
-    box_width = detections["width"] * frame_width
-    box_height = detections["height"] * frame_height
-
-    if not cvat:
-        # For confidence, we'll just set it to one for actual detections and
-        # zero for extrapolated bounding boxes.
-        confidence = has_detection.astype(float)
-    else:
-        confidence = 1.0
-
-    annotation_data = OrderedDict(
-        [
-            (MotAnnotationColumns.FRAME.value, detections.index),
-            (MotAnnotationColumns.ID.value, track.id),
-            (MotAnnotationColumns.BBOX_X_MIN_PX.value, bbox_min_x),
-            (MotAnnotationColumns.BBOX_Y_MIN_PX.value, bbox_min_y),
-            (MotAnnotationColumns.BBOX_WIDTH_PX.value, box_width),
-            (MotAnnotationColumns.BBOX_HEIGHT_PX.value, box_height),
-        ]
-    )
-    if cvat:
-        annotation_data[MotAnnotationColumns.CLASS_ID.value] = 1
-        annotation_data[MotAnnotationColumns.VISIBILITY.value] = 1
-        # Confidence goes at the end.
-        annotation_data[MotAnnotationColumns.CONFIDENCE.value] = confidence
-    else:
-        annotation_data[MotAnnotationColumns.CONFIDENCE.value] = confidence
-        # These are for 3D tracking, which we're not doing.
-        annotation_data["x"] = -1
-        annotation_data["y"] = -1
-        annotation_data["z"] = -1
-
-    return pd.DataFrame(data=annotation_data)
-
-
 def create_mot_challenge_results(
     tracks_from_clips: ClipsToTracksType,
     sequence_meta: Dict[str, Any],
@@ -354,13 +244,13 @@ def create_mot_challenge_results(
         # Filter out tracks that are very short, which are quite likely to be
         # false positives.
         fps = sequence_meta["sequences"][sequence_id]["fps"]
-        tracks = _filter_short_tracks(tracks, min_length=fps)
+        tracks = filter_short_tracks(tracks, min_length=fps)
 
         mot_results = []
         for track in tracks:
             resolution = sequence_meta["sequences"][sequence_id]["resolution"]
             mot_results.append(
-                _track_to_mot_challenge(
+                track_to_mot_challenge(
                     track, resolution=resolution, cvat=cvat
                 )
             )
