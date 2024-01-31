@@ -4,8 +4,10 @@ Performs tracking on a single video.
 
 
 import argparse
+from dataclasses import asdict
 from pathlib import Path
 import time
+import sys
 from typing import List, Any
 
 # Import sklearn here to avoid "cannot allocate memory in
@@ -110,6 +112,19 @@ class TrackingProfiler:
         return self.__total_tracking_time
 
 
+def _configure_logging() -> None:
+    """
+    Configures logging for the application.
+
+    """
+    # Only print warnings and above to the console.
+    logger.remove(0)
+    logger.add(sys.stderr, level="INFO")
+
+    # Dump everything else to a file.
+    logger.add("tracking_logs/tracking_{time}.log")
+
+
 def _make_tracker(
     *,
     clip: FrameReader,
@@ -153,6 +168,7 @@ def _compute_tracks_for_clip(
     detection_model: GraphFunc,
     clip: FrameReader,
     confidence_threshold: float = 0.5,
+    gnn_only: bool = False,
 ) -> List[Track]:
     """
     Computes tracks for a single clip.
@@ -162,6 +178,7 @@ def _compute_tracks_for_clip(
         detection_model: The detection model.
         clip: The clip to compute tracks for.
         confidence_threshold: The confidence threshold to use for the detector.
+        gnn_only: Only use the GNN model, with no pre-association step.
 
     Returns:
         The computed tracks.
@@ -174,16 +191,20 @@ def _compute_tracks_for_clip(
         detection_model=detection_model,
         tracking_model=tracking_model,
         confidence_threshold=confidence_threshold,
+        enable_two_stage_association=not gnn_only,
     )
 
     profiler = TrackingProfiler(tracker)
-    for frame in tqdm(clip.read(0), total=clip.num_frames):
+    frames_progress = tqdm(clip.read(0), total=clip.num_frames)
+    for frame in frames_progress:
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
 
         profiler.mark_tracking_start()
-        tracker.process_frame(frame)
+        stats = tracker.process_frame(frame)
         profiler.mark_tracking_end()
+
+        frames_progress.set_postfix(asdict(stats))
 
     logger.info(
         "Processed {} frames in {} seconds. ({} fps)",
@@ -232,6 +253,7 @@ def _track_video(
     output_path: Path,
     bgr_color: bool = False,
     confidence_threshold: float = 0.5,
+    gnn_only: bool = False,
 ) -> None:
     """
     Performs tracking on a video.
@@ -243,6 +265,7 @@ def _track_video(
         output_path: Where to write the output tracking data file.
         bgr_color: Assume video uses BGR colorspace instead of RGB.
         confidence_threshold: The confidence threshold to use for detection.
+        gnn_only: Only use the GNN model with no pre-association step.
 
     """
     logger.info("Tracking from video {}...", video_path)
@@ -264,6 +287,7 @@ def _track_video(
         detection_model=detection_model,
         tracking_model=tracking_model,
         confidence_threshold=confidence_threshold,
+        gnn_only=gnn_only,
     )
 
     # Write the tracks to disk.
@@ -317,6 +341,12 @@ def _make_parser() -> argparse.ArgumentParser:
         default=0.5,
         help="Confidence threshold for detection model.",
     )
+    parser.add_argument(
+        "-g",
+        "--gnn-only",
+        action="store_true",
+        help="Only use GNN model, with no pre-association stage.",
+    )
 
     return parser
 
@@ -324,6 +354,7 @@ def _make_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
+    _configure_logging()
 
     output_path = cli_args.output or cli_args.video.with_suffix(".csv")
     _track_video(
@@ -332,6 +363,7 @@ def main() -> None:
         video_path=cli_args.video,
         output_path=output_path,
         bgr_color=cli_args.bgr_color,
+        gnn_only=cli_args.gnn_only,
     )
 
 

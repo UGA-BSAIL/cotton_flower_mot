@@ -5,6 +5,7 @@ Framework for online tracking.
 
 from functools import singledispatch
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,22 @@ GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
 """
 Type alias for a function that runs the TF graph.
 """
+
+
+@dataclass
+class TrackingStats:
+    """
+    Represents tracking statistics.
+    """
+
+    num_detections: int
+    """
+    Number of detected objects on this iteration.
+    """
+    num_tracks: int
+    """
+    Number of objects currently being tracked.
+    """
 
 
 class Track:
@@ -455,6 +472,7 @@ class OnlineTracker:
         motion_model_min_detections: int = 5,
         confidence_threshold: float = 0.0,
         stage_one_iou_threshold: float = 0.5,
+        enable_two_stage_association: bool = True,
     ):
         """
         Args:
@@ -468,6 +486,9 @@ class OnlineTracker:
                 detector.
             stage_one_iou_threshold: The IOU threshold to use for the
                 first-stage fast association step.
+            enable_two_stage_association: If true, it will attempt a fast
+                IOU-based association process and only fall back on the GNN
+                if that fails.
 
         """
         self.__tracking_model = _adapt_tracking_model(tracking_model)
@@ -476,6 +497,11 @@ class OnlineTracker:
         self.__motion_min_detections = motion_model_min_detections
         self.__confidence_threshold = confidence_threshold
         self.__iou_threshold = tf.constant(stage_one_iou_threshold)
+        self.__enable_fast_association = enable_two_stage_association
+        if not self.__enable_fast_association:
+            logger.info(
+                "Two-stage association is disabled. Will only use GNN."
+            )
 
         # Stores the previous frame.
         self.__previous_frame = None
@@ -600,7 +626,7 @@ class OnlineTracker:
                 )
 
         # Remove dead tracklets.
-        logger.info("Removing {} dead tracks.", len(dead_tracklets))
+        logger.debug("Removing {} dead tracks.", len(dead_tracklets))
         for track in dead_tracklets:
             self.__active_tracks.remove(track)
             self.__completed_tracks.append(track)
@@ -634,7 +660,7 @@ class OnlineTracker:
                 track = Track(
                     motion_model_min_detections=self.__motion_min_detections
                 )
-                logger.info("Adding new track from detection {}.", detection)
+                logger.debug("Adding new track from detection {}.", detection)
                 track.add_new_detection(
                     frame_num=self.__frame_num,
                     detection=detection,
@@ -845,7 +871,6 @@ class OnlineTracker:
             valid_matches_int, axis=1
         ).numpy()
 
-        print(valid_matches_int)
         if np.any(num_tracklets_matches > 1) or np.any(
             num_detections_matches > 1
         ):
@@ -879,10 +904,12 @@ class OnlineTracker:
             logger.debug("No tracks or no detections, not running tracker.")
             assignment = np.zeros((num_tracklets, num_detections), dtype=bool)
         elif (
-            assignment := self.__do_fast_association(detection_geometry)
-        ) is None:
+            not self.__enable_fast_association
+            or (assignment := self.__do_fast_association(detection_geometry))
+            is None
+        ):
             # Fast association failed.
-            logger.info("Falling back on slow association...")
+            logger.debug("Falling back on slow association...")
             model_inputs = self.__create_tracking_inputs(
                 detections=detection_geometry,
                 appearance_features=appearance_features,
@@ -908,7 +935,7 @@ class OnlineTracker:
         self,
         *,
         frame: np.ndarray,
-    ) -> None:
+    ) -> int:
         """
         Computes the assignment matrix between the current state and new
         detections, and updates the state.
@@ -917,10 +944,13 @@ class OnlineTracker:
             frame: The current frame. Should be an array of shape
                 `[height, width, channels]`.
 
+        Returns:
+            The number of detected objects in this frame.
+
         """
         model_inputs = self.__create_detection_inputs(frame=frame)
         # Apply the detector first.
-        logger.info("Applying detection model...")
+        logger.debug("Applying detection model...")
         detections = self.__detection_model(model_inputs)
         detection_geometry = detections["geometry"][0].numpy()
         appearance_features = detections["appearance"][0].numpy()
@@ -940,10 +970,12 @@ class OnlineTracker:
         # Update the state.
         self.__update_saved_state(frame=frame)
 
+        return len(detection_geometry)
+
     def process_frame(
         self,
         frame: np.array,
-    ) -> None:
+    ) -> TrackingStats:
         """
         Use the tracker to process a new frame. It will detect objects in the
         new frame and update the current tracks.
@@ -953,12 +985,17 @@ class OnlineTracker:
                 array of shape `[height, width, channels]`.
 
         """
+        num_detections = 0
         if not self.__maybe_init_state(frame=frame):
-            self.__match_frame_pair(
+            num_detections = self.__match_frame_pair(
                 frame=frame,
             )
 
         self.__frame_num += 1
+
+        return TrackingStats(
+            num_detections=num_detections, num_tracks=len(self.__active_tracks)
+        )
 
     @property
     def tracks(self) -> List[Track]:
