@@ -23,7 +23,7 @@ from ..model_training.layers import CUSTOM_LAYERS
 
 def _filter_detections(
     detections: Union[tf.RaggedTensor, tf.Tensor],
-    confidence_threshold: float = 0.5,
+    confidence_threshold: float = 0.0,
     nms_iou_threshold: float = 0.5,
 ) -> tf.RaggedTensor:
     """
@@ -174,12 +174,11 @@ def build_inference_model(
     image_features = detector_outputs[0]
     detections = detector_outputs[-1]
     detections = _filter_detections(detections, **kwargs)
-    # Ignore the confidence for the detections.
-    detections = tf.cast(detections[:, :, :4], tf.float32)
+    detections = tf.cast(detections, tf.float32)
 
     # Extract appearance features for the detections.
     appearance_features = appearance_extractor(
-        dict(image_features=image_features, geometry=detections),
+        dict(image_features=image_features, geometry=detections[:, :, :4]),
     )
 
     detection_model = keras.Model(

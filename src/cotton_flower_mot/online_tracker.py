@@ -4,7 +4,7 @@ Framework for online tracking.
 
 
 from functools import singledispatch
-from typing import Dict, List, Optional, Union, Any, Callable
+from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 
 import numpy as np
 import pandas as pd
@@ -449,6 +449,7 @@ class OnlineTracker:
         detection_model: Union[GraphFunc, tf.keras.Model],
         death_window: int = 10,
         motion_model_min_detections: int = 5,
+        confidence_threshold: float = 0.0,
     ):
         """
         Args:
@@ -458,12 +459,15 @@ class OnlineTracker:
                 a tracklet for before we consider it dead.
             motion_model_min_detections: Minimum number of (real) detections
                 we must have before applying the motion model.
+            confidence_threshold: The confidence threshold to use for the
+                detector.
 
         """
         self.__tracking_model = _adapt_tracking_model(tracking_model)
         self.__detection_model = _adapt_detection_model(detection_model)
         self.__death_window = death_window
         self.__motion_min_detections = motion_model_min_detections
+        self.__confidence_threshold = confidence_threshold
 
         # Stores the previous frame.
         self.__previous_frame = None
@@ -757,6 +761,25 @@ class OnlineTracker:
             ModelInputs.TRACKLET_APPEARANCE.value: previous_appearance,
         }
 
+    def __filter_low_confidence_detections(
+        self, geometry: np.array, appearance: np.array
+    ) -> Tuple[np.array, np.array]:
+        """
+        Filters out low-confidence detections.
+
+        Args:
+            geometry: The detection geometry, with confidence.
+            appearance: The corresponding appearance features.
+
+        Returns:
+            The corresponding filtered geometry and appearance features. Will
+            also remove the extra confidence values.
+
+        """
+        confidence = geometry[:, 4]
+        mask = confidence >= self.__confidence_threshold
+        return geometry[mask][:, :4], appearance[mask]
+
     def __match_frame_pair(
         self,
         *,
@@ -777,6 +800,12 @@ class OnlineTracker:
         detections = self.__detection_model(model_inputs)
         detection_geometry = detections["geometry"][0].numpy()
         appearance_features = detections["appearance"][0].numpy()
+        (
+            detection_geometry,
+            appearance_features,
+        ) = self.__filter_low_confidence_detections(
+            detection_geometry, appearance_features
+        )
         self.__maybe_init_appearance(appearance_features)
 
         num_tracklets = self.__previous_geometry.shape[0]
