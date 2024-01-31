@@ -9,10 +9,10 @@ from typing import Any, Dict, Optional, cast
 import tensorflow as tf
 
 from src.cotton_flower_mot.schemas import ModelTargets
-from .graph_utils import compute_pairwise_similarities
+from src.cotton_flower_mot.graph_utils import compute_pairwise_similarities
 from .loss_metric_utilities import MaybeRagged, correct_ragged_mismatch
 from .ragged_utils import ragged_map_fn
-from .similarity_utils import compute_ious
+from src.cotton_flower_mot.similarity_utils import compute_ious
 
 
 def count_id_switches(

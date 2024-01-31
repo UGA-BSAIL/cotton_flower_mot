@@ -5,7 +5,7 @@ import tensorflow as tf
 import yaml
 from pytest_snapshot.plugin import Snapshot
 
-from src.cotton_flower_mot.pipelines.model_training import similarity_utils
+from src.cotton_flower_mot import similarity_utils
 
 
 @pytest.mark.parametrize(

@@ -7,7 +7,7 @@ import enum
 
 from kedro.pipeline import Pipeline, node
 
-from ..training_utils import set_check_numerics, set_mixed_precision
+from src.cotton_flower_mot.training_utils import set_check_numerics, set_mixed_precision
 from .nodes import create_model, prepare_pretrained_encoder, train_model
 
 

@@ -4,7 +4,7 @@ Pipeline for pre-training the model on the colorization task.
 
 from kedro.pipeline import Pipeline, node, pipeline
 
-from ..training_utils import set_check_numerics
+from src.cotton_flower_mot.training_utils import set_check_numerics
 from .nodes import create_model, train_model
 
 

@@ -15,7 +15,7 @@ from keras.applications.efficientnet_v2 import EfficientNetV2S
 from ..callbacks import KeepBest
 from ..config import ModelConfig
 from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
-from ..training_utils import (
+from src.cotton_flower_mot.training_utils import (
     get_log_dir,
     make_common_callbacks,
 )

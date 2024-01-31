@@ -13,8 +13,8 @@ import tensorflow as tf
 import tensorflow.keras.optimizers.schedules as schedules
 from loguru import logger
 
-from .callbacks import ClearMemory
-from .schedules import Warmup
+from src.cotton_flower_mot.pipelines.callbacks import ClearMemory
+from src.cotton_flower_mot.pipelines.schedules import Warmup
 
 
 def make_learning_rate(

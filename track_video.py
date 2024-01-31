@@ -277,7 +277,7 @@ def _track_video(
     tracks_tabular.to_csv(output_path, index=False, header=False)
 
     # Save the video.
-    output_video_path = output_path.with_suffix(".mp4")
+    output_video_path = output_path.with_name(f"{output_path.stem}_tracks.mp4")
     _save_video(clip=clip, video_path=output_video_path, tracks=tracks)
 
 

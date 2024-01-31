@@ -8,8 +8,6 @@ from kedro.pipeline import Pipeline, node
 
 from .nodes import (
     compute_counts,
-    compute_tracks_for_clip_dataset,
-    make_track_videos_clip_dataset,
     compute_tracks_for_clip,
     merge_track_datasets,
     make_track_videos_clip,
@@ -19,7 +17,7 @@ from .nodes import (
     create_mot_challenge_results,
 )
 from .inference import build_inference_model
-from ..training_utils import set_mixed_precision
+from src.cotton_flower_mot.training_utils import set_mixed_precision
 
 
 _ANALYSIS_SESSIONS = {"2021-08-25_SPL"}

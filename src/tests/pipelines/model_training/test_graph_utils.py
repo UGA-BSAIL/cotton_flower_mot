@@ -11,7 +11,7 @@ import pytest
 import spektral
 from faker import Faker
 
-from src.cotton_flower_mot.pipelines.model_training import graph_utils
+from src.cotton_flower_mot import graph_utils
 
 
 def _iter_feature_pairs(

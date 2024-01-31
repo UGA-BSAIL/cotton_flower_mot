@@ -10,7 +10,7 @@ import tensorflow as tf
 from loguru import logger
 from tensorflow.keras import layers
 
-from ..graph_utils import augment_adjacency_matrix, bound_adjacency, gcn_filter
+from src.cotton_flower_mot.graph_utils import augment_adjacency_matrix, bound_adjacency, gcn_filter
 from .utility import BnActConv
 
 

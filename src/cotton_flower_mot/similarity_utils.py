@@ -5,7 +5,6 @@ Utilities for computing similarity metrics.
 
 import math
 from typing import Callable, Tuple
-from ..training_utils import bound_numerics
 
 import tensorflow as tf
 
@@ -78,7 +77,7 @@ def compute_ious(boxes1: tf.Tensor, boxes2: tf.Tensor) -> tf.Tensor:
             of the box center, the vertical position of the box center,
             the box's width, and the box's height, in that order.
         boxes2: The second array of bounding boxes. Has the same shape and
-            format as `boxes_pred`.
+            format as `boxes1`.
 
     Returns:
         An array of shape `[n_boxes,]` containing the IOUs between each pair
