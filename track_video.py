@@ -101,22 +101,14 @@ def _make_tracker(
 
 
 def _compute_tracks_for_clip(
-    *,
-    tracking_model: GraphFunc,
-    detection_model: GraphFunc,
-    clip: FrameReader,
-    confidence_threshold: float = 0.5,
-    gnn_only: bool = False,
+    *, clip: FrameReader, **kwargs: Any
 ) -> List[Track]:
     """
     Computes tracks for a single clip.
 
     Args:
-        tracking_model: The tracking model.
-        detection_model: The detection model.
         clip: The clip to compute tracks for.
-        confidence_threshold: The confidence threshold to use for the detector.
-        gnn_only: Only use the GNN model, with no pre-association step.
+        **kwargs: Will be forwarded to `_make_tracker()`.
 
     Returns:
         The computed tracks.
@@ -126,10 +118,7 @@ def _compute_tracks_for_clip(
 
     tracker = _make_tracker(
         clip=clip,
-        detection_model=detection_model,
-        tracking_model=tracking_model,
-        confidence_threshold=confidence_threshold,
-        enable_two_stage_association=not gnn_only,
+        **kwargs,
     )
 
     frames_progress = tqdm(clip.read(0), total=clip.num_frames)
@@ -180,8 +169,7 @@ def _track_video(
     video_path: Path,
     output_path: Path,
     bgr_color: bool = False,
-    confidence_threshold: float = 0.5,
-    gnn_only: bool = False,
+    **kwargs: Any,
 ) -> None:
     """
     Performs tracking on a video.
@@ -192,8 +180,7 @@ def _track_video(
         video_path: The path to the video.
         output_path: Where to write the output tracking data file.
         bgr_color: Assume video uses BGR colorspace instead of RGB.
-        confidence_threshold: The confidence threshold to use for detection.
-        gnn_only: Only use the GNN model with no pre-association step.
+        **kwargs: Will be forwarded to `_compute_tracks_for_clip()`.
 
     """
     logger.info("Tracking from video {}...", video_path)
@@ -214,8 +201,7 @@ def _track_video(
         clip=clip,
         detection_model=detection_model,
         tracking_model=tracking_model,
-        confidence_threshold=confidence_threshold,
-        gnn_only=gnn_only,
+        **kwargs,
     )
 
     # Write the tracks to disk.
@@ -270,6 +256,13 @@ def _make_parser() -> argparse.ArgumentParser:
         help="Confidence threshold for detection model.",
     )
     parser.add_argument(
+        "-i",
+        "--iou",
+        type=float,
+        default=0.5,
+        help="IOU threshold for fast association.",
+    )
+    parser.add_argument(
         "-g",
         "--gnn-only",
         action="store_true",
@@ -291,7 +284,9 @@ def main() -> None:
         video_path=cli_args.video,
         output_path=output_path,
         bgr_color=cli_args.bgr_color,
-        gnn_only=cli_args.gnn_only,
+        enable_two_stage_association=not cli_args.gnn_only,
+        stage_one_iou_threshold=cli_args.iou,
+        confidence_threshold=cli_args.conf,
     )
 
 

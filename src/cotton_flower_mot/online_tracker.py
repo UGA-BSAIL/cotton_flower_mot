@@ -501,10 +501,13 @@ class OnlineTracker:
         self.__confidence_threshold = confidence_threshold
         self.__iou_threshold = tf.constant(stage_one_iou_threshold)
         self.__enable_fast_association = enable_two_stage_association
-        if not self.__enable_fast_association:
-            logger.info(
-                "Two-stage association is disabled. Will only use GNN."
-            )
+        logger.info(
+            f"Tracker configuration:\n"
+            f"\tTwo-stage association: {self.__enable_fast_association}\n"
+            f"\tDeath window: {self.__death_window}\n"
+            f"\tConfidence threshold: {self.__confidence_threshold}\n"
+            f"\tIOU threshold: {self.__iou_threshold}"
+        )
 
         # Stores the previous frame.
         self.__previous_frame = None
@@ -604,9 +607,10 @@ class OnlineTracker:
                     # Otherwise, extrapolate a new bounding box based on
                     # previous track information.
                     try:
-                        extrapolated_box = track.predict_future_box(
-                            self.__frame_num
-                        )
+                        with self.__profiler.profile("motion_model"):
+                            extrapolated_box = track.predict_future_box(
+                                self.__frame_num
+                            )
                     except ValueError:
                         logger.debug(
                             "Not extrapolating track because there "
@@ -879,33 +883,32 @@ class OnlineTracker:
             right_features=geometry,
         )[0]
 
-        # To meet the criteria for a valid association, each detection must
-        # have AT MOST ONE plausible association with a tracklet.
         valid_matches = tf.greater(pairwise_ious, iou_threshold)
         valid_matches_int = tf.cast(valid_matches, tf.int32)
         num_tracklets_matches = tf.reduce_sum(valid_matches_int, axis=0)
         num_detections_matches = tf.reduce_sum(valid_matches_int, axis=1)
 
-        empty_tensor = tf.constant([], dtype=tf.bool)
-        return_value = tf.cond(
+        invalid_criterion = tf.logical_or(
+            # To meet the criteria for a valid association, each detection must
+            # have AT MOST ONE plausible association with a tracklet.
             tf.logical_or(
                 tf.reduce_any(num_tracklets_matches > 1),
                 tf.reduce_any(num_detections_matches > 1),
             ),
+            # Also, we can't have any tracklet/detection pairs that could have
+            # been matched but weren't.
+            tf.less(
+                tf.reduce_sum(valid_matches_int),
+                tf.reduce_min(tf.shape(valid_matches_int)),
+            ),
+        )
+
+        empty_tensor = tf.constant([], dtype=tf.bool)
+        return tf.cond(
+            invalid_criterion,
             lambda: empty_tensor,
             lambda: valid_matches,
         )
-
-        # Also, we can't have any tracklet/detection pairs that could have
-        # been matched but weren't.
-        return_value = tf.cond(
-            tf.reduce_sum(valid_matches_int)
-            < tf.reduce_min(tf.shape(valid_matches_int)),
-            lambda: empty_tensor,
-            lambda: return_value,
-        )
-
-        return return_value
 
     def __do_fast_association(self, geometry: np.array) -> Optional[np.array]:
         """
