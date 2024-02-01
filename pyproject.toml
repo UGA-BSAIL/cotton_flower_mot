@@ -27,6 +27,7 @@ tensorflow-addons = "^0.19.0"
 python-json-logger = "^2.0.4"
 onnx2tf = "^1.13.11"
 tf2onnx = "^1.16.0"
+tabulate = "^0.9.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"

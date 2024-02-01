@@ -6,9 +6,8 @@ Performs tracking on a single video.
 import argparse
 from dataclasses import asdict
 from pathlib import Path
-import time
 import sys
-from typing import List, Any
+from typing import List, Any, Iterable
 
 # Import sklearn here to avoid "cannot allocate memory in
 # static TLS block" error on the Jetson.
@@ -49,67 +48,6 @@ _MOTION_MODEL_MIN_DETECTIONS = 6
 """
 The minimum number of detections to use when applying the motion model.
 """
-
-
-class TrackingProfiler:
-    """
-    Class to help profile tracking performance.
-    """
-
-    _MIN_WARM_UP_CYCLES = 10
-    """
-    Minimum number of cycles we want to run the tracker for before we start 
-    collecting data.
-    """
-
-    def __init__(self, tracker: OnlineTracker):
-        self.__tracker = tracker
-
-        # True if we have added at least one track.
-        self.__seen_first_track = False
-        # How many cycles we have run the tracking model for while warning up.
-        self.__warm_up_cycles = 0
-
-        # Time at which tracking started.
-        self.__start_time = None
-        # Keeps track of the total time spent tracking.
-        self.__total_tracking_time = 0.0
-
-    def mark_tracking_start(self) -> None:
-        """
-        Marks the start of the tracking step.
-        """
-        self.__start_time = time.time()
-
-    def mark_tracking_end(self) -> None:
-        """
-        Marks the end of the tracking step.
-        """
-        if not self.__seen_first_track:
-            # We ignore everything before the first track, because this
-            # indicates that the models are not fully warmed-up.
-            if len(self.__tracker.tracks) > 0:
-                # We have seen it now!
-                self.__seen_first_track = True
-        elif self.__warm_up_cycles < self._MIN_WARM_UP_CYCLES:
-            # We are still warming up.
-            self.__warm_up_cycles += 1
-            logger.debug(
-                "Waiting for tracker warmup (cycle {})...",
-                self.__warm_up_cycles,
-            )
-
-        else:
-            # Add the time spent tracking.
-            self.__total_tracking_time += time.time() - self.__start_time
-
-    @property
-    def total_tracking_time(self) -> float:
-        """
-        Returns:
-            The total time spent tracking.
-        """
-        return self.__total_tracking_time
 
 
 def _configure_logging() -> None:
@@ -194,24 +132,14 @@ def _compute_tracks_for_clip(
         enable_two_stage_association=not gnn_only,
     )
 
-    profiler = TrackingProfiler(tracker)
     frames_progress = tqdm(clip.read(0), total=clip.num_frames)
     for frame in frames_progress:
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
 
-        profiler.mark_tracking_start()
         stats = tracker.process_frame(frame)
-        profiler.mark_tracking_end()
-
         frames_progress.set_postfix(asdict(stats))
 
-    logger.info(
-        "Processed {} frames in {} seconds. ({} fps)",
-        clip.num_frames,
-        profiler.total_tracking_time,
-        clip.num_frames / profiler.total_tracking_time,
-    )
     return tracker.tracks
 
 

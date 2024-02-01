@@ -13,12 +13,13 @@ import tensorflow as tf
 from loguru import logger
 from sklearn.linear_model import RANSACRegressor
 
-from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
-from src.cotton_flower_mot.assignment import (
+from .schemas import ModelInputs, ModelTargets
+from .assignment import (
     do_hard_assignment,
 )
-from src.cotton_flower_mot.graph_utils import compute_pairwise_similarities
-from src.cotton_flower_mot.similarity_utils import compute_ious
+from .graph_utils import compute_pairwise_similarities
+from .profiler import ProfilingManager
+from .similarity_utils import compute_ious
 
 
 GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
@@ -130,7 +131,9 @@ class Track:
         """
         Returns:
             The bounding box of the most recent position of this object,
-            as estimated by the motion model.
+            as estimated by the motion model. Note that if we have an actual
+            detection for this frame, the return value will be identical to
+            that of `last_detection`.
 
         """
         return self.detection_for_frame(self.__latest_motion_frame)
@@ -522,6 +525,9 @@ class OnlineTracker:
         # Counter for the current frame.
         self.__frame_num = 0
 
+        # Internal profiler to use.
+        self.__profiler = ProfilingManager()
+
     def __maybe_init_state(self, *, frame: np.ndarray) -> bool:
         """
         Initializes the previous detection state from the current detections
@@ -616,9 +622,7 @@ class OnlineTracker:
 
             else:
                 # Find the associated detection.
-                new_detection_index = np.argmax(
-                    assignment_matrix[tracklet_index]
-                )
+                new_detection_index = np.argmax(tracklet_row)
                 track.add_new_detection(
                     frame_num=self.__frame_num,
                     detection=detections[new_detection_index],
@@ -721,16 +725,19 @@ class OnlineTracker:
         """
         logger.debug(assignment_matrix)
 
-        self.__update_active_tracks(
-            assignment_matrix=assignment_matrix,
-            detections=detections,
-            appearances=appearances,
-        )
-        self.__add_new_tracks(
-            assignment_matrix=assignment_matrix,
-            detections=detections,
-            appearances=appearances,
-        )
+        with self.__profiler.profile("update_active_tracks"):
+            # Update the currently-active tracks.
+            self.__update_active_tracks(
+                assignment_matrix=assignment_matrix,
+                detections=detections,
+                appearances=appearances,
+            )
+        with self.__profiler.profile("add_new_tracks"):
+            self.__add_new_tracks(
+                assignment_matrix=assignment_matrix,
+                detections=detections,
+                appearances=appearances,
+            )
 
     def __update_saved_state(self, *, frame: np.ndarray) -> None:
         """
@@ -833,25 +840,37 @@ class OnlineTracker:
         mask = confidence >= self.__confidence_threshold
         return geometry[mask][:, :4], appearance[mask]
 
-    def __do_fast_association(self, geometry: np.array) -> Optional[np.array]:
+    @tf.function(
+        input_signature=(
+            tf.TensorSpec(shape=[None, 4], dtype=tf.float32),
+            tf.TensorSpec(shape=[None, 4], dtype=tf.float32),
+            tf.TensorSpec(shape=[], dtype=tf.float32),
+        )
+    )
+    def _fast_association_impl(
+        self,
+        geometry: tf.Tensor,
+        previous_geometry: tf.Tensor,
+        iou_threshold: tf.Tensor,
+    ) -> tf.Tensor:
         """
-        Performs an initial fast attempt at association based on the bounding
-        box IOUs.
+        Implementation of the fast association routine.
 
         Args:
             geometry: The current bounding boxes.
+            previous_geometry: The previous bounding boxes.
+            iou_threshold: The IOU threshold to use for determining matches.
 
         Returns:
             The boolean assignment matrix of shape `[num_tracklets,
-            num_detections], if association succeeded, otherwise `None`.
+            num_detections], if association succeeded, otherwise an empty
+            tensor.
 
         """
         # First, compute IOUs between all tracklets and all detections.
-        geometry = tf.expand_dims(
-            tf.convert_to_tensor(geometry, dtype=tf.float32), axis=0
-        )
+        geometry = tf.expand_dims(geometry, axis=0)
         previous_geometry = tf.expand_dims(
-            tf.convert_to_tensor(self.__previous_geometry, dtype=tf.float32),
+            previous_geometry,
             axis=0,
         )
         pairwise_ious = compute_pairwise_similarities(
@@ -862,28 +881,60 @@ class OnlineTracker:
 
         # To meet the criteria for a valid association, each detection must
         # have AT MOST ONE plausible association with a tracklet.
-        valid_matches = tf.greater(pairwise_ious, self.__iou_threshold)
+        valid_matches = tf.greater(pairwise_ious, iou_threshold)
         valid_matches_int = tf.cast(valid_matches, tf.int32)
-        num_tracklets_matches = tf.reduce_sum(
-            valid_matches_int, axis=0
-        ).numpy()
-        num_detections_matches = tf.reduce_sum(
-            valid_matches_int, axis=1
-        ).numpy()
+        num_tracklets_matches = tf.reduce_sum(valid_matches_int, axis=0)
+        num_detections_matches = tf.reduce_sum(valid_matches_int, axis=1)
 
-        if np.any(num_tracklets_matches > 1) or np.any(
-            num_detections_matches > 1
-        ):
-            # Ambiguous association.
-            return None
+        empty_tensor = tf.constant([], dtype=tf.bool)
+        return_value = tf.cond(
+            tf.logical_or(
+                tf.reduce_any(num_tracklets_matches > 1),
+                tf.reduce_any(num_detections_matches > 1),
+            ),
+            lambda: empty_tensor,
+            lambda: valid_matches,
+        )
 
         # Also, we can't have any tracklet/detection pairs that could have
         # been matched but weren't.
-        if np.sum(valid_matches_int) < np.min(valid_matches_int.shape):
-            return None
+        return_value = tf.cond(
+            tf.reduce_sum(valid_matches_int)
+            < tf.reduce_min(tf.shape(valid_matches_int)),
+            lambda: empty_tensor,
+            lambda: return_value,
+        )
 
-        # Otherwise, this is a valid association.
-        return valid_matches.numpy()
+        return return_value
+
+    def __do_fast_association(self, geometry: np.array) -> Optional[np.array]:
+        """
+        Performs an initial fast attempt at association based on the bounding
+        box IOUs.
+
+        Args:
+            geometry: The current bounding boxes.
+
+        Returns:
+            The boolean assignment matrix of shape `[num_tracklets,
+            num_detections], if association succeeded, otherwise an empty
+            array.
+
+        """
+        with self.__profiler.profile("fast_association", warmup_iters=10):
+            geometry = tf.convert_to_tensor(geometry, dtype=tf.float32)
+            previous_geometry = tf.convert_to_tensor(
+                self.__previous_geometry, dtype=tf.float32
+            )
+
+            assignment = self._fast_association_impl(
+                geometry, previous_geometry, self.__iou_threshold
+            ).numpy()
+
+            if len(assignment) == 0:
+                # The association didn't work.
+                return None
+            return assignment
 
     def __do_association(
         self, *, detection_geometry: np.array, appearance_features: np.array
@@ -914,22 +965,26 @@ class OnlineTracker:
                 detections=detection_geometry,
                 appearance_features=appearance_features,
             )
-            model_outputs = self.__tracking_model(model_inputs)
-            sinkhorn = model_outputs[ModelTargets.SINKHORN.value][0].numpy()
-            assignment = self.__sinkhorn_to_assigment(
-                sinkhorn, detections=detection_geometry
-            )
+            with self.__profiler.profile("slow_association", warmup_iters=10):
+                model_outputs = self.__tracking_model(model_inputs)
+                sinkhorn = model_outputs[ModelTargets.SINKHORN.value][
+                    0
+                ].numpy()
+                assignment = self.__sinkhorn_to_assigment(
+                    sinkhorn, detections=detection_geometry
+                )
 
         logger.debug("Got {} detections.", len(detection_geometry))
         # Remove the confidence, since we don't use that for tracking.
         detection_geometry = detection_geometry[:, :4]
 
         # Update the tracks.
-        self.__update_tracks(
-            assignment_matrix=assignment,
-            detections=detection_geometry,
-            appearances=appearance_features,
-        )
+        with self.__profiler.profile("update_tracks"):
+            self.__update_tracks(
+                assignment_matrix=assignment,
+                detections=detection_geometry,
+                appearances=appearance_features,
+            )
 
     def __match_frame_pair(
         self,
@@ -948,18 +1003,21 @@ class OnlineTracker:
             The number of detected objects in this frame.
 
         """
-        model_inputs = self.__create_detection_inputs(frame=frame)
+        with self.__profiler.profile("create_detection_inputs"):
+            model_inputs = self.__create_detection_inputs(frame=frame)
         # Apply the detector first.
         logger.debug("Applying detection model...")
-        detections = self.__detection_model(model_inputs)
+        with self.__profiler.profile("detection_model", warmup_iters=10):
+            detections = self.__detection_model(model_inputs)
         detection_geometry = detections["geometry"][0].numpy()
         appearance_features = detections["appearance"][0].numpy()
-        (
-            detection_geometry,
-            appearance_features,
-        ) = self.__filter_low_confidence_detections(
-            detection_geometry, appearance_features
-        )
+        with self.__profiler.profile("filter_low_confidence"):
+            (
+                detection_geometry,
+                appearance_features,
+            ) = self.__filter_low_confidence_detections(
+                detection_geometry, appearance_features
+            )
         self.__maybe_init_appearance(appearance_features)
 
         self.__do_association(
@@ -968,7 +1026,8 @@ class OnlineTracker:
         )
 
         # Update the state.
-        self.__update_saved_state(frame=frame)
+        with self.__profiler.profile("update_saved_state"):
+            self.__update_saved_state(frame=frame)
 
         return len(detection_geometry)
 
@@ -987,9 +1046,10 @@ class OnlineTracker:
         """
         num_detections = 0
         if not self.__maybe_init_state(frame=frame):
-            num_detections = self.__match_frame_pair(
-                frame=frame,
-            )
+            with self.__profiler.profile("match_frame_pair", warmup_iters=10):
+                num_detections = self.__match_frame_pair(
+                    frame=frame,
+                )
 
         self.__frame_num += 1
 
