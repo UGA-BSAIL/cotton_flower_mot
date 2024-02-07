@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import tensorflow as tf
 
-from src.cotton_flower_mot.assignment import (
+from ....assignment import (
     do_hard_assignment,
     solve_optimal_transport,
     add_births_and_deaths,

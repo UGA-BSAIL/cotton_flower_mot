@@ -13,8 +13,8 @@ from spektral.utils.convolution import line_graph
 
 from .layers.appearance_feature_extractor import AppearanceFeatureExtractor
 from ..config import ModelConfig
-from src.cotton_flower_mot.schemas import ModelTargets, ModelInputs
-from src.cotton_flower_mot.graph_utils import (
+from ...schemas import ModelTargets, ModelInputs
+from ...graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,
     gcn_filter,
@@ -22,13 +22,13 @@ from src.cotton_flower_mot.graph_utils import (
 )
 from .layers import AssociationLayer, BnActConv, ResidualCensNet
 from .models_common import make_geometry_inputs
-from src.cotton_flower_mot.similarity_utils import (
+from ...similarity_utils import (
     aspect_ratio_penalty,
     compute_ious,
     cosine_similarity,
     distance_penalty,
 )
-from src.cotton_flower_mot.training_utils import bound_numerics
+from ...training_utils import bound_numerics
 
 
 def _build_edge_mlp(

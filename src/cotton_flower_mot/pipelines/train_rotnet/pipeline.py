@@ -4,7 +4,7 @@ Pipeline for pre-training the model on the RotNet task.
 
 from kedro.pipeline import Pipeline, node, pipeline
 
-from src.cotton_flower_mot.training_utils import set_check_numerics
+from ...training_utils import set_check_numerics
 from .nodes import create_model, train_model
 
 

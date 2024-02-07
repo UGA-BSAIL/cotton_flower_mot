@@ -18,7 +18,7 @@ flip: true
 # False positive rate to simulate for the tracklets. This is much higher
 # than the detection rate in order to more accurately simulate how the online
 # tracking process operates.
-tracklet_false_positive_rate: 2.0
+tracklet_false_positive_rate: 3.0
 # False positive rate to simulate for the detections.
 detection_false_positive_rate: 0.8
 # Rate at which to add duplicate bounding boxes for the tracker.
@@ -30,4 +30,4 @@ shuffle_buffer_size: 5
 # Native number of examples in the dataset without frame dropping.
 num_dataset_examples: 7040
 # Probability of dropping a particular example to use.
-drop_probability: 0.0
+drop_probability: 0.2

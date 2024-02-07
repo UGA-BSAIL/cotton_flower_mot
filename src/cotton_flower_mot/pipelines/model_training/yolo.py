@@ -7,7 +7,7 @@ from pathlib import Path
 
 import tensorflow as tf
 from ..config import ModelConfig
-from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
+from ...schemas import ModelInputs, ModelTargets
 from .layers.pretrained_tf import PretrainedTf
 
 layers = tf.keras.layers

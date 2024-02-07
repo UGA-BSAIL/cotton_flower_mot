@@ -19,7 +19,7 @@ from keras.layers import (
 from tensorflow.python.keras.regularizers import l2
 
 from ..config import ModelConfig
-from src.cotton_flower_mot.schemas import (
+from ...schemas import (
     ColorizationTargets,
     ModelInputs,
     ModelTargets,

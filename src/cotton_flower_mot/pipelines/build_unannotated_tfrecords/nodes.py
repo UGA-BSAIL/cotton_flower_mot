@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 from loguru import logger
 
-from src.cotton_flower_mot.frame_reader import FrameReader
-from src.cotton_flower_mot.schemas import UnannotatedFeatures as Uf
+from ...frame_reader import FrameReader
+from ...schemas import UnannotatedFeatures as Uf
 from ..tfrecords_utils import bytes_feature, int_feature
 from ..color_utils import rgb_to_hcl
 

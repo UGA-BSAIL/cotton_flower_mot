@@ -7,8 +7,8 @@ from typing import Any
 
 import pandas as pd
 
-from src.cotton_flower_mot.schemas import MotAnnotationColumns as Mot
-from src.cotton_flower_mot.schemas import ObjectTrackingFeatures as Otf
+from ...schemas import MotAnnotationColumns as Mot
+from ...schemas import ObjectTrackingFeatures as Otf
 
 
 def record_task_id(annotations: pd.DataFrame, *, task_id: int) -> pd.DataFrame:

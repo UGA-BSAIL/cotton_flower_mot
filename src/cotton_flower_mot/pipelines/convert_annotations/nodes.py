@@ -8,7 +8,7 @@ from typing import Iterable, Tuple
 
 import pandas as pd
 
-from src.cotton_flower_mot.schemas import MotAnnotationColumns as Mot
+from ...schemas import MotAnnotationColumns as Mot
 
 
 def merge_frame_annotations(

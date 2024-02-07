@@ -2,7 +2,7 @@ from keras import layers
 from typing import Tuple, Union
 import tensorflow as tf
 from ..config import ModelConfig
-from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
+from ...schemas import ModelInputs, ModelTargets
 import keras
 
 

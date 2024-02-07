@@ -14,11 +14,11 @@ from functools import partial
 from matplotlib import pyplot as plot
 import seaborn as sns
 
-from src.cotton_flower_mot.schemas import ModelInputs
-from src.cotton_flower_mot.online_tracker import OnlineTracker, Track
-from src.cotton_flower_mot.tracking_video_maker import draw_tracks, \
+from ...schemas import ModelInputs
+from ...online_tracker import OnlineTracker, Track
+from ...tracking_video_maker import draw_tracks, \
     filter_short_tracks
-from src.cotton_flower_mot.frame_reader import FrameReader
+from ...frame_reader import FrameReader
 
 from ...mot_challenge import track_to_mot_challenge
 

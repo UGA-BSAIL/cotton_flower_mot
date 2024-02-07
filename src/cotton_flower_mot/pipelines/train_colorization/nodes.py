@@ -10,8 +10,8 @@ from loguru import logger
 
 from ..config import ModelConfig
 from ..model_training.centernet_model import build_colorization_model
-from src.cotton_flower_mot.training_utils import make_common_callbacks, make_learning_rate
-from src.cotton_flower_mot.schemas import ColorizationTargets
+from ...training_utils import make_common_callbacks, make_learning_rate
+from ...schemas import ColorizationTargets
 
 
 def create_model(config: ModelConfig) -> tf.keras.Model:

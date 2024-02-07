@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from loguru import logger
 
-from src.cotton_flower_mot.online_tracker import Track
+from .online_tracker import Track
 
 _TAG_FONT = ImageFont.truetype("fonts/VeraBd.ttf", 24)
 """

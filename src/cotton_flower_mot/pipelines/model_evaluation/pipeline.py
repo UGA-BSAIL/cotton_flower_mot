@@ -17,7 +17,7 @@ from .nodes import (
     create_mot_challenge_results,
 )
 from .inference import build_inference_model
-from src.cotton_flower_mot.training_utils import set_mixed_precision
+from ...training_utils import set_mixed_precision
 
 
 _ANALYSIS_SESSIONS = {"2021-08-25_SPL"}

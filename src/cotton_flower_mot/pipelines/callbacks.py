@@ -12,9 +12,10 @@ from typing import Any, Dict, Optional, Tuple, Union
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.callbacks as callbacks
+from keras.src.saving import serialization_lib
 from loguru import logger
 
-from src.cotton_flower_mot.schemas import ModelInputs, ModelTargets
+from ..schemas import ModelInputs, ModelTargets
 from .visualization import visualize_heat_maps
 from .model_training.layers import CUSTOM_LAYERS
 
@@ -277,6 +278,8 @@ class KeepBest(callbacks.Callback):
             )
             self.__best_metric_value = metric_value
 
+            # Enable unsafe deserialization so we can clone the lambda layers.
+            serialization_lib.enable_unsafe_deserialization()
             with tf.keras.utils.custom_object_scope(CUSTOM_LAYERS):
                 self.__best_model = tf.keras.models.clone_model(self.model)
 

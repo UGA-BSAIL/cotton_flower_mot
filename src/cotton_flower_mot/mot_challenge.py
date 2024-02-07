@@ -7,8 +7,8 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from src.cotton_flower_mot.online_tracker import Track
-from src.cotton_flower_mot.schemas import MotAnnotationColumns
+from .online_tracker import Track
+from .schemas import MotAnnotationColumns
 
 
 def _filter_extrapolated_track_end(track: Track) -> pd.DataFrame:
