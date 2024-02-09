@@ -243,3 +243,11 @@ testing_mot_challenge_cvat:
       index: false
       header: false
 
+# Dataset containing counts in the ENGR field.
+2022_engr_field_counts:
+  type: pandas.ExcelDataSet
+  filepath: "data/07_model_output/2022_engr_field_counts.xlsx"
+  versioned: False
+  load_args:
+    engine: openpyxl
+    sheet_name: "Temporal Counts"
