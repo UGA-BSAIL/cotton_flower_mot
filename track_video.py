@@ -44,10 +44,6 @@ _DEATH_WINDOW_S = 1.0
 """
 The number of seconds to use for the death window.
 """
-_MOTION_MODEL_MIN_DETECTIONS = 6
-"""
-The minimum number of detections to use when applying the motion model.
-"""
 
 
 def _configure_logging() -> None:
@@ -83,19 +79,10 @@ def _make_tracker(
         An OnlineTracker instance.
 
     """
-    # Convert death window to frames.
-    death_window_frames = int(clip.fps * _DEATH_WINDOW_S)
-    logger.debug(
-        "Using {}-frame ({} s) death window.",
-        death_window_frames,
-        _DEATH_WINDOW_S,
-    )
-
     return OnlineTracker(
         detection_model=detection_model,
         tracking_model=tracking_model,
-        death_window=death_window_frames,
-        motion_model_min_detections=_MOTION_MODEL_MIN_DETECTIONS,
+        death_window=_DEATH_WINDOW_S,
         **kwargs,
     )
 
@@ -121,12 +108,17 @@ def _compute_tracks_for_clip(
         **kwargs,
     )
 
+    # We assume that all frames are evenly-spaced.
+    frame_period = 1 / clip.fps
+    frame_time = 0.0
+
     frames_progress = tqdm(clip.read(0), total=clip.num_frames)
     for frame in frames_progress:
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
 
-        stats = tracker.process_frame(frame)
+        stats = tracker.process_frame(frame, frame_time=frame_time)
+        frame_time += frame_period
         frames_progress.set_postfix(asdict(stats))
 
     return tracker.tracks

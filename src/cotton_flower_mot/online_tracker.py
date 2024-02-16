@@ -20,6 +20,7 @@ from .assignment import (
 from .graph_utils import compute_pairwise_similarities
 from .profiler import ProfilingManager
 from .similarity_utils import compute_ious
+from .motion_model import MotionModel
 
 
 GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
@@ -54,33 +55,77 @@ class Track:
     Allows us to associate a unique ID with each track.
     """
 
-    def __init__(self, motion_model_min_detections: int = 3):
+    def __init__(self, mean_velocity: np.array, velocity_cov: np.array):
         """
         Args:
-            motion_model_min_detections: The minimum number of (real)
-                detections we need to have before applying the motion model.
-
+            mean_velocity: The mean velocity of all tracks so far, in the form
+                `[v_x, v_y]`.
+            velocity_cov: The covariance matrix of all the track velocities
+                so far. Should be a 2x2 array.
         """
-        self.__motion_min_detections = motion_model_min_detections
-
         # Maps frame numbers to detection bounding boxes.
         self.__frames_to_detections = {}
         # Maps frame numbers to appearance features.
         self.__frames_to_appearance = {}
         # Maps frame numbers to whether this detection is real or extrapolated.
         self.__frame_has_detection = {}
+        # Maps frame numbers to frame times.
+        self.__frames_to_time = {}
         # Keeps track of the last frame we have a detection for.
         self.__latest_frame = -1
         # Keeps track of the last frame we have a motion estimation for.
         self.__latest_motion_frame = -1
 
+        # Motion model to use.
+        self.__motion_model: Optional[MotionModel] = None
+        self.__mean_velocity = mean_velocity.copy()
+        self.__velocity_cov = velocity_cov.copy()
+
         self.__id = Track._NEXT_ID
         Track._NEXT_ID += 1
+
+    def __maybe_init_motion_model(
+        self, frame_time: float, detection: np.array
+    ) -> bool:
+        """
+        Initializes the motion model, if necessary.
+
+        Args:
+            frame_time: The time that the detection is from.
+            detection: The detection bounding box, in the form
+                `[center_x, center_y, width, height]`.
+
+        Returns:
+            True if the motion model was initialized, False if nothing needed
+             to be done.
+
+        """
+        if self.__motion_model is None:
+            initial_state = np.concatenate(
+                (detection[:2], self.__mean_velocity)
+            )
+            initial_cov = np.eye(4, dtype=np.float32)
+            initial_cov[2:, 2:] = self.__velocity_cov
+            logger.debug(
+                "Initializing motion model with state {} and cov {}.",
+                initial_state,
+                initial_cov,
+            )
+
+            self.__motion_model = MotionModel(
+                initial_state=initial_state,
+                initial_cov=initial_cov,
+                initial_time=frame_time,
+            )
+
+            return True
+        return False
 
     def add_new_detection(
         self,
         *,
         frame_num: int,
+        frame_time: float,
         detection: np.array,
         appearance_feature: Optional[np.array],
         is_extrapolated: bool = False,
@@ -90,6 +135,7 @@ class Track:
 
         Args:
             frame_num: The frame number that this detection is for.
+            frame_time: The time that the detection is from.
             detection: The new detection to add, in the form
                 `[center_x, center_y, width, height]`.
             appearance_feature: The appearance feature vector for this
@@ -105,15 +151,21 @@ class Track:
                 "not extrapolated."
             )
 
-        self.__frames_to_detections[frame_num] = detection.tolist()
+        self.__frames_to_detections[frame_num] = detection.copy()
+        self.__frames_to_time[frame_num] = frame_time
         if appearance_feature is not None:
-            self.__frames_to_appearance[
-                frame_num
-            ] = appearance_feature.tolist()
+            self.__frames_to_appearance[frame_num] = appearance_feature.copy()
         self.__frame_has_detection[frame_num] = not is_extrapolated
 
         if not is_extrapolated:
             self.__latest_frame = max(self.__latest_frame, frame_num)
+
+            # Update the motion model with the latest observation.
+            if not self.__maybe_init_motion_model(frame_time, detection):
+                self.__motion_model.add_observation(
+                    detection[:2], observed_time=frame_time
+                )
+
         self.__latest_motion_frame = max(self.__latest_motion_frame, frame_num)
 
     @property
@@ -161,6 +213,18 @@ class Track:
         return self.__latest_frame
 
     @property
+    def last_detection_time(self) -> Optional[int]:
+        """
+        Returns:
+            The time at which this object was last detected.
+
+        """
+        if self.__latest_frame < 0:
+            return None
+
+        return self.__frames_to_time[self.__latest_frame]
+
+    @property
     def last_tracked_frame(self) -> Optional[int]:
         """
         Returns:
@@ -198,7 +262,7 @@ class Track:
         """
         if frame_num not in self.__frames_to_detections:
             return None
-        return np.array(self.__frames_to_detections[frame_num])
+        return self.__frames_to_detections[frame_num]
 
     def appearance_for_frame(self, frame_num: int) -> Optional[np.array]:
         """
@@ -214,7 +278,7 @@ class Track:
         """
         if frame_num not in self.__frames_to_appearance:
             return None
-        return np.array(self.__frames_to_appearance[frame_num])
+        return self.__frames_to_appearance[frame_num]
 
     def all_detections(self) -> pd.DataFrame:
         """
@@ -229,6 +293,40 @@ class Track:
             data=self.__frames_to_detections.values(),
             columns=["center_x", "center_y", "width", "height"],
         )
+
+    def mean_velocity(self) -> np.array:
+        """
+        Computes the average velocity over the entire track.
+
+        Returns:
+            The average velocity, in the form `[x, y]`.
+
+        """
+        first_frame = self.first_detection_frame
+        last_frame = self.last_detection_frame
+        if first_frame == last_frame:
+            # Velocity is undefined for track of length 1.
+            return np.array([np.nan, np.nan])
+
+        first_pos = self.__frames_to_detections[first_frame][:2]
+        last_pos = self.__frames_to_detections[last_frame][:2]
+        start_time = self.__frames_to_time[first_frame]
+        end_time = self.__frames_to_time[last_frame]
+
+        return (last_pos - first_pos) / (end_time - start_time)
+
+    def velocity_cov(self) -> np.array:
+        """
+        Returns:
+            The latest velocity covariance for this track, as a 2x2 matrix.
+
+        """
+        if self.__motion_model is None:
+            raise ValueError(
+                "Cannot use motion model before we have detections."
+            )
+
+        return self.__motion_model.cov[2:, 2:]
 
     def has_real_detection_for_frame(self, frame_num: int) -> bool:
         """
@@ -296,12 +394,12 @@ class Track:
 
         return False
 
-    def predict_future_box(self, frame_num: int) -> np.array:
+    def predict_future_box(self, frame_time: float) -> np.array:
         """
         Extrapolates the trajectory of this object to a future time.
 
         Args:
-            frame_num: The frame number that we are predicting the bounding
+            frame_time: The time that we are predicting the bounding
                 box for.
 
         Returns:
@@ -309,23 +407,14 @@ class Track:
             `[center_x, center_y, width, height]`.
 
         """
-        # Get the previous positions. (Only use real detections.)
-        frames = [f for f, v in self.__frame_has_detection.items() if v]
-        if len(frames) < self.__motion_min_detections:
+        if self.__motion_model is None:
             raise ValueError(
-                "Should have at least three detections to extrapolate."
+                "Cannot use motion model before we have detections."
             )
+        state, _ = self.__motion_model.predict(frame_time)
 
-        boxes = [self.__frames_to_detections[f] for f in frames]
-        frames = np.array(frames, dtype=float)
-        frames = np.expand_dims(frames, axis=1)
-        boxes = np.array(boxes)
-
-        # Perform the regression.
-        reg = RANSACRegressor().fit(frames, boxes)
-
-        # Predict the new box.
-        return reg.predict([[frame_num]])[0]
+        # Assume that the size stays the same.
+        return np.concatenate((state[:2], self.last_detection[2:]))
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -337,9 +426,13 @@ class Track:
 
         """
         return dict(
-            motion_model_min_detections=self.__motion_min_detections,
-            frames_to_detections=self.__frames_to_detections,
+            mean_velocity=self.__mean_velocity.tolist(),
+            velocity_cov=self.__velocity_cov.tolist(),
+            frames_to_detections={
+                k: v.tolist() for k, v in self.__frames_to_detections.items()
+            },
             frame_has_detection=self.__frame_has_detection,
+            frames_to_time=self.__frames_to_time,
             latest_frame=self.__latest_frame,
             track_id=self.__id,
         )
@@ -357,11 +450,15 @@ class Track:
 
         """
         track = cls(
-            motion_model_min_detections=config["motion_model_min_detections"]
+            mean_velocity=np.array(config["mean_velocity"]),
+            velocity_cov=np.array(config["velocity_cov"]),
         )
 
-        track.__frames_to_detections = config["frames_to_detections"]
+        track.__frames_to_detections = {
+            k: np.array(v) for k, v in config["frames_to_detections"]
+        }
         track.__frame_has_detection = config["frame_has_detection"]
+        track.__frames_to_time = config["frames_to_time"]
         track.__latest_frame = config["latest_frame"]
         track.__id = config["track_id"]
 
@@ -471,8 +568,7 @@ class OnlineTracker:
         *,
         tracking_model: Union[GraphFunc, tf.keras.Model],
         detection_model: Union[GraphFunc, tf.keras.Model],
-        death_window: int = 10,
-        motion_model_min_detections: int = 5,
+        death_window: float = 1,
         confidence_threshold: float = 0.0,
         stage_one_iou_threshold: float = 0.5,
         enable_two_stage_association: bool = True,
@@ -481,10 +577,8 @@ class OnlineTracker:
         Args:
             tracking_model: The model to use for tracking.
             detection_model: The model to use for tracking.
-            death_window: How many consecutive frames we have to not observe
-                a tracklet for before we consider it dead.
-            motion_model_min_detections: Minimum number of (real) detections
-                we must have before applying the motion model.
+            death_window: How many seconds we keep a track around after its
+                last detection before we consider it dead.
             confidence_threshold: The confidence threshold to use for the
                 detector.
             stage_one_iou_threshold: The IOU threshold to use for the
@@ -497,7 +591,6 @@ class OnlineTracker:
         self.__tracking_model = _adapt_tracking_model(tracking_model)
         self.__detection_model = _adapt_detection_model(detection_model)
         self.__death_window = death_window
-        self.__motion_min_detections = motion_model_min_detections
         self.__confidence_threshold = confidence_threshold
         self.__iou_threshold = tf.constant(stage_one_iou_threshold)
         self.__enable_fast_association = enable_two_stage_association
@@ -527,6 +620,11 @@ class OnlineTracker:
 
         # Counter for the current frame.
         self.__frame_num = 0
+
+        # Average velocity of all completed tracks.
+        self.__mean_velocity = np.zeros(2, dtype=np.float32)
+        # Average velocity covariance of all completed tracks.
+        self.__mean_velocity_cov = np.eye(2, dtype=np.float32)
 
         # Internal profiler to use.
         self.__profiler = ProfilingManager()
@@ -571,12 +669,47 @@ class OnlineTracker:
                 (0, self.__num_appearance_features), dtype=np.float32
             )
 
+    def __retire_track(self, track: Track) -> None:
+        """
+        Finalizes a dead track, performing all necessary bookkeeping.
+
+        Args:
+            track: The dead track.
+
+        """
+        num_completed = len(self.__completed_tracks)
+        self.__active_tracks.remove(track)
+        self.__completed_tracks.append(track)
+
+        # Update the running velocity statistics.
+        track_vel = track.mean_velocity()
+        if np.any(np.isnan(track_vel)):
+            # The track only has one detection, so we can't get velocity.
+            logger.debug("Skipping vel update for 1-length track.")
+            return
+
+        if num_completed == 0:
+            self.__mean_velocity = track.mean_velocity()
+            self.__mean_velocity_cov = track.velocity_cov()
+        else:
+            average_ratio = num_completed / (num_completed + 1)
+            self.__mean_velocity += track.mean_velocity() / num_completed
+            self.__mean_velocity *= average_ratio
+            self.__mean_velocity_cov += track.velocity_cov() / num_completed
+            self.__mean_velocity_cov *= average_ratio
+        logger.debug(
+            "Mean velocity: {}, Cov: {}",
+            self.__mean_velocity,
+            self.__mean_velocity_cov,
+        )
+
     def __update_active_tracks(
         self,
         *,
         assignment_matrix: np.array,
         detections: np.array,
         appearances: np.array,
+        frame_time: float,
     ) -> None:
         """
         Updates the currently-active tracks with new detection information.
@@ -588,6 +721,7 @@ class OnlineTracker:
                 `[num_detections, 4]`.
             appearances: The current appearance feature. Should have the shape
                 `[num_detections, num_channels]`.
+            frame_time: The current frame time.
 
         """
         # Figure out associations between tracklets and detections.
@@ -597,7 +731,7 @@ class OnlineTracker:
             if not np.any(tracklet_row):
                 # It couldn't find a match for this tracklet.
                 if (
-                    self.__frame_num - track.last_detection_frame
+                    frame_time - track.last_detection_time
                     > self.__death_window
                 ):
                     # Consider the tracklet dead.
@@ -609,7 +743,7 @@ class OnlineTracker:
                     try:
                         with self.__profiler.profile("motion_model"):
                             extrapolated_box = track.predict_future_box(
-                                self.__frame_num
+                                frame_time
                             )
                     except ValueError:
                         logger.debug(
@@ -619,6 +753,7 @@ class OnlineTracker:
                         continue
                     track.add_new_detection(
                         frame_num=self.__frame_num,
+                        frame_time=frame_time,
                         detection=extrapolated_box,
                         appearance_feature=None,
                         is_extrapolated=True,
@@ -631,13 +766,13 @@ class OnlineTracker:
                     frame_num=self.__frame_num,
                     detection=detections[new_detection_index],
                     appearance_feature=appearances[new_detection_index],
+                    frame_time=frame_time,
                 )
 
         # Remove dead tracklets.
         logger.debug("Removing {} dead tracks.", len(dead_tracklets))
         for track in dead_tracklets:
-            self.__active_tracks.remove(track)
-            self.__completed_tracks.append(track)
+            self.__retire_track(track)
 
     def __add_new_tracks(
         self,
@@ -645,6 +780,7 @@ class OnlineTracker:
         assignment_matrix: np.array,
         detections: np.array,
         appearances: np.array,
+        frame_time: float,
     ) -> None:
         """
         Adds any new tracks to the set of active tracks.
@@ -656,6 +792,7 @@ class OnlineTracker:
                 assignment matrix.
             appearances: The current appearance features corresponding to this
                 assignment matrix.
+            frame_time: The current frame time.
 
         """
         for detection_index, (detection, appearance) in enumerate(
@@ -666,13 +803,15 @@ class OnlineTracker:
                 # There is no associated tracklet with this detection,
                 # so it represents a new track.
                 track = Track(
-                    motion_model_min_detections=self.__motion_min_detections
+                    mean_velocity=self.__mean_velocity,
+                    velocity_cov=self.__mean_velocity_cov,
                 )
                 logger.debug("Adding new track from detection {}.", detection)
                 track.add_new_detection(
                     frame_num=self.__frame_num,
                     detection=detection,
                     appearance_feature=appearance,
+                    frame_time=frame_time,
                 )
 
                 self.__active_tracks.add(track)
@@ -687,7 +826,7 @@ class OnlineTracker:
         Converts a sinkhorn matrix to a hard assignment matrix.
 
         Args:
-             sinkhorn_matrix: The sinkhorn matrix between the detections from
+            sinkhorn_matrix: The sinkhorn matrix between the detections from
                 the previous frame and the current one. Should have a shape of
                 `[num_detections * num_tracklets]`.
             detections: The current detection bounding boxes. Should have
@@ -710,6 +849,7 @@ class OnlineTracker:
     def __update_tracks(
         self,
         *,
+        frame_time: float,
         assignment_matrix: np.array,
         detections: np.array,
         appearances: np.array,
@@ -718,6 +858,7 @@ class OnlineTracker:
         Updates the current set of tracks based on the latest tracking result.
 
         Args:
+            frame_time: The current frame time.
             assignment_matrix: The boolean assignment matrix between the
                 detections from the previous frame and the current one.
                 Should have a shape of `[num_tracklets, num_detections]`.
@@ -735,12 +876,14 @@ class OnlineTracker:
                 assignment_matrix=assignment_matrix,
                 detections=detections,
                 appearances=appearances,
+                frame_time=frame_time,
             )
         with self.__profiler.profile("add_new_tracks"):
             self.__add_new_tracks(
                 assignment_matrix=assignment_matrix,
                 detections=detections,
                 appearances=appearances,
+                frame_time=frame_time,
             )
 
     def __update_saved_state(self, *, frame: np.ndarray) -> None:
@@ -940,12 +1083,17 @@ class OnlineTracker:
             return assignment
 
     def __do_association(
-        self, *, detection_geometry: np.array, appearance_features: np.array
+        self,
+        *,
+        frame_time: float,
+        detection_geometry: np.array,
+        appearance_features: np.array,
     ) -> None:
         """
         Performs the association step of the tracking pipeline.
 
         Args:
+            frame_time: The current frame time.
             detection_geometry: The detection bounding boxes.
             appearance_features: The detection appearance features.
 
@@ -987,11 +1135,13 @@ class OnlineTracker:
                 assignment_matrix=assignment,
                 detections=detection_geometry,
                 appearances=appearance_features,
+                frame_time=frame_time,
             )
 
     def __match_frame_pair(
         self,
         *,
+        frame_time: float,
         frame: np.ndarray,
     ) -> int:
         """
@@ -1001,6 +1151,7 @@ class OnlineTracker:
         Args:
             frame: The current frame. Should be an array of shape
                 `[height, width, channels]`.
+            frame_time: The current frame time.
 
         Returns:
             The number of detected objects in this frame.
@@ -1026,6 +1177,7 @@ class OnlineTracker:
         self.__do_association(
             detection_geometry=detection_geometry,
             appearance_features=appearance_features,
+            frame_time=frame_time,
         )
 
         # Update the state.
@@ -1035,8 +1187,7 @@ class OnlineTracker:
         return len(detection_geometry)
 
     def process_frame(
-        self,
-        frame: np.array,
+        self, frame: np.array, *, frame_time: float
     ) -> TrackingStats:
         """
         Use the tracker to process a new frame. It will detect objects in the
@@ -1045,6 +1196,7 @@ class OnlineTracker:
         Args:
             frame: The original image frame from the video. Should be an
                 array of shape `[height, width, channels]`.
+            frame_time: The time at which this frame was captured.
 
         """
         num_detections = 0
@@ -1052,6 +1204,7 @@ class OnlineTracker:
             with self.__profiler.profile("match_frame_pair", warmup_iters=10):
                 num_detections = self.__match_frame_pair(
                     frame=frame,
+                    frame_time=frame_time,
                 )
 
         self.__frame_num += 1

@@ -2348,6 +2348,21 @@ openapi = ["openapi-core (>=0.16.1,<0.17.0)", "ruamel-yaml"]
 test = ["codecov", "ipykernel", "jupyterlab-server[openapi]", "openapi-spec-validator (>=0.5.1,<0.6.0)", "pytest (>=7.0)", "pytest-console-scripts", "pytest-cov", "pytest-jupyter[server] (>=0.6.2)", "pytest-timeout", "requests-mock", "sphinxcontrib-spelling", "strict-rfc3339", "werkzeug"]
 
 [[package]]
+name = "kalmankit"
+version = "1.7.8"
+description = "Multidimensional implementation of Kalman Filter algorithms"
+category = "main"
+optional = false
+python-versions = ">=3.6, <4"
+files = [
+    {file = "kalmankit-1.7.8-py3-none-any.whl", hash = "sha256:582f7df96e80b1c744bc7b35bab2857a58014d3464adac2fd842f1a9ea3160e6"},
+    {file = "kalmankit-1.7.8.tar.gz", hash = "sha256:17587a5dc1f16fe975595a1cd61ae5df122eda42baa3caa160fc613e404eb846"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
 name = "kedro"
 version = "0.18.6"
 description = "Kedro helps you build production-ready data and analytics pipelines"
@@ -6249,4 +6264,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10"
-content-hash = "dbd8d0ff0f96db8b481667e1cc2cafb2ea0df68fdc2fd75254a397874181435a"
+content-hash = "1d11a50adc66259d3eaa2fa369541316e3208f447a3387621bae848a62e80156"
