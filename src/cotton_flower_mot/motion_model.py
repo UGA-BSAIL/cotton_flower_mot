@@ -130,7 +130,7 @@ class MotionModel:
 
         """
         elapsed = observed_time - self.__observation_time
-        if elapsed < 0:
+        if elapsed <= 0:
             # This observation is in the past. Don't update.
             logger.warning("Trying to update KF with observation in the past.")
             return

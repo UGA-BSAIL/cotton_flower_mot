@@ -1221,3 +1221,12 @@ class OnlineTracker:
 
         """
         return self.__completed_tracks + list(self.__active_tracks)
+
+    @property
+    def active_tracks(self) -> List[Track]:
+        """
+        Returns:
+            All the tracks that are currently active.
+
+        """
+        return list(self.__active_tracks)
