@@ -604,8 +604,6 @@ class OnlineTracker:
 
         # Stores the previous frame.
         self.__previous_frame = None
-        # Stores the detection geometry from the previous frame.
-        self.__previous_geometry = np.empty((0, 4), dtype=np.float32)
         self.__num_appearance_features = None
         # Stores the appearance features from the previous frame.
         self.__previous_appearance = None
@@ -614,8 +612,7 @@ class OnlineTracker:
         self.__active_tracks = set()
         # Stores all tracks that have been completed.
         self.__completed_tracks = []
-        # Associates rows in __previous_detections and __previous_geometry
-        # with corresponding tracks.
+        # Associates rows in the assignment matrix with corresponding tracks.
         self.__tracks_by_tracklet_index = {}
 
         # Counter for the current frame.
@@ -834,7 +831,7 @@ class OnlineTracker:
 
         """
         # Un-flatten the sinkhorn matrix.
-        num_tracklets = len(self.__previous_geometry)
+        num_tracklets = len(self.__active_tracks)
         num_detections = len(detections)
         sinkhorn_matrix = np.reshape(
             sinkhorn_matrix, (num_tracklets + 1, num_detections + 1)
@@ -888,7 +885,7 @@ class OnlineTracker:
 
     def __update_saved_state(self, *, frame: np.ndarray) -> None:
         """
-        Updates the saved frames, detections and appearance features that
+        Updates the saved frames and appearance features that
         will be used as the input tracks for the next frame.
 
         Args:
@@ -896,12 +893,10 @@ class OnlineTracker:
                 `[height, width, channels]`.
 
         """
-        active_geometry = []
         active_appearance = []
         self.__tracks_by_tracklet_index.clear()
 
         for i, track in enumerate(self.__active_tracks):
-            active_geometry.append(track.last_motion_estimate)
             # Even if the appearance feature is older than the position
             # estimate, we'll still use it since it might be helpful.
             active_appearance.append(track.last_appearance)
@@ -910,10 +905,6 @@ class OnlineTracker:
             self.__tracks_by_tracklet_index[i] = track
 
         self.__previous_frame = frame
-        self.__previous_geometry = np.empty((0, 4))
-        if len(active_geometry) > 0:
-            self.__previous_geometry = np.stack(active_geometry, axis=0)
-
         self.__previous_appearance = np.empty(
             (0, self.__num_appearance_features)
         )
@@ -939,14 +930,19 @@ class OnlineTracker:
         }
 
     def __create_tracking_inputs(
-        self, *, detections: np.ndarray, appearance_features: np.ndarray
-    ) -> Dict[str, Union[tf.RaggedTensor, tf.Tensor]]:
+        self,
+        *,
+        detections: np.ndarray,
+        appearance_features: np.ndarray,
+        frame_time: float,
+    ) -> Dict[str, np.array]:
         """
         Creates an input dictionary for the tracking model..
 
         Args:
             detections: The detections to add.
             appearance_features: The appearance features for the detections.
+            frame_time: The timestamp of the current frame.
 
         """
         # Expand dimensions since the model expects a batch.
@@ -954,12 +950,22 @@ class OnlineTracker:
         appearance_features = np.expand_dims(
             appearance_features, axis=0
         ).astype(np.float32)
-        previous_geometry = np.expand_dims(
-            self.__previous_geometry, axis=0
-        ).astype(np.float32)
         previous_appearance = np.expand_dims(
             self.__previous_appearance, axis=0
         ).astype(np.float32)
+
+        # Use the motion model to update the predicted geometry for the
+        # current time step.
+        previous_geometry = [None] * len(self.__active_tracks)
+        for i, track in self.__tracks_by_tracklet_index.items():
+            previous_geometry[i] = track.predict_future_box(frame_time)
+        if previous_geometry:
+            previous_geometry = np.stack(previous_geometry, axis=0).astype(
+                np.float32
+            )
+            previous_geometry = np.expand_dims(previous_geometry, axis=0)
+        else:
+            previous_geometry = np.empty((1, 0, 4))
 
         return {
             ModelInputs.DETECTION_GEOMETRY.value: detections,
@@ -989,8 +995,8 @@ class OnlineTracker:
 
     @tf.function(
         input_signature=(
-            tf.TensorSpec(shape=[None, 4], dtype=tf.float32),
-            tf.TensorSpec(shape=[None, 4], dtype=tf.float32),
+            tf.TensorSpec(shape=[1, None, 4], dtype=tf.float32),
+            tf.TensorSpec(shape=[1, None, 4], dtype=tf.float32),
             tf.TensorSpec(shape=[], dtype=tf.float32),
         )
     )
@@ -1015,11 +1021,6 @@ class OnlineTracker:
 
         """
         # First, compute IOUs between all tracklets and all detections.
-        geometry = tf.expand_dims(geometry, axis=0)
-        previous_geometry = tf.expand_dims(
-            previous_geometry,
-            axis=0,
-        )
         pairwise_ious = compute_pairwise_similarities(
             compute_ious,
             left_features=previous_geometry,
@@ -1053,13 +1054,16 @@ class OnlineTracker:
             lambda: valid_matches,
         )
 
-    def __do_fast_association(self, geometry: np.array) -> Optional[np.array]:
+    def __do_fast_association(
+        self, model_inputs: Dict[str, np.array]
+    ) -> Optional[np.array]:
         """
         Performs an initial fast attempt at association based on the bounding
         box IOUs.
 
         Args:
-            geometry: The current bounding boxes.
+            model_inputs: For simplicity, we take inputs in the same form
+                that the tracking model does, i.e. as a dictionary of inputs.
 
         Returns:
             The boolean assignment matrix of shape `[num_tracklets,
@@ -1067,10 +1071,13 @@ class OnlineTracker:
             array.
 
         """
+        geometry = model_inputs[ModelInputs.DETECTION_GEOMETRY.value]
+        previous_geometry = model_inputs[ModelInputs.TRACKLET_GEOMETRY.value]
+
         with self.__profiler.profile("fast_association", warmup_iters=10):
             geometry = tf.convert_to_tensor(geometry, dtype=tf.float32)
             previous_geometry = tf.convert_to_tensor(
-                self.__previous_geometry, dtype=tf.float32
+                previous_geometry, dtype=tf.float32
             )
 
             assignment = self._fast_association_impl(
@@ -1098,24 +1105,24 @@ class OnlineTracker:
             appearance_features: The detection appearance features.
 
         """
-        num_tracklets = self.__previous_geometry.shape[0]
+        num_tracklets = len(self.__active_tracks)
         num_detections = detection_geometry.shape[0]
 
+        model_inputs = self.__create_tracking_inputs(
+            detections=detection_geometry,
+            appearance_features=appearance_features,
+            frame_time=frame_time,
+        )
         if num_tracklets == 0 or num_detections == 0:
             # Don't bother running the tracker.
             logger.debug("No tracks or no detections, not running tracker.")
             assignment = np.zeros((num_tracklets, num_detections), dtype=bool)
         elif (
             not self.__enable_fast_association
-            or (assignment := self.__do_fast_association(detection_geometry))
-            is None
+            or (assignment := self.__do_fast_association(model_inputs)) is None
         ):
             # Fast association failed.
             logger.debug("Falling back on slow association...")
-            model_inputs = self.__create_tracking_inputs(
-                detections=detection_geometry,
-                appearance_features=appearance_features,
-            )
             with self.__profiler.profile("slow_association", warmup_iters=10):
                 model_outputs = self.__tracking_model(model_inputs)
                 sinkhorn = model_outputs[ModelTargets.SINKHORN.value][
