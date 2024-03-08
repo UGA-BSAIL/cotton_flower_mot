@@ -65,6 +65,8 @@ class Track:
         """
         # Maps frame numbers to detection bounding boxes.
         self.__frames_to_detections = {}
+        # Maps frame numbers to anchor points.
+        self.__frames_to_anchor_points = {}
         # Maps frame numbers to appearance features.
         self.__frames_to_appearance = {}
         # Maps frame numbers to whether this detection is real or extrapolated.
@@ -101,19 +103,18 @@ class Track:
 
         """
         if self.__motion_model is None:
-            initial_state = np.concatenate(
-                (detection[:2], self.__mean_velocity)
-            )
             initial_cov = np.eye(4, dtype=np.float32)
             initial_cov[2:, 2:] = self.__velocity_cov
             logger.debug(
-                "Initializing motion model with state {} and cov {}.",
-                initial_state,
+                "Initializing motion model with box {}, vel {}, and cov {}.",
+                detection,
+                self.__mean_velocity,
                 initial_cov,
             )
 
             self.__motion_model = MotionModel(
-                initial_state=initial_state,
+                initial_box=detection,
+                initial_velocity=self.__mean_velocity,
                 initial_cov=initial_cov,
                 initial_time=frame_time,
             )
@@ -163,8 +164,11 @@ class Track:
             # Update the motion model with the latest observation.
             if not self.__maybe_init_motion_model(frame_time, detection):
                 self.__motion_model.add_observation(
-                    detection[:2], observed_time=frame_time
+                    detection, observed_time=frame_time
                 )
+            self.__frames_to_anchor_points[
+                frame_num
+            ] = self.__motion_model.anchor_point
 
         self.__latest_motion_frame = max(self.__latest_motion_frame, frame_num)
 
@@ -263,6 +267,22 @@ class Track:
         if frame_num not in self.__frames_to_detections:
             return None
         return self.__frames_to_detections[frame_num]
+
+    def anchor_point_for_frame(self, frame_num: int) -> Optional[np.array]:
+        """
+        Gets the corresponding anchor point for a particular frame,
+        or None if we don't have a detection for that frame.
+
+        Args:
+            frame_num: The frame number.
+
+        Returns:
+            The index for that frame, or None if we don't have one.
+
+        """
+        if frame_num not in self.__frames_to_anchor_points:
+            return None
+        return self.__frames_to_anchor_points[frame_num]
 
     def appearance_for_frame(self, frame_num: int) -> Optional[np.array]:
         """
@@ -431,6 +451,10 @@ class Track:
             frames_to_detections={
                 k: v.tolist() for k, v in self.__frames_to_detections.items()
             },
+            frames_to_anchor_points={
+                k: v.tolist()
+                for k, v in self.__frames_to_anchor_points.items()
+            },
             frame_has_detection=self.__frame_has_detection,
             frames_to_time=self.__frames_to_time,
             latest_frame=self.__latest_frame,
@@ -456,6 +480,10 @@ class Track:
 
         track.__frames_to_detections = {
             k: np.array(v) for k, v in config["frames_to_detections"]
+        }
+        track.__frames_to_anchor_points = {
+            k: np.array(v)
+            for k, v in config["frames_to_anchor_points"].items()
         }
         track.__frame_has_detection = config["frame_has_detection"]
         track.__frames_to_time = config["frames_to_time"]

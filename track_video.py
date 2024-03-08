@@ -17,6 +17,8 @@ from loguru import logger
 
 from tqdm import tqdm
 
+import av
+
 import cv2
 
 import pandas as pd
@@ -141,17 +143,24 @@ def _save_video(
     """
     logger.info("Saving video to {}...", video_path)
 
-    writer = cv2.VideoWriter(
-        video_path.as_posix(),
-        cv2.VideoWriter_fourcc(*"mp4v"),
-        clip.fps,
-        clip.resolution,
+    container = av.open(video_path.as_posix(), mode="w")
+    stream = container.add_stream(
+        "h264", rate=int(clip.fps), options={"crf": "23"}
     )
+    stream.width = clip.resolution[0]
+    stream.height = clip.resolution[1]
+    stream.pix_fmt = "yuv420p"
 
     logger.debug("Drawing {} tracks...", len(tracks))
     for frame in draw_tracks(clip.read(0), tracks=tracks):
-        writer.write(frame)
-    writer.release()
+        av_frame = av.VideoFrame.from_ndarray(frame, format="bgr24")
+        for packet in stream.encode(av_frame):
+            container.mux(packet)
+
+    # Flush stream.
+    for packet in stream.encode():
+        container.mux(packet)
+    container.close()
 
 
 def _track_video(
