@@ -7,7 +7,7 @@ import argparse
 from dataclasses import asdict
 from pathlib import Path
 import sys
-from typing import List, Any, Iterable
+from typing import List, Any, Tuple
 
 # Import sklearn here to avoid "cannot allocate memory in
 # static TLS block" error on the Jetson.
@@ -163,6 +163,35 @@ def _save_video(
     container.close()
 
 
+def _write_tracks_csv(
+    tracks: List[Track],
+    *,
+    output_path: Path,
+    resolution: Tuple[int, int],
+    cvat: bool = False,
+) -> None:
+    """
+    Writes the tracks to a CSV file in MOT challenge format.
+
+    Args:
+        tracks: The tracks to write.
+        output_path: Where to write the CSV file.
+        resolution: The resolution of the output video.
+        cvat: Whether to use CVAT's particular flavor of output format.
+
+    """
+    logger.info("Writing tracks to {}...", output_path)
+
+    tracks_tabular = [
+        track_to_mot_challenge(
+            track, resolution, cvat=cvat, only_detected=True
+        )
+        for track in tracks
+    ]
+    tracks_tabular = pd.concat(tracks_tabular)
+    tracks_tabular.to_csv(output_path, index=False, header=False)
+
+
 def _track_video(
     *,
     detection_model: Path,
@@ -170,6 +199,7 @@ def _track_video(
     video_path: Path,
     output_path: Path,
     bgr_color: bool = False,
+    cvat_output: bool = False,
     **kwargs: Any,
 ) -> None:
     """
@@ -181,6 +211,7 @@ def _track_video(
         video_path: The path to the video.
         output_path: Where to write the output tracking data file.
         bgr_color: Assume video uses BGR colorspace instead of RGB.
+        cvat_output: Whether to use CVAT output format.
         **kwargs: Will be forwarded to `_compute_tracks_for_clip()`.
 
     """
@@ -206,14 +237,15 @@ def _track_video(
     )
 
     # Write the tracks to disk.
-    tracks = list(
-        filter_short_tracks(tracks, min_length=int(clip.fps * _DEATH_WINDOW_S))
+    # tracks = list(
+    #     filter_short_tracks(tracks, min_length=int(clip.fps * _DEATH_WINDOW_S))
+    # )
+    _write_tracks_csv(
+        tracks,
+        output_path=output_path,
+        resolution=clip.resolution,
+        cvat=cvat_output,
     )
-    tracks_tabular = [
-        track_to_mot_challenge(track, clip.resolution) for track in tracks
-    ]
-    tracks_tabular = pd.concat(tracks_tabular)
-    tracks_tabular.to_csv(output_path, index=False, header=False)
 
     # Save the video.
     output_video_path = output_path.with_name(f"{output_path.stem}_tracks.mp4")
@@ -241,6 +273,9 @@ def _make_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         help="Where to write the tracking result to.",
+    )
+    parser.add_argument(
+        "-v", "--cvat", action="store_true", help="Use CVAT output format."
     )
 
     parser.add_argument(
@@ -288,6 +323,7 @@ def main() -> None:
         enable_two_stage_association=not cli_args.gnn_only,
         stage_one_iou_threshold=cli_args.iou,
         confidence_threshold=cli_args.conf,
+        cvat_output=cli_args.cvat,
     )
 
 

@@ -33,6 +33,7 @@ def _get_test_image() -> tf.Tensor:
     image_path = Path(__file__).parent / "test_images" / "flower_example.png"
     image = cv2.imread(str(image_path))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image = cv2.resize(image, (960, 540))
 
     image = tf.convert_to_tensor(image, dtype=tf.float32)
     image = tf.expand_dims(image, axis=0)
