@@ -39,24 +39,28 @@ if gpus:
 
 
 def _generate_detector_inputs(
-    batch_size: int = 1, *, input_shape: Tuple[int, int]
+    batch_size: int = 1, *, input_shapes: Iterable[Tuple[int, int]]
 ) -> InputFunction:
     """
     Generates fake inputs for the detector model.
 
     Args:
         batch_size: The batch size to use.
-        input_shape: The input shape of the model, in terms of (rows, cols).
+        input_shapes: The input shapes of the model, in terms of (rows, cols).
 
     Returns:
         The input function for the detector.
 
     """
-    batch_shape = (batch_size,) + input_shape + (3,)
-    images = np.random.randint(0, 255, size=batch_shape).astype(np.float32)
+    batch_shapes = [(batch_size,) + s + (3,) for s in input_shapes]
+    images = [
+        np.random.randint(0, 255, size=s).astype(np.float32)
+        for s in batch_shapes
+    ]
 
     def _input_fn() -> Iterable[List[np.array]]:
-        yield [images]
+        for image in images:
+            yield [image]
 
     return _input_fn
 
@@ -240,7 +244,7 @@ def _convert_mot_models(
     if detection_model is not None:
         detection_inputs = _generate_detector_inputs(
             batch_size=1,
-            input_shape=frame_shape,
+            input_shapes=[frame_shape],
         )
         calibration_inputs = None
         if calibration_images is not None:
