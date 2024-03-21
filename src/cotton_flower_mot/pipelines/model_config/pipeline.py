@@ -16,6 +16,7 @@ def create_pipeline(**kwargs):
                     image_input_shape="params:image_input_shape",
                     detection_model_input_shape="params"
                     ":detection_model_input_shape",
+                    raw_yolo_input_shape="params:raw_yolo_input_shape",
                     rot_net_input_shape="params:rot_net_input_shape",
                     colorization_input_shape="params:colorization_input_shape",
                     colorization_output_shape="params:colorization_output_shape",

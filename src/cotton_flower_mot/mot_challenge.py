@@ -34,6 +34,7 @@ def track_to_mot_challenge(
     track: Track,
     resolution: Tuple[int, int],
     cvat: bool = False,
+    only_detected: bool = False
 ) -> pd.DataFrame:
     """
     Converts a track to the MOT Challenge format.
@@ -42,6 +43,8 @@ def track_to_mot_challenge(
         track: The track to convert.
         resolution: The width and height of the clip.
         cvat: Whether to use the CVAT flavor of this annotation format.
+        only_detected: If true, any bounding box that is not a real detection
+            will be removed outright. Otherwise, it will still be included.
 
     Returns:
         The track in the MOT Challenge format.
@@ -51,6 +54,8 @@ def track_to_mot_challenge(
     has_detection = np.array(
         [track.has_real_detection_for_frame(f) for f in detections.index]
     )
+    if only_detected:
+        detections = detections[has_detection]
 
     # It wants bounding boxes in a different format, so fix that.
     frame_width, frame_height = resolution
@@ -63,7 +68,7 @@ def track_to_mot_challenge(
     box_width = detections["width"] * frame_width
     box_height = detections["height"] * frame_height
 
-    if not cvat:
+    if not cvat and not only_detected:
         # For confidence, we'll just set it to one for actual detections and
         # zero for extrapolated bounding boxes.
         confidence = has_detection.astype(float)
@@ -72,7 +77,7 @@ def track_to_mot_challenge(
 
     annotation_data = OrderedDict(
         [
-            (MotAnnotationColumns.FRAME.value, detections.index),
+            (MotAnnotationColumns.FRAME.value, detections.index + 1),
             (MotAnnotationColumns.ID.value, track.id),
             (MotAnnotationColumns.BBOX_X_MIN_PX.value, bbox_min_x),
             (MotAnnotationColumns.BBOX_Y_MIN_PX.value, bbox_min_y),

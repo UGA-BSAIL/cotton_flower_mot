@@ -5,7 +5,7 @@ from pydantic import validator
 from pydantic.dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass()
 class ModelConfig:
     """
     Encapsulates configuration for the model.
@@ -17,6 +17,9 @@ class ModelConfig:
          (height, width, channels).
         detection_model_input_shape: The shape of the input to the detection
             model (height, width, channels).
+        raw_yolo_input_shape: The expected input shape of the YOLO model we
+            are using. YOLO has specific requirements for input shapes,
+            and they might not match the shape of the raw frame inputs.
         rot_net_input_shape: The shape of the input to use for RotNet
             pretraining. Should be square so rotated images can be stored in a
             single tensor. (height, width, channels)
@@ -50,6 +53,7 @@ class ModelConfig:
     image_input_shape: Tuple[int, int, int]
     frame_input_shape: Tuple[int, int, int]
     detection_model_input_shape: Tuple[int, int, int]
+    raw_yolo_input_shape: Tuple[int, int, int]
     rot_net_input_shape: Tuple[int, int, int]
     colorization_input_shape: Tuple[int, int, int]
     colorization_output_shape: Tuple[int, int, int]

@@ -50,12 +50,12 @@ def make_tracking_inputs(
     """
     # Input for the current video frame.
     current_frames_input = layers.Input(
-        shape=config.detection_model_input_shape,
+        shape=(None, None, 3),
         name=ModelInputs.DETECTIONS_FRAME.value,
     )
     # Input for the previous video frame.
     last_frames_input = layers.Input(
-        shape=config.detection_model_input_shape,
+        shape=(None, None, 3),
         name=ModelInputs.TRACKLETS_FRAME.value,
     )
 

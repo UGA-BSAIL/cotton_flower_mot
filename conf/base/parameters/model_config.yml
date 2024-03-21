@@ -4,6 +4,8 @@ image_input_shape: [100, 100, 3]
 frame_input_shape: [1080, 1920, 3]
 # Shape of the input to the detection model.
 detection_model_input_shape: [540, 960, 3]
+# Shape of the expected YOLO input.
+raw_yolo_input_shape: [544, 960, 3]
 # Shape of the input to the RotNet model.
 rot_net_input_shape: [360, 360, 3]
 # Shape of the input to the colorization model.

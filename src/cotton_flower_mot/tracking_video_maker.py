@@ -4,7 +4,7 @@ Framework for creating tracking videos.
 
 import random
 from functools import lru_cache
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Optional
 
 import cv2
 import numpy as np
@@ -91,6 +91,7 @@ def _draw_bounding_box(
     *,
     track: Track,
     box: np.ndarray,
+    anchor_point: Optional[np.ndarray],
     is_detection: bool,
 ) -> None:
     """
@@ -101,6 +102,7 @@ def _draw_bounding_box(
         track: The track that we are drawing a box for.
         box: The box to be drawn, in the form
             `[center_x, center_y, width, height]`.
+        anchor_point: The anchor point for the box, in the form `[x, y]`.
         is_detection: If true, this is a real detection, otherwise it is an
             extrapolated one.
     """
@@ -132,6 +134,14 @@ def _draw_bounding_box(
         color=color,
         coordinates=tag_pos,
     )
+    # Draw the anchor point.
+    if anchor_point is not None:
+        artist.ellipse(
+            (anchor_point - 5).tolist() + (anchor_point + 5).tolist(),
+            fill=color,
+            outline="white",
+            width=2,
+        )
 
 
 def _draw_counting_line(
@@ -200,18 +210,27 @@ def draw_track_frame(
         if bounding_box is None:
             # No detection for this track at this frame.
             continue
+        anchor_point = track.anchor_point_for_frame(frame_num)
         is_detection = track.has_real_detection_for_frame(frame_num)
 
         # Convert the bounding box to pixels.
-        bounding_box *= np.array(
+        frame_size = np.array(
             [frame.width, frame.height, frame.width, frame.height]
         )
+        bounding_box *= frame_size
         # Because the image is flipped, we have to flip our bounding boxes.
         bounding_box[1] = frame.height - bounding_box[1]
+        if anchor_point is not None:
+            anchor_point *= frame_size[:2]
+            anchor_point[1] = frame.height - anchor_point[1]
 
         # Draw everything.
         _draw_bounding_box(
-            draw, track=track, box=bounding_box, is_detection=is_detection
+            draw,
+            track=track,
+            box=bounding_box,
+            is_detection=is_detection,
+            anchor_point=anchor_point,
         )
         _draw_counting_line(
             draw,

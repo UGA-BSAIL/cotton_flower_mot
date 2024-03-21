@@ -129,7 +129,8 @@ class ProfilingManager:
         times = [p.total_time for p in self.__profiles.values()]
         num_iters = [p.num_iters for p in self.__profiles.values()]
         cycle_times = [p.time_per_iter for p in self.__profiles.values()]
-        cycle_freqs = [1 / t for t in cycle_times]
+        # Avoid division by zero.
+        cycle_freqs = [1 / max(t, 1e-9) for t in cycle_times]
 
         table = tabulate(
             {

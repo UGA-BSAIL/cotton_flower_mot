@@ -15,10 +15,11 @@ from keras.src.saving import serialization_lib
 from ..config import ModelConfig
 from ..model_training.models_common import (
     apply_detector,
-    apply_tracker,
     make_tracking_inputs,
 )
 from ..model_training.layers import CUSTOM_LAYERS
+from ..model_training.yolo import load_yolo
+from ..model_training.gcnn_model import build_appearance_model
 
 
 def _filter_detections(
@@ -161,13 +162,14 @@ def build_inference_model(
     ) = make_tracking_inputs(config=config)
 
     # Extract the individual detection and tracking models.
-    detector = training_model.get_layer("yolo_detector")
-    appearance_extractor = training_model.get_layer("appearance_features")
+    old_appearance_extractor = training_model.get_layer("appearance_features")
     tracker = training_model.get_layer("gcnnmatch")
 
     # Use the inference version of the detection model.
-    yolo_raw = detector.get_layer("pretrained_tf_1")
-    yolo_raw.reload(detector_model_path)
+    detector = load_yolo(detector_model_path, config=config)
+    # Build a new appearance feature extractor based on the new detector.
+    appearance_extractor = build_appearance_model(config, detector=detector)
+    appearance_extractor.set_weights(old_appearance_extractor.get_weights())
 
     # Get the detections.
     detector_outputs = apply_detector(detector, frames=current_frames_input)
