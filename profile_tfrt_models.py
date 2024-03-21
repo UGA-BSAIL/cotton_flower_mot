@@ -5,7 +5,7 @@ Utility for profiling the performance of TFRT models.
 
 import argparse
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
 import cv2
 import time
@@ -22,9 +22,12 @@ from src.cotton_flower_mot.tfrt_utils import (
 )
 
 
-def _get_test_image() -> tf.Tensor:
+def _get_test_image(size: Tuple[int, int]) -> tf.Tensor:
     """
     Loads a test image.
+
+    Args:
+        size: The size of the output image, in terms of (w, h).
 
     Returns:
         The test image.
@@ -33,7 +36,7 @@ def _get_test_image() -> tf.Tensor:
     image_path = Path(__file__).parent / "test_images" / "flower_example.png"
     image = cv2.imread(str(image_path))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = cv2.resize(image, (256, 256))
+    image = cv2.resize(image, size)
 
     image = tf.convert_to_tensor(image, dtype=tf.float32)
     image = tf.expand_dims(image, axis=0)
@@ -104,17 +107,18 @@ def _profile_model(model: GraphFunc, inputs: Dict[str, tf.Tensor]) -> None:
     )
 
 
-def _profile_detector(model: GraphFunc) -> None:
+def _profile_detector(model: GraphFunc, *, size: Tuple[int, int]) -> None:
     """
     Profiles the performance of the detector model.
 
     Args:
-        saved_model_dir: The saved model directory.
+        model: The model to profile.
+        size: The size of the input image for the model.
 
     """
     logger.info("Profiling detector model...")
 
-    inputs = {"detections_frame": _get_test_image()}
+    inputs = {"detections_frame": _get_test_image(size)}
     _profile_model(model, inputs)
 
 
@@ -123,7 +127,7 @@ def _profile_tracker(model: GraphFunc) -> None:
     Profiles the performance of the tracker model.
 
     Args:
-        saved_model_dir: The saved model directory.
+        model: The model to profile.
 
     """
     logger.info("Profiling tracker model....")
@@ -156,14 +160,18 @@ def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
 
-    detector_model, _ = get_func_from_saved_model(
+    detector_model, _1 = get_func_from_saved_model(
         cli_args.model_dir / "detection_model"
     )
-    tracker_model, __ = get_func_from_saved_model(
+    small_detector_model, _2 = get_func_from_saved_model(
+        cli_args.model_dir / "small_detection_model"
+    )
+    tracker_model, _3 = get_func_from_saved_model(
         cli_args.model_dir / "tracking_model"
     )
 
-    _profile_detector(detector_model)
+    _profile_detector(detector_model, size=(960, 540))
+    _profile_detector(small_detector_model, size=(256, 256))
     _profile_tracker(tracker_model)
 
 

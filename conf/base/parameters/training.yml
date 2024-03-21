@@ -5,6 +5,9 @@ tensorboard_output_dir: ${log_dir}/tensorboard
 training_yolo_model_path: "data/06_models/best_with_features_32"
 # Path to the pretrained YOLO model to use for inference.
 inference_yolo_model_path: "data/06_models/best_with_features_single_image"
+# Path to the small pretrained YOLO model to use for inference.
+small_inference_yolo_model_path:
+  "data/06_models/best_with_features_single_image_small"
 # Period at which to write histograms, in epochs.
 histogram_period: 2
 # Period at which to write metrics, in batches.

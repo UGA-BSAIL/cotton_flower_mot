@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from loguru import logger
-from sklearn.linear_model import RANSACRegressor
 
 from .schemas import ModelInputs, ModelTargets
 from .assignment import (
@@ -21,12 +20,7 @@ from .graph_utils import compute_pairwise_similarities
 from .profiler import ProfilingManager
 from .similarity_utils import compute_ious
 from .motion_model import MotionModel
-
-
-GraphFunc = Callable[[Dict[str, tf.Tensor]], Dict[str, tf.Tensor]]
-"""
-Type alias for a function that runs the TF graph.
-"""
+from .tfrt_utils import GraphFunc
 
 
 @dataclass
@@ -266,7 +260,7 @@ class Track:
         """
         if frame_num not in self.__frames_to_detections:
             return None
-        return self.__frames_to_detections[frame_num]
+        return self.__frames_to_detections[frame_num].copy()
 
     def anchor_point_for_frame(self, frame_num: int) -> Optional[np.array]:
         """
@@ -282,7 +276,7 @@ class Track:
         """
         if frame_num not in self.__frames_to_anchor_points:
             return None
-        return self.__frames_to_anchor_points[frame_num]
+        return self.__frames_to_anchor_points[frame_num].copy()
 
     def appearance_for_frame(self, frame_num: int) -> Optional[np.array]:
         """
@@ -298,7 +292,7 @@ class Track:
         """
         if frame_num not in self.__frames_to_appearance:
             return None
-        return self.__frames_to_appearance[frame_num]
+        return self.__frames_to_appearance[frame_num].copy()
 
     def all_detections(self) -> pd.DataFrame:
         """
@@ -494,7 +488,9 @@ class Track:
 
 
 @singledispatch
-def _adapt_detection_model(model: GraphFunc) -> GraphFunc:
+def adapt_detection_model(
+    model: GraphFunc, reverse_inputs: bool = False
+) -> GraphFunc:
     """
     Adapts the model to use standardized inputs and produce standardized
     outputs.
@@ -514,13 +510,16 @@ def _adapt_detection_model(model: GraphFunc) -> GraphFunc:
             input_frame, tf.float32
         )
 
-        appearance, geometry, _ = model(**inputs).values()
-        return dict(appearance=appearance, geometry=geometry)
+        appearance_1, geometry, appearance_2 = model(**inputs).values()
+        return dict(
+            appearance=appearance_2 if reverse_inputs else appearance_1,
+            geometry=geometry,
+        )
 
     return _adapted_model
 
 
-@_adapt_detection_model.register
+@adapt_detection_model.register
 def _(model: tf.keras.Model) -> GraphFunc:
     def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         geometry, appearance = model(inputs, training=False)
@@ -530,7 +529,7 @@ def _(model: tf.keras.Model) -> GraphFunc:
 
 
 @singledispatch
-def _adapt_tracking_model(model: GraphFunc) -> GraphFunc:
+def adapt_tracking_model(model: GraphFunc) -> GraphFunc:
     """
     Adapts the model to use standardized inputs and produce standardized
     outputs.
@@ -574,7 +573,7 @@ def _adapt_tracking_model(model: GraphFunc) -> GraphFunc:
     return _adapted_model
 
 
-@_adapt_tracking_model.register
+@adapt_tracking_model.register
 def _(model: tf.keras.Model) -> GraphFunc:
     def _adapted_model(inputs: Dict[str, tf.Tensor]) -> Dict[str, tf.Tensor]:
         # Use ragged inputs.
@@ -616,8 +615,8 @@ class OnlineTracker:
                 if that fails.
 
         """
-        self.__tracking_model = _adapt_tracking_model(tracking_model)
-        self.__detection_model = _adapt_detection_model(detection_model)
+        self.__tracking_model = adapt_tracking_model(tracking_model)
+        self.__detection_model = adapt_detection_model(detection_model)
         self.__death_window = death_window
         self.__confidence_threshold = confidence_threshold
         self.__iou_threshold = tf.constant(stage_one_iou_threshold)
@@ -637,7 +636,7 @@ class OnlineTracker:
         self.__previous_appearance = None
 
         # Stores all the tracks that are currently active.
-        self.__active_tracks = set()
+        self._active_tracks = set()
         # Stores all tracks that have been completed.
         self.__completed_tracks = []
         # Associates rows in the assignment matrix with corresponding tracks.
@@ -652,7 +651,7 @@ class OnlineTracker:
         self.__mean_velocity_cov = np.eye(2, dtype=np.float32)
 
         # Internal profiler to use.
-        self.__profiler = ProfilingManager()
+        self._profiler = ProfilingManager()
 
     def __maybe_init_state(self, *, frame: np.ndarray) -> bool:
         """
@@ -703,7 +702,7 @@ class OnlineTracker:
 
         """
         num_completed = len(self.__completed_tracks)
-        self.__active_tracks.remove(track)
+        self._active_tracks.remove(track)
         self.__completed_tracks.append(track)
 
         # Update the running velocity statistics.
@@ -766,7 +765,7 @@ class OnlineTracker:
                     # Otherwise, extrapolate a new bounding box based on
                     # previous track information.
                     try:
-                        with self.__profiler.profile("motion_model"):
+                        with self._profiler.profile("motion_model"):
                             extrapolated_box = track.predict_future_box(
                                 frame_time
                             )
@@ -839,7 +838,7 @@ class OnlineTracker:
                     frame_time=frame_time,
                 )
 
-                self.__active_tracks.add(track)
+                self._active_tracks.add(track)
 
     def __sinkhorn_to_assigment(
         self,
@@ -859,7 +858,7 @@ class OnlineTracker:
 
         """
         # Un-flatten the sinkhorn matrix.
-        num_tracklets = len(self.__active_tracks)
+        num_tracklets = len(self._active_tracks)
         num_detections = len(detections)
         sinkhorn_matrix = np.reshape(
             sinkhorn_matrix, (num_tracklets + 1, num_detections + 1)
@@ -895,7 +894,7 @@ class OnlineTracker:
         """
         logger.debug(assignment_matrix)
 
-        with self.__profiler.profile("update_active_tracks"):
+        with self._profiler.profile("update_active_tracks"):
             # Update the currently-active tracks.
             self.__update_active_tracks(
                 assignment_matrix=assignment_matrix,
@@ -903,7 +902,7 @@ class OnlineTracker:
                 appearances=appearances,
                 frame_time=frame_time,
             )
-        with self.__profiler.profile("add_new_tracks"):
+        with self._profiler.profile("add_new_tracks"):
             self.__add_new_tracks(
                 assignment_matrix=assignment_matrix,
                 detections=detections,
@@ -924,7 +923,7 @@ class OnlineTracker:
         active_appearance = []
         self.__tracks_by_tracklet_index.clear()
 
-        for i, track in enumerate(self.__active_tracks):
+        for i, track in enumerate(self._active_tracks):
             # Even if the appearance feature is older than the position
             # estimate, we'll still use it since it might be helpful.
             active_appearance.append(track.last_appearance)
@@ -940,8 +939,8 @@ class OnlineTracker:
             self.__previous_appearance = np.stack(active_appearance, axis=0)
 
     @staticmethod
-    def __create_detection_inputs(
-        *, frame: np.ndarray
+    def _create_detection_inputs(
+        frame: np.ndarray,
     ) -> Dict[str, Union[tf.RaggedTensor, tf.Tensor]]:
         """
         Creates an input dictionary for the detection model.
@@ -984,7 +983,7 @@ class OnlineTracker:
 
         # Use the motion model to update the predicted geometry for the
         # current time step.
-        previous_geometry = [None] * len(self.__active_tracks)
+        previous_geometry = [None] * len(self._active_tracks)
         for i, track in self.__tracks_by_tracklet_index.items():
             previous_geometry[i] = track.predict_future_box(frame_time)
         if previous_geometry:
@@ -1102,7 +1101,7 @@ class OnlineTracker:
         geometry = model_inputs[ModelInputs.DETECTION_GEOMETRY.value]
         previous_geometry = model_inputs[ModelInputs.TRACKLET_GEOMETRY.value]
 
-        with self.__profiler.profile("fast_association", warmup_iters=10):
+        with self._profiler.profile("fast_association", warmup_iters=10):
             geometry = tf.convert_to_tensor(geometry, dtype=tf.float32)
             previous_geometry = tf.convert_to_tensor(
                 previous_geometry, dtype=tf.float32
@@ -1133,7 +1132,7 @@ class OnlineTracker:
             appearance_features: The detection appearance features.
 
         """
-        num_tracklets = len(self.__active_tracks)
+        num_tracklets = len(self._active_tracks)
         num_detections = detection_geometry.shape[0]
 
         model_inputs = self.__create_tracking_inputs(
@@ -1151,7 +1150,7 @@ class OnlineTracker:
         ):
             # Fast association failed.
             logger.debug("Falling back on slow association...")
-            with self.__profiler.profile("slow_association", warmup_iters=10):
+            with self._profiler.profile("slow_association", warmup_iters=10):
                 model_outputs = self.__tracking_model(model_inputs)
                 sinkhorn = model_outputs[ModelTargets.SINKHORN.value][
                     0
@@ -1165,7 +1164,7 @@ class OnlineTracker:
         detection_geometry = detection_geometry[:, :4]
 
         # Update the tracks.
-        with self.__profiler.profile("update_tracks"):
+        with self._profiler.profile("update_tracks"):
             self.__update_tracks(
                 assignment_matrix=assignment,
                 detections=detection_geometry,
@@ -1173,11 +1172,38 @@ class OnlineTracker:
                 frame_time=frame_time,
             )
 
+    def _do_detection(
+        self, frame: np.array, *, _frame_time: float
+    ) -> Tuple[np.array, np.array]:
+        """
+        Applies the detection model to the input frame.
+
+        Args:
+            frame: The frame to detect flowers in.
+            _frame_time: The timestamp for this frame.
+
+        Returns:
+            - The box features, with shape `[num_boxes, 5]`
+            - The appearance features, with shape
+                `[num_boxes, channels]`.
+
+        """
+        with self._profiler.profile("create_detection_inputs"):
+            model_inputs = self._create_detection_inputs(frame)
+        # Apply the detector first.
+        logger.debug("Applying detection model...")
+        with self._profiler.profile("detection_model_full", warmup_iters=10):
+            detections = self.__detection_model(model_inputs)
+        detection_geometry = detections["geometry"][0].numpy()
+        appearance_features = detections["appearance"][0].numpy()
+
+        return detection_geometry, appearance_features
+
     def __match_frame_pair(
         self,
         *,
         frame_time: float,
-        frame: np.ndarray,
+        frame: np.array,
     ) -> int:
         """
         Computes the assignment matrix between the current state and new
@@ -1192,15 +1218,12 @@ class OnlineTracker:
             The number of detected objects in this frame.
 
         """
-        with self.__profiler.profile("create_detection_inputs"):
-            model_inputs = self.__create_detection_inputs(frame=frame)
-        # Apply the detector first.
-        logger.debug("Applying detection model...")
-        with self.__profiler.profile("detection_model", warmup_iters=10):
-            detections = self.__detection_model(model_inputs)
-        detection_geometry = detections["geometry"][0].numpy()
-        appearance_features = detections["appearance"][0].numpy()
-        with self.__profiler.profile("filter_low_confidence"):
+        with self._profiler.profile("detection", warmup_iters=10):
+            detection_geometry, appearance_features = self._do_detection(
+                frame, _frame_time=frame_time
+            )
+
+        with self._profiler.profile("filter_low_confidence"):
             (
                 detection_geometry,
                 appearance_features,
@@ -1216,7 +1239,7 @@ class OnlineTracker:
         )
 
         # Update the state.
-        with self.__profiler.profile("update_saved_state"):
+        with self._profiler.profile("update_saved_state"):
             self.__update_saved_state(frame=frame)
 
         return len(detection_geometry)
@@ -1236,7 +1259,7 @@ class OnlineTracker:
         """
         num_detections = 0
         if not self.__maybe_init_state(frame=frame):
-            with self.__profiler.profile("match_frame_pair", warmup_iters=10):
+            with self._profiler.profile("match_frame_pair", warmup_iters=10):
                 num_detections = self.__match_frame_pair(
                     frame=frame,
                     frame_time=frame_time,
@@ -1245,7 +1268,7 @@ class OnlineTracker:
         self.__frame_num += 1
 
         return TrackingStats(
-            num_detections=num_detections, num_tracks=len(self.__active_tracks)
+            num_detections=num_detections, num_tracks=len(self._active_tracks)
         )
 
     @property
@@ -1255,4 +1278,4 @@ class OnlineTracker:
             All the tracks that we have so far.
 
         """
-        return self.__completed_tracks + list(self.__active_tracks)
+        return self.__completed_tracks + list(self._active_tracks)

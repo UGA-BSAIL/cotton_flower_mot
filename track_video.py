@@ -7,11 +7,7 @@ import argparse
 from dataclasses import asdict
 from pathlib import Path
 import sys
-from typing import List, Any, Tuple
-
-# Import sklearn here to avoid "cannot allocate memory in
-# static TLS block" error on the Jetson.
-import sklearn
+from typing import List, Any, Tuple, Optional
 
 from loguru import logger
 
@@ -36,6 +32,7 @@ from src.cotton_flower_mot.online_tracker import (
     Track,
     OnlineTracker,
 )
+from src.cotton_flower_mot.roi_tracker import RoiTracker
 from src.cotton_flower_mot.mot_challenge import track_to_mot_challenge
 from src.cotton_flower_mot.tracking_video_maker import (
     draw_tracks,
@@ -63,30 +60,40 @@ def _configure_logging() -> None:
 
 def _make_tracker(
     *,
-    clip: FrameReader,
     tracking_model: GraphFunc,
     detection_model: GraphFunc,
+    small_detection_model: Optional[GraphFunc],
     **kwargs: Any,
 ) -> OnlineTracker:
     """
     Creates an OnlineTracker instance for a given video.
 
     Args:
-        clip: The video to create the tracker for.
         tracking_model: The model to use for tracking.
         detection_model: The model to use for detection.
+        small_detection_model: The small detection model to use for ROI
+            tracking. If not specified, ROI tracking will be disabled.
         **kwargs: Will be forwarded to `OnlineTracker`.
 
     Returns:
         An OnlineTracker instance.
 
     """
-    return OnlineTracker(
+    common_args = dict(
         detection_model=detection_model,
         tracking_model=tracking_model,
         death_window=_DEATH_WINDOW_S,
         **kwargs,
     )
+    if small_detection_model is not None:
+        return RoiTracker(
+            roi_detection_model=small_detection_model,
+            **common_args,
+        )
+    else:
+        return OnlineTracker(
+            **common_args,
+        )
 
 
 def _compute_tracks_for_clip(
@@ -106,7 +113,6 @@ def _compute_tracks_for_clip(
     logger.info("Computing tracks for clip...")
 
     tracker = _make_tracker(
-        clip=clip,
         **kwargs,
     )
 
@@ -198,6 +204,7 @@ def _track_video(
     tracking_model: Path,
     video_path: Path,
     output_path: Path,
+    small_detection_model: Optional[Path] = None,
     bgr_color: bool = False,
     cvat_output: bool = False,
     **kwargs: Any,
@@ -210,6 +217,8 @@ def _track_video(
         tracking_model: The path to the tracking model.
         video_path: The path to the video.
         output_path: Where to write the output tracking data file.
+        small_detection_model: If a small detection model path is specified,
+            it will enable the ROI tracker and use it.
         bgr_color: Assume video uses BGR colorspace instead of RGB.
         cvat_output: Whether to use CVAT output format.
         **kwargs: Will be forwarded to `_compute_tracks_for_clip()`.
@@ -218,8 +227,12 @@ def _track_video(
     logger.info("Tracking from video {}...", video_path)
 
     # Load the models.
-    detection_model, _ = get_func_from_saved_model(detection_model)
-    tracking_model, __ = get_func_from_saved_model(tracking_model)
+    detection_model, _1 = get_func_from_saved_model(detection_model)
+    tracking_model, _2 = get_func_from_saved_model(tracking_model)
+    if small_detection_model is not None:
+        small_detection_model, _3 = get_func_from_saved_model(
+            small_detection_model
+        )
 
     # Load the video.
     capture = cv2.VideoCapture(video_path.as_posix())
@@ -233,6 +246,7 @@ def _track_video(
         clip=clip,
         detection_model=detection_model,
         tracking_model=tracking_model,
+        small_detection_model=small_detection_model,
         **kwargs,
     )
 
@@ -292,6 +306,13 @@ def _make_parser() -> argparse.ArgumentParser:
         help="Confidence threshold for detection model.",
     )
     parser.add_argument(
+        "-k",
+        "--keyframe-period",
+        type=float,
+        default=0.1,
+        help="Keyframe period (in seconds) to use for ROI detection.",
+    )
+    parser.add_argument(
         "-i",
         "--iou",
         type=float,
@@ -304,6 +325,12 @@ def _make_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Only use GNN model, with no pre-association stage.",
     )
+    parser.add_argument(
+        "-r",
+        "--no-roi",
+        action="store_true",
+        help="Do not use the ROI tracker.",
+    )
 
     return parser
 
@@ -313,10 +340,16 @@ def main() -> None:
     cli_args = parser.parse_args()
     _configure_logging()
 
+    # Load ROI detector for ROI tracking.
+    small_detection_model = None
+    if not cli_args.no_roi:
+        small_detection_model = cli_args.model_dir / "small_detection_model"
+
     output_path = cli_args.output or cli_args.video.with_suffix(".csv")
     _track_video(
         detection_model=cli_args.model_dir / "detection_model",
         tracking_model=cli_args.model_dir / "tracking_model",
+        small_detection_model=small_detection_model,
         video_path=cli_args.video,
         output_path=output_path,
         bgr_color=cli_args.bgr_color,
@@ -324,6 +357,7 @@ def main() -> None:
         stage_one_iou_threshold=cli_args.iou,
         confidence_threshold=cli_args.conf,
         cvat_output=cli_args.cvat,
+        keyframe_period=cli_args.keyframe_period,
     )
 
 
