@@ -189,6 +189,19 @@ class Track:
         return self.detection_for_frame(self.__latest_motion_frame)
 
     @property
+    def last_velocity_estimate(self) -> Optional[np.ndarray]:
+        """
+        Returns:
+            The most recent velocity estimate for this object from the motion
+            model in the form `[vx, vy]` If there is no estimate, it will return
+            None.
+
+        """
+        if self.__motion_model is not None:
+            return self.__motion_model.state[2:]
+        return None
+
+    @property
     def last_appearance(self) -> Optional[np.ndarray]:
         """
         Returns:
@@ -1287,4 +1300,4 @@ class OnlineTracker:
             All the tracks that are currently active.
 
         """
-        return list(self.__active_tracks)
+        return list(self._active_tracks)

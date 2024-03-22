@@ -3,7 +3,6 @@ Uses the ROI tracking algorithm to speed up the detection process in cases
 where there are few flowers in the frame.
 """
 
-
 from typing import Any, Union, Tuple, List
 
 import numpy as np
@@ -134,6 +133,13 @@ class RoiTracker(OnlineTracker):
     def _do_detection(
         self, frame: np.array, *, _frame_time: float
     ) -> Tuple[np.array, np.array]:
+        if _frame_time < self.__last_keyframe_time:
+            # This is mostly to handle a case where ROSbags are being
+            # replayed, and should never happen in real life.
+            logger.warning(
+                "Got frame from the past, resetting keyframe timer."
+            )
+            self.__last_keyframe_time = -np.inf
         if _frame_time - self.__last_keyframe_time > self.__keyframe_period:
             # It is time to run the full detection.
             logger.debug("Keyframe: running detection on full image.")
