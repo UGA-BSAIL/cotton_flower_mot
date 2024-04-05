@@ -252,7 +252,7 @@ def make_complete_bipartite_adjacency_matrices(
             n[0], n[1], adjacency_shape=output_shape
         ),
         (num_left_nodes, num_right_nodes),
-        fn_output_signature=tf.TensorSpec([None, None], dtype=tf.float32),
+        fn_output_signature=tf.TensorSpec(output_shape, dtype=tf.float32),
     )
 
 

@@ -6,6 +6,8 @@ Tests for the `graph_utils` module.
 import itertools
 from typing import Iterable, Tuple
 
+import tensorflow as tf
+
 import numpy as np
 import pytest
 import spektral
@@ -164,6 +166,54 @@ def test_make_adjacency_matrix(
         np.testing.assert_array_almost_equal(
             zero_feature, affinity_matrix[b][num_left + l][r]
         )
+
+
+def test_make_complete_bipartite_adjacency_matrices(
+    faker: Faker,
+) -> None:
+    """
+    Tests that `make_complete_bipartite_adjacency_matrices` works.
+
+    Args:
+        faker: The fixture to use for generating fake data.
+
+    """
+    # Arrange.
+    num_left = np.array([3, 4, 5, 1])
+    num_right = np.array([1, 4, 5, 3])
+
+    # Act.
+    adjacency_matrices = graph_utils.make_complete_bipartite_adjacency_matrices(
+        tf.constant(num_left), tf.constant(num_right)
+    ).numpy()
+
+    # Assert.
+    # It should have the correct shape.
+    batch_size = len(num_left)
+    max_num_nodes = tf.reduce_max(num_left + num_right).numpy()
+    assert adjacency_matrices.shape == (
+        batch_size,
+        max_num_nodes,
+        max_num_nodes,
+    )
+
+    # It should have zeros for non-bipartite edges.
+    for b, r, c in itertools.product(
+        *map(range, [batch_size, max_num_nodes, max_num_nodes])
+    ):
+        if r < num_left[b] <= c < num_left[b] + num_right[b]:
+            np.testing.assert_array_almost_equal(
+                1, adjacency_matrices[b][r][c]
+            )
+        elif c < num_left[b] <= r < num_left[b] + num_right[b]:
+            # Symmetric
+            np.testing.assert_array_almost_equal(
+                1, adjacency_matrices[b][r][c]
+            )
+        else:
+            np.testing.assert_array_almost_equal(
+                0, adjacency_matrices[b][r][c]
+            )
 
 
 @pytest.mark.parametrize(

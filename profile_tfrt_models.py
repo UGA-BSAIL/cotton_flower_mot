@@ -34,6 +34,8 @@ def _get_test_image(size: Tuple[int, int]) -> tf.Tensor:
 
     """
     image_path = Path(__file__).parent / "test_images" / "flower_example.png"
+    if not image_path.exists():
+        raise FileNotFoundError(f"Image {image_path} not found.")
     image = cv2.imread(str(image_path))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = cv2.resize(image, size)
