@@ -97,35 +97,40 @@ class MotionModel:
             The offset to apply the box center in the state.
 
         """
-        if np.any(state[2:] == 0):
-            # If the velocity is zero, we can't compute an offset.
-            return np.zeros(2, dtype=np.float32)
+        center = box[:2]
+        half_size: np.array = box[2:] / 2
 
-        center_x, center_y, width, height = box
-        # Find the bottom and left sides of the box.
-        box_bottom_y = center_y + height / 2
-        box_left_x = center_x - width / 2
-
-        # Find the points where the velocity vector intersects with these sides.
-        _, _, vel_x, vel_y = state
-        vel_slope = vel_y / vel_x
-        bottom_intersection_x = (
-            center_x - (box_bottom_y - center_y) / vel_slope
+        # Find all the possible anchor points, relative to the center.
+        box_top_left = 0 - half_size
+        box_bottom_right = half_size
+        box_bottom_left = np.array([box_top_left[0], box_bottom_right[1]])
+        box_top_right = np.array([box_bottom_right[0], box_top_left[1]])
+        anchor_point_offsets = np.stack(
+            [
+                np.zeros(2, dtype=np.float32),
+                box_top_left,
+                box_bottom_left,
+                box_top_right,
+                box_bottom_right,
+            ]
         )
-        left_intersection_y = center_y + (center_x - box_left_x) * vel_slope
 
-        if bottom_intersection_x < box_left_x:
-            # If this point is outside of the box, it means that the
-            # velocity vector intersects on the left side.
-            track_point = np.array([box_left_x, left_intersection_y])
-        else:
-            # Otherwise, it intersects on the bottom.
-            track_point = np.array([bottom_intersection_x, box_bottom_y])
+        # Find the expected anchor point locations based on the velocity.
+        previous_center = state[:2]
+        velocity = state[2:]
+        expected_anchor_points = (
+            previous_center + velocity + anchor_point_offsets
+        )
 
-        # Compute the offset to the center.
-        offset = track_point - box[:2]
-        logger.debug("Applying position offset: {}", offset)
-        return offset
+        # Compare these with the actual points, and select the closest one.
+        actual_anchor_points = center + anchor_point_offsets
+        closeness = np.linalg.norm(
+            expected_anchor_points - actual_anchor_points, axis=1
+        )
+        best_anchor_offset = anchor_point_offsets[np.argmin(closeness)]
+
+        logger.debug("Applying position offset: {}", best_anchor_offset)
+        return best_anchor_offset
 
     def __predict(self, predict_time: float) -> Tuple[np.array, np.array]:
         """
@@ -221,7 +226,7 @@ class MotionModel:
         new_position_offset = self.__compute_center_offset(
             self.__filter.xk, box=observation
         )
-        self.__filter.xk[:2] += (new_position_offset - self.__position_offset)
+        self.__filter.xk[:2] += new_position_offset - self.__position_offset
         self.__position_offset = new_position_offset
 
     @property
