@@ -2,7 +2,6 @@
 Main file for CVAT tracker utility.
 """
 
-
 from argparse import ArgumentParser
 
 from loguru import logger

@@ -2,7 +2,6 @@
 Wrapper around OpenCV captures that is easier to use.
 """
 
-
 from functools import cached_property
 from typing import Iterable, Tuple
 

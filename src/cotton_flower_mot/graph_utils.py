@@ -2,7 +2,6 @@
 Selection of utilities for dealing with graphs.
 """
 
-
 from typing import Callable, Union
 
 import tensorflow as tf

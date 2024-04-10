@@ -2,7 +2,6 @@
 Miscellaneous type aliases.
 """
 
-
 from typing import Union
 
 from swagger_client import LabeledImage, LabeledShape, LabeledTrack

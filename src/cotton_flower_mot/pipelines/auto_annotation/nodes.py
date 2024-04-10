@@ -2,7 +2,6 @@
 Annotates data automatically using a trained model.
 """
 
-
 import enum
 from logging import DEBUG
 from typing import Tuple

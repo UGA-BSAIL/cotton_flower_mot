@@ -2,7 +2,6 @@
 Tests for the `task` module.
 """
 
-
 import unittest.mock as mock
 from pathlib import Path
 from typing import List
@@ -188,7 +187,9 @@ class TestTask:
             assert got_image.tobytes() == fake_image
 
     def test_get_image_size(
-        self, config: ConfigForTests, faker: Faker,
+        self,
+        config: ConfigForTests,
+        faker: Faker,
     ) -> None:
         """
         Tests that `get_image_size` works.
@@ -340,7 +341,9 @@ class TestTask:
             config.task.find_label("invalid")
 
     def test_find_image_frame_num(
-        self, config: ConfigForTests, faker: Faker,
+        self,
+        config: ConfigForTests,
+        faker: Faker,
     ) -> None:
         """
         Tests that `find_image_frame_num` works.

@@ -47,11 +47,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_content_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_content_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_content_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_content_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_content_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -70,35 +74,38 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id', 'manifest_path']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id", "manifest_path"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_content" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_content`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_content`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
-        if 'manifest_path' in params:
-            query_params.append(('manifest_path', params['manifest_path']))  # noqa: E501
+        if "manifest_path" in params:
+            query_params.append(
+                ("manifest_path", params["manifest_path"])
+            )  # noqa: E501
 
         header_params = {}
 
@@ -107,10 +114,11 @@ class CloudStoragesApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}/content', 'GET',
+            "/cloudstorages/{id}/content",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -119,11 +127,12 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_create(self, body, **kwargs):  # noqa: E501
         """Method creates a cloud storage with a specified characteristics  # noqa: E501
@@ -139,14 +148,20 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_create_with_http_info(body, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_create_with_http_info(
+                body, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_create_with_http_info(body, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_create_with_http_info(
+                body, **kwargs
+            )  # noqa: E501
             return data
 
-    def cloudstorages_create_with_http_info(self, body, **kwargs):  # noqa: E501
+    def cloudstorages_create_with_http_info(
+        self, body, **kwargs
+    ):  # noqa: E501
         """Method creates a cloud storage with a specified characteristics  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
@@ -161,25 +176,26 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['body']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["body"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_create" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'body' is set
-        if ('body' not in params or
-                params['body'] is None):
-            raise ValueError("Missing the required parameter `body` when calling `cloudstorages_create`")  # noqa: E501
+        if "body" not in params or params["body"] is None:
+            raise ValueError(
+                "Missing the required parameter `body` when calling `cloudstorages_create`"
+            )  # noqa: E501
 
         collection_formats = {}
 
@@ -193,17 +209,21 @@ class CloudStoragesApi(object):
         local_var_files = {}
 
         body_params = None
-        if 'body' in params:
-            body_params = params['body']
+        if "body" in params:
+            body_params = params["body"]
         # HTTP header `Content-Type`
-        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
-            ['application/json'])  # noqa: E501
+        header_params["Content-Type"] = (
+            self.api_client.select_header_content_type(  # noqa: E501
+                ["application/json"]
+            )
+        )  # noqa: E501
 
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages', 'POST',
+            "/cloudstorages",
+            "POST",
             path_params,
             query_params,
             header_params,
@@ -212,11 +232,12 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_delete(self, id, **kwargs):  # noqa: E501
         """Method deletes a specific cloud storage  # noqa: E501
@@ -232,11 +253,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_delete_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_delete_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_delete_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_delete_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_delete_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -254,31 +279,32 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_delete" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_delete`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_delete`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -289,10 +315,11 @@ class CloudStoragesApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}', 'DELETE',
+            "/cloudstorages/{id}",
+            "DELETE",
             path_params,
             query_params,
             header_params,
@@ -301,11 +328,12 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_list(self, **kwargs):  # noqa: E501
         """Returns a paginated list of storages according to query parameters  # noqa: E501
@@ -331,11 +359,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_list_with_http_info(**kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_list_with_http_info(**kwargs)  # noqa: E501
+            (data) = self.cloudstorages_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_list_with_http_info(self, **kwargs):  # noqa: E501
@@ -363,49 +395,71 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['search', 'id', 'display_name', 'provider_type', 'resource', 'credentials_type', 'description', 'owner', 'ordering', 'page', 'page_size']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = [
+            "search",
+            "id",
+            "display_name",
+            "provider_type",
+            "resource",
+            "credentials_type",
+            "description",
+            "owner",
+            "ordering",
+            "page",
+            "page_size",
+        ]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_list" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
 
         collection_formats = {}
 
         path_params = {}
 
         query_params = []
-        if 'search' in params:
-            query_params.append(('search', params['search']))  # noqa: E501
-        if 'id' in params:
-            query_params.append(('id', params['id']))  # noqa: E501
-        if 'display_name' in params:
-            query_params.append(('display_name', params['display_name']))  # noqa: E501
-        if 'provider_type' in params:
-            query_params.append(('provider_type', params['provider_type']))  # noqa: E501
-        if 'resource' in params:
-            query_params.append(('resource', params['resource']))  # noqa: E501
-        if 'credentials_type' in params:
-            query_params.append(('credentials_type', params['credentials_type']))  # noqa: E501
-        if 'description' in params:
-            query_params.append(('description', params['description']))  # noqa: E501
-        if 'owner' in params:
-            query_params.append(('owner', params['owner']))  # noqa: E501
-        if 'ordering' in params:
-            query_params.append(('ordering', params['ordering']))  # noqa: E501
-        if 'page' in params:
-            query_params.append(('page', params['page']))  # noqa: E501
-        if 'page_size' in params:
-            query_params.append(('page_size', params['page_size']))  # noqa: E501
+        if "search" in params:
+            query_params.append(("search", params["search"]))  # noqa: E501
+        if "id" in params:
+            query_params.append(("id", params["id"]))  # noqa: E501
+        if "display_name" in params:
+            query_params.append(
+                ("display_name", params["display_name"])
+            )  # noqa: E501
+        if "provider_type" in params:
+            query_params.append(
+                ("provider_type", params["provider_type"])
+            )  # noqa: E501
+        if "resource" in params:
+            query_params.append(("resource", params["resource"]))  # noqa: E501
+        if "credentials_type" in params:
+            query_params.append(
+                ("credentials_type", params["credentials_type"])
+            )  # noqa: E501
+        if "description" in params:
+            query_params.append(
+                ("description", params["description"])
+            )  # noqa: E501
+        if "owner" in params:
+            query_params.append(("owner", params["owner"]))  # noqa: E501
+        if "ordering" in params:
+            query_params.append(("ordering", params["ordering"]))  # noqa: E501
+        if "page" in params:
+            query_params.append(("page", params["page"]))  # noqa: E501
+        if "page_size" in params:
+            query_params.append(
+                ("page_size", params["page_size"])
+            )  # noqa: E501
 
         header_params = {}
 
@@ -414,27 +468,30 @@ class CloudStoragesApi(object):
 
         body_params = None
         # HTTP header `Accept`
-        header_params['Accept'] = self.api_client.select_header_accept(
-            ['application/json'])  # noqa: E501
+        header_params["Accept"] = self.api_client.select_header_accept(
+            ["application/json"]
+        )  # noqa: E501
 
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages', 'GET',
+            "/cloudstorages",
+            "GET",
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type='list[BaseCloudStorage]',  # noqa: E501
+            response_type="list[BaseCloudStorage]",  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_partial_update(self, body, id, **kwargs):  # noqa: E501
         """Methods does a partial update of chosen fields in a cloud storage instance  # noqa: E501
@@ -451,14 +508,20 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_partial_update_with_http_info(body, id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_partial_update_with_http_info(
+                body, id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_partial_update_with_http_info(body, id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_partial_update_with_http_info(
+                body, id, **kwargs
+            )  # noqa: E501
             return data
 
-    def cloudstorages_partial_update_with_http_info(self, body, id, **kwargs):  # noqa: E501
+    def cloudstorages_partial_update_with_http_info(
+        self, body, id, **kwargs
+    ):  # noqa: E501
         """Methods does a partial update of chosen fields in a cloud storage instance  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
@@ -474,35 +537,37 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['body', 'id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["body", "id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_partial_update" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'body' is set
-        if ('body' not in params or
-                params['body'] is None):
-            raise ValueError("Missing the required parameter `body` when calling `cloudstorages_partial_update`")  # noqa: E501
+        if "body" not in params or params["body"] is None:
+            raise ValueError(
+                "Missing the required parameter `body` when calling `cloudstorages_partial_update`"
+            )  # noqa: E501
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_partial_update`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_partial_update`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -512,34 +577,40 @@ class CloudStoragesApi(object):
         local_var_files = {}
 
         body_params = None
-        if 'body' in params:
-            body_params = params['body']
+        if "body" in params:
+            body_params = params["body"]
         # HTTP header `Accept`
-        header_params['Accept'] = self.api_client.select_header_accept(
-            ['application/json'])  # noqa: E501
+        header_params["Accept"] = self.api_client.select_header_accept(
+            ["application/json"]
+        )  # noqa: E501
 
         # HTTP header `Content-Type`
-        header_params['Content-Type'] = self.api_client.select_header_content_type(  # noqa: E501
-            ['application/json'])  # noqa: E501
+        header_params["Content-Type"] = (
+            self.api_client.select_header_content_type(  # noqa: E501
+                ["application/json"]
+            )
+        )  # noqa: E501
 
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}', 'PATCH',
+            "/cloudstorages/{id}",
+            "PATCH",
             path_params,
             query_params,
             header_params,
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type='CloudStorage',  # noqa: E501
+            response_type="CloudStorage",  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_preview(self, id, **kwargs):  # noqa: E501
         """Method returns a preview image from a cloud storage  # noqa: E501
@@ -555,11 +626,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_preview_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_preview_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_preview_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_preview_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_preview_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -577,31 +652,32 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_preview" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_preview`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_preview`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -612,10 +688,11 @@ class CloudStoragesApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}/preview', 'GET',
+            "/cloudstorages/{id}/preview",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -624,11 +701,12 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_read(self, id, **kwargs):  # noqa: E501
         """Method returns details of a specific cloud storage  # noqa: E501
@@ -644,11 +722,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_read_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_read_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_read_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_read_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_read_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -666,31 +748,32 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_read" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_read`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_read`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -701,10 +784,11 @@ class CloudStoragesApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}', 'GET',
+            "/cloudstorages/{id}",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -713,11 +797,12 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def cloudstorages_status(self, id, **kwargs):  # noqa: E501
         """Method returns a cloud storage status  # noqa: E501
@@ -733,11 +818,15 @@ class CloudStoragesApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.cloudstorages_status_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.cloudstorages_status_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.cloudstorages_status_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.cloudstorages_status_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def cloudstorages_status_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -755,31 +844,32 @@ class CloudStoragesApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method cloudstorages_status" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `cloudstorages_status`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `cloudstorages_status`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -790,10 +880,11 @@ class CloudStoragesApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/cloudstorages/{id}/status', 'GET',
+            "/cloudstorages/{id}/status",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -802,8 +893,9 @@ class CloudStoragesApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )

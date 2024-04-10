@@ -2,7 +2,6 @@
 Helper script that converts YOLO tracking results to the MOT Challenge format.
 """
 
-
 from pathlib import Path
 from typing import Tuple
 import re

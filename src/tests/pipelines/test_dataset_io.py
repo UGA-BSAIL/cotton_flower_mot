@@ -2,7 +2,6 @@
 Tests for the `dataset_io` module.
 """
 
-
 import numpy as np
 import pytest
 import tensorflow as tf

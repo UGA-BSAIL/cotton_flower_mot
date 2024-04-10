@@ -2,7 +2,6 @@
 Custom `Faker` providers that we use for testing.
 """
 
-
 import unittest.mock as mock
 from functools import partial
 from pathlib import Path

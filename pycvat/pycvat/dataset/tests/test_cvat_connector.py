@@ -2,7 +2,6 @@
 Tests for the `cvat_connector` module.
 """
 
-
 from typing import Any
 
 import pytest

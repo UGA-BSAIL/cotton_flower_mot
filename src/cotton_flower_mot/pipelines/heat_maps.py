@@ -3,7 +3,6 @@ Utilities for creating the heat maps used by CenterNet and related
 keypoint-based detectors.
 """
 
-
 import math
 from typing import Any, Optional
 

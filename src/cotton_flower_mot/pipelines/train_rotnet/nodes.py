@@ -2,7 +2,6 @@
 Nodes for the `train_rotnet` pipeline.
 """
 
-
 from typing import Any, Dict, List
 
 import tensorflow as tf

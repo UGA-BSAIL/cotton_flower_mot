@@ -3,7 +3,6 @@ Implementation of MLPconv layer, according to
 https://arxiv.org/pdf/1312.4400.pdf
 """
 
-
 from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple
 

@@ -2,7 +2,6 @@
 Framework for online tracking.
 """
 
-
 from functools import singledispatch
 from typing import Dict, List, Optional, Union, Any, Callable, Tuple
 from dataclasses import dataclass
@@ -160,9 +159,9 @@ class Track:
                 self.__motion_model.add_observation(
                     detection, observed_time=frame_time
                 )
-            self.__frames_to_anchor_points[
-                frame_num
-            ] = self.__motion_model.anchor_point
+            self.__frames_to_anchor_points[frame_num] = (
+                self.__motion_model.anchor_point
+            )
 
         self.__latest_motion_frame = max(self.__latest_motion_frame, frame_num)
 

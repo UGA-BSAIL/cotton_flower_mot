@@ -29,9 +29,7 @@ class TestAuthApi(unittest.TestCase):
         pass
 
     def test_auth_login_create(self):
-        """Test case for auth_login_create
-
-        """
+        """Test case for auth_login_create"""
         pass
 
     def test_auth_logout_create(self):
@@ -70,9 +68,7 @@ class TestAuthApi(unittest.TestCase):
         pass
 
     def test_auth_register_create(self):
-        """Test case for auth_register_create
-
-        """
+        """Test case for auth_register_create"""
         pass
 
     def test_auth_signing_create(self):

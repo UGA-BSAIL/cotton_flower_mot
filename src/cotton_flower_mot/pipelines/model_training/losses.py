@@ -2,7 +2,6 @@
 Defines custom losses.
 """
 
-
 from typing import Any, Dict
 
 import tensorflow as tf

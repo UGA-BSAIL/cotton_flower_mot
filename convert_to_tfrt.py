@@ -3,7 +3,6 @@ Utility for converting saved models to TFRT. This is meant to be run on
 the Jetson.
 """
 
-
 from functools import partial
 import itertools
 from pathlib import Path
@@ -111,9 +110,7 @@ def _generate_detector_calibration_inputs(
                 if tf.reduce_any(tf.shape(image)[:2] < input_shape):
                     image = tf.image.resize(image, input_shape)
                 else:
-                    image = tf.image.random_crop(
-                        image, input_shape + (3,)
-                    )
+                    image = tf.image.random_crop(image, input_shape + (3,))
                     image = tf.cast(image, tf.float32)
                 batch.append(image)
 
@@ -201,9 +198,11 @@ def _convert_saved_model(
     use_fp16 = calibration_input_function is None
     converter = converter_factory(
         input_saved_model_dir=input_dir.as_posix(),
-        precision_mode=trt.TrtPrecisionMode.FP16
-        if use_fp16
-        else trt.TrtPrecisionMode.INT8,
+        precision_mode=(
+            trt.TrtPrecisionMode.FP16
+            if use_fp16
+            else trt.TrtPrecisionMode.INT8
+        ),
         use_calibration=not use_fp16,
     )
     converter.convert(calibration_input_fn=calibration_input_function)
@@ -412,9 +411,9 @@ def main() -> None:
             cli_args.small_frame_cols,
         ),
         num_appearance_features=cli_args.appearance_features,
-        calibration_images=cli_args.calibration_images
-        if not cli_args.fp16
-        else None,
+        calibration_images=(
+            cli_args.calibration_images if not cli_args.fp16 else None
+        ),
     )
 
 

@@ -2,7 +2,6 @@
 Testing configuration file.
 """
 
-
 import pytest
 from faker import Faker
 

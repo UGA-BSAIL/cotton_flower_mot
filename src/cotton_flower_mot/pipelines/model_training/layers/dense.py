@@ -3,7 +3,6 @@ Custom layers for DenseNets, as described in
 https://arxiv.org/pdf/1608.06993.pdf
 """
 
-
 from functools import partial
 from typing import Any, Dict, Optional, Tuple
 

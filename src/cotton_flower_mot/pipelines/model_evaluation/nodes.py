@@ -2,7 +2,6 @@
 Nodes for model evaluation pipeline.
 """
 
-
 from typing import Dict, Callable, Iterable, List, Any, Tuple
 
 import numpy as np
@@ -16,8 +15,7 @@ import seaborn as sns
 
 from ...schemas import ModelInputs
 from ...online_tracker import OnlineTracker, Track
-from ...tracking_video_maker import draw_tracks, \
-    filter_short_tracks
+from ...tracking_video_maker import draw_tracks, filter_short_tracks
 from ...frame_reader import FrameReader
 
 from ...mot_challenge import track_to_mot_challenge
@@ -250,9 +248,7 @@ def create_mot_challenge_results(
         for track in tracks:
             resolution = sequence_meta["sequences"][sequence_id]["resolution"]
             mot_results.append(
-                track_to_mot_challenge(
-                    track, resolution=resolution, cvat=cvat
-                )
+                track_to_mot_challenge(track, resolution=resolution, cvat=cvat)
             )
 
         if mot_results:

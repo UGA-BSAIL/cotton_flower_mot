@@ -2,7 +2,6 @@
 Superclass for objects that connect to CVAT.
 """
 
-
 import abc
 from contextlib import contextmanager
 from typing import Any, ContextManager

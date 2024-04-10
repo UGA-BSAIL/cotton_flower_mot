@@ -2,7 +2,6 @@
 Tests for the `clearable_cached_property` module.
 """
 
-
 from pycvat.dataset import clearable_cached_property
 
 
@@ -16,6 +15,7 @@ class TestClearableCachedProperty:
         Tests that we can correctly flush the cache.
 
         """
+
         # Arrange.
         # Create a class with a decorated property.
         class TestClass:

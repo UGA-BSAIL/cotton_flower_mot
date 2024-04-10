@@ -2,7 +2,6 @@
 Builds pre-trained feature extractors that are useful for transfer learning.
 """
 
-
 from typing import Tuple
 
 import tensorflow as tf

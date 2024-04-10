@@ -2,7 +2,6 @@
 Utilities for computing similarity metrics.
 """
 
-
 import math
 from typing import Callable, Tuple
 

@@ -2,7 +2,6 @@
 Encapsulates images that are used for testing.
 """
 
-
 from pathlib import Path
 
 _PACKAGE_PATH = Path(__file__).resolve().parent

@@ -2,7 +2,6 @@
 Implements a KF-based motion model to use for tracking.
 """
 
-
 from typing import Tuple
 
 import numpy as np
@@ -221,7 +220,7 @@ class MotionModel:
         new_position_offset = self.__compute_center_offset(
             self.__filter.xk, box=observation
         )
-        self.__filter.xk[:2] += (new_position_offset - self.__position_offset)
+        self.__filter.xk[:2] += new_position_offset - self.__position_offset
         self.__position_offset = new_position_offset
 
     @property

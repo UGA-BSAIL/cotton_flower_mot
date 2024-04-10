@@ -2,7 +2,6 @@
 Encapsulates various schemas for the data.
 """
 
-
 import enum
 from typing import Iterable, Type
 

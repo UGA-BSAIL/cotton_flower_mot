@@ -2,7 +2,6 @@
 Handles the details of inference with the GCNNMatch tracker system.
 """
 
-
 from typing import Any, Tuple, Dict, Union
 
 import keras

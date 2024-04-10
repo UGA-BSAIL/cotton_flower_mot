@@ -2,7 +2,6 @@
 Encapsulates custom callbacks to use.
 """
 
-
 import abc
 import gc
 import math

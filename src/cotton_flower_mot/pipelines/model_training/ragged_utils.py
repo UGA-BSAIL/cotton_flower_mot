@@ -2,7 +2,6 @@
 Utilities for dealing with `RaggedTensor`s.
 """
 
-
 from typing import Any, Callable, Tuple
 
 import tensorflow as tf
@@ -30,6 +29,7 @@ def ragged_map_fn(function: Callable, elements: Any, **kwargs: Any) -> Any:
         successfully run.
 
     """
+
     # Transform ragged inputs to dense.
     def _nested_to_dense(_elements: Any) -> Any:
         if not tf.is_tensor(_elements) and hasattr(_elements, "__getitem__"):

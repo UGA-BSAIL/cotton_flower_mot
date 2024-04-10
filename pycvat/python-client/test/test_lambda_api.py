@@ -29,39 +29,27 @@ class TestLambdaApi(unittest.TestCase):
         pass
 
     def test_lambda_functions_create(self):
-        """Test case for lambda_functions_create
-
-        """
+        """Test case for lambda_functions_create"""
         pass
 
     def test_lambda_functions_list(self):
-        """Test case for lambda_functions_list
-
-        """
+        """Test case for lambda_functions_list"""
         pass
 
     def test_lambda_functions_read(self):
-        """Test case for lambda_functions_read
-
-        """
+        """Test case for lambda_functions_read"""
         pass
 
     def test_lambda_requests_create(self):
-        """Test case for lambda_requests_create
-
-        """
+        """Test case for lambda_requests_create"""
         pass
 
     def test_lambda_requests_list(self):
-        """Test case for lambda_requests_list
-
-        """
+        """Test case for lambda_requests_list"""
         pass
 
     def test_lambda_requests_read(self):
-        """Test case for lambda_requests_read
-
-        """
+        """Test case for lambda_requests_read"""
         pass
 
 

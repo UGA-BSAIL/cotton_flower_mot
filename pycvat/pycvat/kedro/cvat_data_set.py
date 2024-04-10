@@ -2,7 +2,6 @@
 A Kedro `DataSet` for data from CVAT.
 """
 
-
 from contextlib import ExitStack
 from typing import Any, Dict, Tuple
 
@@ -70,7 +69,8 @@ class CvatDataSet(AbstractDataSet):
 
         """
         logger.info(
-            "Initializing connection to task {}.", self.__task_id,
+            "Initializing connection to task {}.",
+            self.__task_id,
         )
 
         self.__connected_to_cvat = True

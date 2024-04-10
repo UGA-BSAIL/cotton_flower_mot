@@ -2,7 +2,6 @@
 Performs tracking on a single video.
 """
 
-
 import argparse
 from dataclasses import asdict
 from pathlib import Path

@@ -3,7 +3,6 @@ Simple utility to convert MOT challenge results from the CVAT flavor
 to the "standard" GT flavor.
 """
 
-
 import argparse
 from pathlib import Path
 

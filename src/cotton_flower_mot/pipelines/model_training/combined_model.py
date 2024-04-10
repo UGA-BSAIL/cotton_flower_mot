@@ -2,7 +2,6 @@
 Implements a combined detection + tracking model.
 """
 
-
 from typing import Optional, Tuple, Union
 
 import keras

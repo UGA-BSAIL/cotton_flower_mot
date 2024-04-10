@@ -2,7 +2,6 @@
 Pipeline definition for model training.
 """
 
-
 import enum
 
 from kedro.pipeline import Pipeline, node

@@ -2,7 +2,6 @@
 Custom layers for the CenterNet model.
 """
 
-
 import itertools
 from functools import partial
 from typing import Any, Dict, Optional, Tuple

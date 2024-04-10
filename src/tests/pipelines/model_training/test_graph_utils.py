@@ -2,7 +2,6 @@
 Tests for the `graph_utils` module.
 """
 
-
 import itertools
 from typing import Iterable, Tuple
 

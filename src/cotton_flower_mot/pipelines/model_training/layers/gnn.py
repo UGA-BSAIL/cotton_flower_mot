@@ -2,7 +2,6 @@
 Layers for graph neural networks.
 """
 
-
 from typing import Any, Dict, Optional, Tuple, Union
 
 import spektral

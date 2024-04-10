@@ -3,7 +3,6 @@ Nodes for the annotation conversion pipeline. This pipeline converts annotations
 from other styles to MOT 1.1, which is the standard for this project.
 """
 
-
 from typing import Iterable, Tuple
 
 import pandas as pd
@@ -27,6 +26,7 @@ def merge_frame_annotations(
         The combined annotation data.
 
     """
+
     # Add the frame number to individual data frames.
     def _with_frame() -> Iterable[pd.DataFrame]:
         for frame_num, frame_annotations in enumerate(annotations):

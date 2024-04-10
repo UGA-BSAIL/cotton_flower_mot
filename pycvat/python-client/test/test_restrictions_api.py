@@ -29,9 +29,7 @@ class TestRestrictionsApi(unittest.TestCase):
         pass
 
     def test_restrictions_terms_of_use(self):
-        """Test case for restrictions_terms_of_use
-
-        """
+        """Test case for restrictions_terms_of_use"""
         pass
 
     def test_restrictions_user_agreements(self):

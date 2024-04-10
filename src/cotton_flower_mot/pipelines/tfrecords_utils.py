@@ -2,7 +2,6 @@
 Utilities for dealing with TFRecords data.
 """
 
-
 from typing import Iterable, Union
 
 import numpy as np

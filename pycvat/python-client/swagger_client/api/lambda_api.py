@@ -46,14 +46,20 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_functions_create_with_http_info(func_id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_functions_create_with_http_info(
+                func_id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_functions_create_with_http_info(func_id, **kwargs)  # noqa: E501
+            (data) = self.lambda_functions_create_with_http_info(
+                func_id, **kwargs
+            )  # noqa: E501
             return data
 
-    def lambda_functions_create_with_http_info(self, func_id, **kwargs):  # noqa: E501
+    def lambda_functions_create_with_http_info(
+        self, func_id, **kwargs
+    ):  # noqa: E501
         """lambda_functions_create  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
@@ -68,31 +74,32 @@ class LambdaApi(object):
                  returns the request thread.
         """
 
-        all_params = ['func_id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["func_id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_functions_create" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'func_id' is set
-        if ('func_id' not in params or
-                params['func_id'] is None):
-            raise ValueError("Missing the required parameter `func_id` when calling `lambda_functions_create`")  # noqa: E501
+        if "func_id" not in params or params["func_id"] is None:
+            raise ValueError(
+                "Missing the required parameter `func_id` when calling `lambda_functions_create`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'func_id' in params:
-            path_params['func_id'] = params['func_id']  # noqa: E501
+        if "func_id" in params:
+            path_params["func_id"] = params["func_id"]  # noqa: E501
 
         query_params = []
 
@@ -103,10 +110,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/functions/{func_id}', 'POST',
+            "/lambda/functions/{func_id}",
+            "POST",
             path_params,
             query_params,
             header_params,
@@ -115,11 +123,12 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def lambda_functions_list(self, **kwargs):  # noqa: E501
         """lambda_functions_list  # noqa: E501
@@ -134,11 +143,15 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_functions_list_with_http_info(**kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_functions_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_functions_list_with_http_info(**kwargs)  # noqa: E501
+            (data) = self.lambda_functions_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
             return data
 
     def lambda_functions_list_with_http_info(self, **kwargs):  # noqa: E501
@@ -156,20 +169,20 @@ class LambdaApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_functions_list" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
 
         collection_formats = {}
 
@@ -184,10 +197,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/functions', 'GET',
+            "/lambda/functions",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -196,11 +210,12 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def lambda_functions_read(self, func_id, **kwargs):  # noqa: E501
         """lambda_functions_read  # noqa: E501
@@ -216,14 +231,20 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_functions_read_with_http_info(func_id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_functions_read_with_http_info(
+                func_id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_functions_read_with_http_info(func_id, **kwargs)  # noqa: E501
+            (data) = self.lambda_functions_read_with_http_info(
+                func_id, **kwargs
+            )  # noqa: E501
             return data
 
-    def lambda_functions_read_with_http_info(self, func_id, **kwargs):  # noqa: E501
+    def lambda_functions_read_with_http_info(
+        self, func_id, **kwargs
+    ):  # noqa: E501
         """lambda_functions_read  # noqa: E501
 
         This method makes a synchronous HTTP request by default. To make an
@@ -238,31 +259,32 @@ class LambdaApi(object):
                  returns the request thread.
         """
 
-        all_params = ['func_id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["func_id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_functions_read" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'func_id' is set
-        if ('func_id' not in params or
-                params['func_id'] is None):
-            raise ValueError("Missing the required parameter `func_id` when calling `lambda_functions_read`")  # noqa: E501
+        if "func_id" not in params or params["func_id"] is None:
+            raise ValueError(
+                "Missing the required parameter `func_id` when calling `lambda_functions_read`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'func_id' in params:
-            path_params['func_id'] = params['func_id']  # noqa: E501
+        if "func_id" in params:
+            path_params["func_id"] = params["func_id"]  # noqa: E501
 
         query_params = []
 
@@ -273,10 +295,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/functions/{func_id}', 'GET',
+            "/lambda/functions/{func_id}",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -285,11 +308,12 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def lambda_requests_create(self, **kwargs):  # noqa: E501
         """lambda_requests_create  # noqa: E501
@@ -304,11 +328,15 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_requests_create_with_http_info(**kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_requests_create_with_http_info(
+                **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_requests_create_with_http_info(**kwargs)  # noqa: E501
+            (data) = self.lambda_requests_create_with_http_info(
+                **kwargs
+            )  # noqa: E501
             return data
 
     def lambda_requests_create_with_http_info(self, **kwargs):  # noqa: E501
@@ -326,20 +354,20 @@ class LambdaApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_requests_create" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
 
         collection_formats = {}
 
@@ -354,10 +382,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/requests', 'POST',
+            "/lambda/requests",
+            "POST",
             path_params,
             query_params,
             header_params,
@@ -366,11 +395,12 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def lambda_requests_list(self, **kwargs):  # noqa: E501
         """lambda_requests_list  # noqa: E501
@@ -385,11 +415,15 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_requests_list_with_http_info(**kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_requests_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_requests_list_with_http_info(**kwargs)  # noqa: E501
+            (data) = self.lambda_requests_list_with_http_info(
+                **kwargs
+            )  # noqa: E501
             return data
 
     def lambda_requests_list_with_http_info(self, **kwargs):  # noqa: E501
@@ -407,20 +441,20 @@ class LambdaApi(object):
         """
 
         all_params = []  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_requests_list" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
 
         collection_formats = {}
 
@@ -435,10 +469,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/requests', 'GET',
+            "/lambda/requests",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -447,11 +482,12 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
 
     def lambda_requests_read(self, id, **kwargs):  # noqa: E501
         """lambda_requests_read  # noqa: E501
@@ -467,11 +503,15 @@ class LambdaApi(object):
                  If the method is called asynchronously,
                  returns the request thread.
         """
-        kwargs['_return_http_data_only'] = True
-        if kwargs.get('async_req'):
-            return self.lambda_requests_read_with_http_info(id, **kwargs)  # noqa: E501
+        kwargs["_return_http_data_only"] = True
+        if kwargs.get("async_req"):
+            return self.lambda_requests_read_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
         else:
-            (data) = self.lambda_requests_read_with_http_info(id, **kwargs)  # noqa: E501
+            (data) = self.lambda_requests_read_with_http_info(
+                id, **kwargs
+            )  # noqa: E501
             return data
 
     def lambda_requests_read_with_http_info(self, id, **kwargs):  # noqa: E501
@@ -489,31 +529,32 @@ class LambdaApi(object):
                  returns the request thread.
         """
 
-        all_params = ['id']  # noqa: E501
-        all_params.append('async_req')
-        all_params.append('_return_http_data_only')
-        all_params.append('_preload_content')
-        all_params.append('_request_timeout')
+        all_params = ["id"]  # noqa: E501
+        all_params.append("async_req")
+        all_params.append("_return_http_data_only")
+        all_params.append("_preload_content")
+        all_params.append("_request_timeout")
 
         params = locals()
-        for key, val in six.iteritems(params['kwargs']):
+        for key, val in six.iteritems(params["kwargs"]):
             if key not in all_params:
                 raise TypeError(
                     "Got an unexpected keyword argument '%s'"
                     " to method lambda_requests_read" % key
                 )
             params[key] = val
-        del params['kwargs']
+        del params["kwargs"]
         # verify the required parameter 'id' is set
-        if ('id' not in params or
-                params['id'] is None):
-            raise ValueError("Missing the required parameter `id` when calling `lambda_requests_read`")  # noqa: E501
+        if "id" not in params or params["id"] is None:
+            raise ValueError(
+                "Missing the required parameter `id` when calling `lambda_requests_read`"
+            )  # noqa: E501
 
         collection_formats = {}
 
         path_params = {}
-        if 'id' in params:
-            path_params['id'] = params['id']  # noqa: E501
+        if "id" in params:
+            path_params["id"] = params["id"]  # noqa: E501
 
         query_params = []
 
@@ -524,10 +565,11 @@ class LambdaApi(object):
 
         body_params = None
         # Authentication setting
-        auth_settings = ['Basic']  # noqa: E501
+        auth_settings = ["Basic"]  # noqa: E501
 
         return self.api_client.call_api(
-            '/lambda/requests/{id}', 'GET',
+            "/lambda/requests/{id}",
+            "GET",
             path_params,
             query_params,
             header_params,
@@ -536,8 +578,9 @@ class LambdaApi(object):
             files=local_var_files,
             response_type=None,  # noqa: E501
             auth_settings=auth_settings,
-            async_req=params.get('async_req'),
-            _return_http_data_only=params.get('_return_http_data_only'),
-            _preload_content=params.get('_preload_content', True),
-            _request_timeout=params.get('_request_timeout'),
-            collection_formats=collection_formats)
+            async_req=params.get("async_req"),
+            _return_http_data_only=params.get("_return_http_data_only"),
+            _preload_content=params.get("_preload_content", True),
+            _request_timeout=params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )

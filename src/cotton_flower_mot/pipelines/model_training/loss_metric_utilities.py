@@ -2,7 +2,6 @@
 Utilities for losses and metrics.
 """
 
-
 from typing import Tuple, Union
 
 import tensorflow as tf

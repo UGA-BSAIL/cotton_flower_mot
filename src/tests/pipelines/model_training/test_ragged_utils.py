@@ -2,7 +2,6 @@
 Tests for the `ragged_utils` module.
 """
 
-
 import numpy as np
 import tensorflow as tf
 

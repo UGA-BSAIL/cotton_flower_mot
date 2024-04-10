@@ -2,7 +2,6 @@
 Utility for profiling the performance of TFRT models.
 """
 
-
 import argparse
 from pathlib import Path
 from typing import Dict, Tuple

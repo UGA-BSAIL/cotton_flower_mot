@@ -2,7 +2,6 @@
 Manages downloading and opening annotations from a CVAT task.
 """
 
-
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 

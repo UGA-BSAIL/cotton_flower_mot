@@ -2,7 +2,6 @@
 Nodes for the `model_data_load` pipeline.
 """
 
-
 from typing import Any
 
 import tensorflow as tf

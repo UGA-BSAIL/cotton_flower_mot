@@ -2,7 +2,6 @@
 Custom learning rate schedules.
 """
 
-
 from typing import Any, Dict, Optional
 
 import tensorflow as tf

@@ -2,7 +2,6 @@
 Common utility layers used in various places.
 """
 
-
 from typing import Any, Dict, Optional, Type, TypeVar
 
 import tensorflow as tf

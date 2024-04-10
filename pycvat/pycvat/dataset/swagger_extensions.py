@@ -2,7 +2,6 @@
 Extensions to the Swagger-generated code.
 """
 
-
 from pathlib import Path
 from typing import Any
 

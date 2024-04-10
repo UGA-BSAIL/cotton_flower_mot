@@ -2,7 +2,6 @@
 Custom metrics for the model.
 """
 
-
 import abc
 from typing import Any, Dict, Optional, cast
 

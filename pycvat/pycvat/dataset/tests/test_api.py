@@ -2,7 +2,6 @@
 Tests for the `api` module.
 """
 
-
 from faker import Faker
 from pytest_mock import MockFixture
 

@@ -2,7 +2,6 @@
 Tests for the `sinkhorn` module.
 """
 
-
 from typing import Iterable
 
 import numpy as np

@@ -89,8 +89,9 @@ class AssociationLayer(tf.keras.layers.Layer):
             output_flat_length = tf.math.reduce_prod(
                 affinity_shape + tf.ones_like(affinity_shape)
             )
-            output_flat_length = tf.cast(output_flat_length,
-                                         _num_detections.dtype)
+            output_flat_length = tf.cast(
+                output_flat_length, _num_detections.dtype
+            )
 
             def _pad_and_flatten(association: tf.Tensor) -> tf.Tensor:
                 # Flatten.

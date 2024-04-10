@@ -2,7 +2,6 @@
 Encapsulates some data assets that we use for testing.
 """
 
-
 from pathlib import Path
 
 _PACKAGE_DIR = Path(__file__).absolute().parent

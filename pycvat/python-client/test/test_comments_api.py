@@ -29,9 +29,7 @@ class TestCommentsApi(unittest.TestCase):
         pass
 
     def test_comments_create(self):
-        """Test case for comments_create
-
-        """
+        """Test case for comments_create"""
         pass
 
     def test_comments_delete(self):

@@ -2,7 +2,6 @@
 Nodes for the model training pipeline.
 """
 
-
 from typing import Any, Dict, List, Tuple
 from pathlib import Path
 

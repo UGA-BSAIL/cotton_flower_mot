@@ -2,7 +2,6 @@
 Tracks existing annotation points in subsequent frames using optical flow.
 """
 
-
 import itertools
 from typing import List, Tuple
 

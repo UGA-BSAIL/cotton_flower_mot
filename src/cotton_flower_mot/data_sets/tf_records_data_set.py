@@ -2,7 +2,6 @@
 A custom `DataSet` for creating TFRecords files.
 """
 
-
 import random
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, Optional

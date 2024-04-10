@@ -2,7 +2,6 @@
 Tests for the `swagger_extensions` module.
 """
 
-
 import unittest.mock as mock
 from functools import partial
 from pathlib import Path

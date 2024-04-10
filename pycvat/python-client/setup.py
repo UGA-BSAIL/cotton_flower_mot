@@ -35,5 +35,5 @@ setup(
     include_package_data=True,
     long_description="""\
     REST API for Computer Vision Annotation Tool (CVAT)  # noqa: E501
-    """
+    """,
 )

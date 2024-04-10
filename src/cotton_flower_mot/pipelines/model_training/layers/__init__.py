@@ -2,7 +2,6 @@
 Custom Keras layers used by this pipeline.
 """
 
-
 from kedro.extras.datasets.tensorflow import TensorFlowModelDataset
 
 from .association import AssociationLayer

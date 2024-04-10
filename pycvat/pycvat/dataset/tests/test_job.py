@@ -2,7 +2,6 @@
 Tests for the `job` module.
 """
 
-
 import enum
 import unittest.mock as mock
 

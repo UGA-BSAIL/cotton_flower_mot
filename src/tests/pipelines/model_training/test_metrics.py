@@ -2,7 +2,6 @@
 Tests for the `metrics` module.
 """
 
-
 import numpy as np
 from faker import Faker
 

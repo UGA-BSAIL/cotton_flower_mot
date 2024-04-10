@@ -2,7 +2,6 @@
 Custom pooling layers.
 """
 
-
 from typing import Any, Dict, Tuple
 
 import keras.backend as K

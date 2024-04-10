@@ -2,7 +2,6 @@
 Miscellaneous type aliases and definitions.
 """
 
-
 from typing import Collection, Dict, Tuple, Union
 
 import tensorflow as tf

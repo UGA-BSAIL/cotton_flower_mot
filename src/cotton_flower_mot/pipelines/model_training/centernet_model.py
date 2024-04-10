@@ -2,7 +2,6 @@
 Implementation of the CenterNet detector model.
 """
 
-
 from typing import Optional, Tuple
 
 import tensorflow as tf

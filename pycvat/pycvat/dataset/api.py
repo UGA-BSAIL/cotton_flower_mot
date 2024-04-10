@@ -2,7 +2,6 @@
 Tools for communicating with the CVAT API.
 """
 
-
 from typing import Any
 
 from swagger_client import ApiClient, Configuration

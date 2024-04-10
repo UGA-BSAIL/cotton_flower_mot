@@ -1,6 +1,7 @@
 """
 Utilities for handling the MOT challenge data format.
 """
+
 from collections import OrderedDict
 from typing import Tuple
 
@@ -34,7 +35,7 @@ def track_to_mot_challenge(
     track: Track,
     resolution: Tuple[int, int],
     cvat: bool = False,
-    only_detected: bool = False
+    only_detected: bool = False,
 ) -> pd.DataFrame:
     """
     Converts a track to the MOT Challenge format.

@@ -2,7 +2,6 @@
 Tests for the `gcnn_model` module.
 """
 
-
 from pathlib import Path
 
 import numpy as np

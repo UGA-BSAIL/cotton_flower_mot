@@ -2,7 +2,6 @@
 Utilities for implementing detection with a pre-trained YOLO model.
 """
 
-
 from functools import partial, update_wrapper
 from pathlib import Path
 from typing import Tuple

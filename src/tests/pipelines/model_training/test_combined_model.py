@@ -2,7 +2,6 @@
 Tests for the `combined_model` module.
 """
 
-
 import numpy as np
 import pytest
 import tensorflow as tf
