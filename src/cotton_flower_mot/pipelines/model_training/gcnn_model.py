@@ -173,13 +173,14 @@ def _build_affinity_mlp(
     )((tracklet_app_features, detection_app_features))
 
     # Concatenate into our input.
-    similarity_input = tf.stack(
-        (iou, distance, aspect_ratio, interaction_cosine),
-        axis=-1,
-    )
+    # similarity_input = tf.stack(
+    #     (iou, distance, aspect_ratio, interaction_cosine),
+    #     axis=-1,
+    # )
+    similarity_input = tf.expand_dims(iou, -1)
     # Make sure the channels dimension is defined statically so Keras layers
     # work.
-    similarity_input = tf.ensure_shape(similarity_input, (None, None, None, 4))
+    similarity_input = tf.ensure_shape(similarity_input, (None, None, None, 1))
 
     # Apply the MLP. 1x1 convolution is an efficient way to apply the same MLP
     # to every detection/tracklet pair.
