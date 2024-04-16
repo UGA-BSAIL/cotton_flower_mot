@@ -174,7 +174,7 @@ def _build_affinity_mlp(
 
     # Concatenate into our input.
     similarity_input = tf.stack(
-        (iou, distance, aspect_ratio, appearance_cosine),
+        (iou, distance, aspect_ratio, interaction_cosine),
         axis=-1,
     )
     # Make sure the channels dimension is defined statically so Keras layers
