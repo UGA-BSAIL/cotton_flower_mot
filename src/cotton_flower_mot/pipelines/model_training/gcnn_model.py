@@ -19,9 +19,8 @@ from ...graph_utils import (
     compute_pairwise_similarities,
     gcn_filter,
     make_complete_bipartite_adjacency_matrices,
-    make_adjacency_matrix,
 )
-from .layers import AssociationLayer, BnActConv, ResidualGcn
+from .layers import AssociationLayer, BnActConv, ResidualCensNet
 from .models_common import make_geometry_inputs
 from ...similarity_utils import (
     aspect_ratio_penalty,
@@ -36,6 +35,7 @@ def _build_edge_mlp(
     *,
     geometric_features: Tuple[tf.Tensor, tf.Tensor],
     appearance_features: Tuple[tf.Tensor, tf.Tensor],
+    config: ModelConfig,
 ) -> tf.Tensor:
     """
     Builds the MLP that computes edge features.
@@ -50,14 +50,14 @@ def _build_edge_mlp(
 
     Returns:
         The computed edge features. It will be a tensor of shape
-        `[batch_size, n_left_nodes, n_right_nodes, 1]`.
+        `[batch_size, n_edges, n_features]`.
 
     """
 
     def _combine_input_impl(
-        features: Tuple[tf.Tensor, tf.Tensor]
+        _features: Tuple[tf.Tensor, tf.Tensor]
     ) -> tf.Tensor:
-        detections, tracklets = features
+        detections, tracklets = _features
         input_edge_features = compute_bipartite_edge_features(
             left_nodes=tracklets, right_nodes=detections
         )
@@ -66,7 +66,7 @@ def _build_edge_mlp(
         tracklet_features = input_edge_features[:, :, :, 0, :]
         detection_features = input_edge_features[:, :, :, 1, :]
         fused_features = tf.concat(
-            (tracklet_features, detection_features), axis=3
+            (tracklet_features, detection_features), axis=3, name="edge_concat"
         )
 
         # We should know this statically.
@@ -86,10 +86,22 @@ def _build_edge_mlp(
         (geometric_combined, appearance_combined)
     )
 
-    # Apply the MLP. We need to use a feature size of one for the output,
-    # since these values are going directly in the affinity matrix.
-    edge_features = BnActConv(1, 1)(all_features)
-    return tf.ensure_shape(edge_features, (None, None, None, 1))
+    # Apply the MLP.
+    features = BnActConv(config.num_edge_features, 1)(all_features)
+
+    def _reshape_outputs(_features: tf.Tensor) -> tf.Tensor:
+        # Since our graph is complete and bipartite, to get the output shape we
+        # want, we just have to fuse the inner two dimensions.
+        feature_shape = tf.shape(_features)
+        output_shape = tf.stack([feature_shape[0], -1, feature_shape[-1]])
+        reshaped = tf.reshape(_features, output_shape)
+
+        # We should know part of the shape statically.
+        return tf.ensure_shape(reshaped, [None, None, _features.shape[3]])
+
+    return layers.Lambda(_reshape_outputs, name="reshape_edge_features")(
+        features
+    )
 
 
 def _build_affinity_mlp(
@@ -162,12 +174,12 @@ def _build_affinity_mlp(
 
     # Concatenate into our input.
     similarity_input = tf.stack(
-        (iou, interaction_cosine),
+        (iou, interaction_cosine, appearance_cosine),
         axis=-1,
     )
     # Make sure the channels dimension is defined statically so Keras layers
     # work.
-    similarity_input = tf.ensure_shape(similarity_input, (None, None, None, 2))
+    similarity_input = tf.ensure_shape(similarity_input, (None, None, None, 3))
 
     # Apply the MLP. 1x1 convolution is an efficient way to apply the same MLP
     # to every detection/tracklet pair.
@@ -208,20 +220,21 @@ def _build_gnn(
     # graph_structure = [bound_numerics(g) for g in graph_structure]
 
     node_features = layers.BatchNormalization()(node_features)
-    # edge_features = layers.BatchNormalization()(edge_features)
-    edge_features = edge_features[:, :, :, 0]
+    edge_features = layers.BatchNormalization()(edge_features)
 
-    nodes1_1, edges1_1 = ResidualGcn(
+    nodes1_1, edges1_1 = ResidualCensNet(
         config.num_node_features,
+        config.num_edge_features,
         activation="relu",
-    )((node_features, edge_features))
+    )((node_features, graph_structure, edge_features))
 
     nodes1_1 = layers.BatchNormalization()(nodes1_1)
-    # edges1_1 = layers.BatchNormalization()(edges1_1)
-    nodes1_2, edges1_2 = ResidualGcn(
+    edges1_1 = layers.BatchNormalization()(edges1_1)
+    nodes1_2, edges1_2 = ResidualCensNet(
         config.num_node_features,
+        config.num_edge_features,
         activation="relu",
-    )((nodes1_1, edges1_1))
+    )((nodes1_1, graph_structure, edges1_1))
 
     return nodes1_2
 
@@ -429,6 +442,7 @@ def extract_interaction_features(
     edge_features = _build_edge_mlp(
         geometric_features=(detections_geom_features, tracklets_geom_features),
         appearance_features=(detections_app_features, tracklets_app_features),
+        config=config,
     )
     # edge_features = bound_numerics(edge_features)
 
@@ -447,11 +461,6 @@ def extract_interaction_features(
         name="preprocess_cens_net",
     )((adjacency_matrices, num_tracklets, num_detections))
 
-    # Create the adjacency matrix and build the GCN.
-    adjacency_matrix = layers.Lambda(
-        lambda f: make_adjacency_matrix(f),
-        name="adjacency_matrix",
-    )(edge_features)
     # Note that the order of concatenation is important here.
     combined_app_features = layers.Concatenate(axis=1)(
         (tracklets_app_features, detections_app_features)
@@ -459,7 +468,7 @@ def extract_interaction_features(
     final_node_features = _build_gnn(
         graph_structure=graph_structure,
         node_features=combined_app_features,
-        edge_features=adjacency_matrix,
+        edge_features=edge_features,
         config=config,
     )
     # final_node_features = bound_numerics(final_node_features)

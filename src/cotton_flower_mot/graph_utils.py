@@ -152,9 +152,6 @@ def make_adjacency_matrix(edge_features: tf.Tensor) -> tf.Tensor:
 
     """
     features_rank_4 = tf.assert_rank(edge_features, 4)
-    num_features = edge_features.shape[-1]
-    if num_features is None:
-        raise ValueError("Number of edge features must be statically known.")
 
     with tf.control_dependencies([features_rank_4]):
         edge_feature_shape = tf.shape(edge_features)
@@ -166,9 +163,7 @@ def make_adjacency_matrix(edge_features: tf.Tensor) -> tf.Tensor:
             [0, 0, 0, num_right_nodes, num_left_nodes, 0, 0, 0], axis=0
         )
         paddings = tf.reshape(paddings, (4, 2))
-        padded = tf.pad(edge_features, paddings)
-
-        return tf.ensure_shape(padded, (None, None, None, num_features))
+        return tf.pad(edge_features, paddings)
 
 
 def _single_complete_bipartite_adjacency_matrix(
