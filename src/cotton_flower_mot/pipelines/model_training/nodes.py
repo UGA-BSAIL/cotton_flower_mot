@@ -235,6 +235,9 @@ def train_model(
     # Add a callback for keeping track of the best model.
     best_model_callback = KeepBest()
 
+    training_data = training_data.take(2)
+    testing_data = testing_data.take(2)
+
     for phase in learning_phases:
         logger.info("Starting new training phase.")
         logger.debug("Using phase parameters: {}", phase)

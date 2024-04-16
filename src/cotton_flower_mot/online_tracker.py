@@ -485,7 +485,7 @@ class Track:
         )
 
         track.__frames_to_detections = {
-            k: np.array(v) for k, v in config["frames_to_detections"]
+            k: np.array(v) for k, v in config["frames_to_detections"].items()
         }
         track.__frames_to_anchor_points = {
             k: np.array(v)
@@ -595,6 +595,8 @@ def _(model: tf.keras.Model) -> GraphFunc:
         sinkhorn, _ = model(inputs, training=False)
 
         return {ModelTargets.SINKHORN.value: sinkhorn}
+
+    return _adapted_model
 
 
 class OnlineTracker:

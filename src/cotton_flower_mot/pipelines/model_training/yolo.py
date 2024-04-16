@@ -79,29 +79,32 @@ def load_yolo(saved_model: Path, *, config: ModelConfig) -> tf.keras.Model:
         The loaded model.
 
     """
-    logger.debug("Expected YOLO input shape: {}", config.raw_yolo_input_shape)
-    preprocess = partial(
-        _preprocess_inputs, yolo_shape=config.raw_yolo_input_shape
-    )
-    postprocess = partial(
-        _postprocess_boxes, yolo_shape=config.raw_yolo_input_shape
-    )
-    preprocess = update_wrapper(preprocess, _preprocess_inputs)
-    postprocess = update_wrapper(postprocess, _postprocess_boxes)
+    yolo_input_shape = config.raw_yolo_input_shape
+    logger.debug("Expected YOLO input shape: {}", yolo_input_shape)
 
     # Create a new model that's compatible with the pipeline.
     image_input = layers.Input(
         shape=(None, None, 3),
         name=ModelInputs.DETECTIONS_FRAME.value,
     )
-    images_preprocessed = layers.Lambda(preprocess, name="preprocess")(
-        image_input
-    )
+    # The song-and-dance here with respect to nested lambda functions is
+    # necessary to keep this serializable.
+    images_preprocessed = layers.Lambda(
+        lambda x: _preprocess_inputs(
+            x, yolo_shape=yolo_input_shape
+        ),
+        name="preprocess",
+    )(image_input)
 
     boxes, features = PretrainedTf(saved_model, name="yolo_raw")(
         images_preprocessed
     )
-    boxes = layers.Lambda(postprocess, name="postprocess")(boxes)
+    boxes = layers.Lambda(
+        lambda x: _postprocess_boxes(
+            x, yolo_shape=yolo_input_shape
+        ),
+        name="postprocess",
+    )(boxes)
 
     # Ensure the outputs have the right name and dtype.
     boxes = layers.Activation(

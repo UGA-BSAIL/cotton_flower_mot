@@ -29,6 +29,7 @@ tf2onnx = "^1.16.0"
 tabulate = "^0.9.0"
 kalmankit = "^1.7.8"
 av = "^11.0.0"
+tensorrt-libs = "8.6.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"
@@ -40,13 +41,19 @@ pre-commit = "^2.11.0"
 pytest-snapshot = "^0.5.0"
 Faker = "^17.6.0"
 pytest-coverage = "^0.0"
-PyYAML = "^5.4.1"
+PyYAML = "^6.0.1"
 pytest-flake8 = "^1.0.7"
 pydot = "^1.4.2"
 jupyterlab = "^3.4.2"
 
 [tool.poetry.group.dev.dependencies]
 ultralytics = "^8.0.208"
+
+
+[[tool.poetry.source]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+priority = "supplemental"
 
 [tool.black]
 line-length = 79
