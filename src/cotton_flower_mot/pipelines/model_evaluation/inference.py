@@ -6,6 +6,7 @@ Handles the details of inference with the GCNNMatch tracker system.
 from typing import Any, Tuple, Dict, Union
 
 import keras
+import numpy as np
 import tensorflow as tf
 from keras import layers
 from loguru import logger
@@ -24,7 +25,6 @@ from ..model_training.gcnn_model import build_appearance_model
 
 def _filter_detections(
     detections: Union[tf.RaggedTensor, tf.Tensor],
-    confidence_threshold: float = 0.0,
     nms_iou_threshold: float = 0.5,
 ) -> tf.RaggedTensor:
     """
@@ -33,8 +33,6 @@ def _filter_detections(
     Args:
         detections: The detections to filter. Should have shape
             `[None, (None), 5]`.
-        confidence_threshold: Any detections with a lower confidence than
-            this will be ignored.
         nms_iou_threshold: IOU threshold used for deciding whether boxes
             overlap too much when performing NMS.
 
@@ -54,12 +52,11 @@ def _filter_detections(
             [boxes[:, :2] - half_size, boxes[:, :2] + half_size], axis=1
         )
 
-        nms_indices = tf.image.non_max_suppression(
+        nms_indices, _ = tf.image.non_max_suppression_with_scores(
             boxes,
             confidence,
             max_output_size=15,
             iou_threshold=nms_iou_threshold,
-            score_threshold=confidence_threshold,
         )
 
         # Get the actual bounding boxes again.
@@ -70,9 +67,9 @@ def _filter_detections(
     ) -> tf.RaggedTensor:
         return tf.map_fn(
             _single_frame_nms,
-            detections_,
+            tf.cast(detections_, tf.float32),
             fn_output_signature=tf.RaggedTensorSpec(
-                shape=[None, 5], dtype=detections_.dtype, ragged_rank=0
+                shape=[None, 5], dtype=tf.float32, ragged_rank=0
             ),
         )
 
@@ -176,7 +173,6 @@ def build_inference_model(
     image_features = detector_outputs[0]
     detections = detector_outputs[-1]
     detections = _filter_detections(detections, **kwargs)
-    detections = tf.cast(detections, tf.float32)
 
     # Extract appearance features for the detections.
     appearance_features = appearance_extractor(
