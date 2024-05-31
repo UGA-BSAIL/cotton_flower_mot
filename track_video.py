@@ -38,11 +38,6 @@ from src.cotton_flower_mot.tracking_video_maker import (
     filter_short_tracks,
 )
 
-_DEATH_WINDOW_S = 1.0
-"""
-The number of seconds to use for the death window.
-"""
-
 
 def _configure_logging() -> None:
     """
@@ -81,7 +76,6 @@ def _make_tracker(
     common_args = dict(
         detection_model=detection_model,
         tracking_model=tracking_model,
-        death_window=_DEATH_WINDOW_S,
         **kwargs,
     )
     if small_detection_model is not None:
@@ -90,6 +84,7 @@ def _make_tracker(
             **common_args,
         )
     else:
+        common_args.pop("keyframe_period")
         return OnlineTracker(
             **common_args,
         )
@@ -330,6 +325,13 @@ def _make_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not use the ROI tracker.",
     )
+    parser.add_argument(
+        "-d",
+        "--death-window",
+        type=float,
+        default=1.0,
+        help="Number of seconds to use for the death window.",
+    )
 
     return parser
 
@@ -357,6 +359,7 @@ def main() -> None:
         confidence_threshold=cli_args.conf,
         cvat_output=cli_args.cvat,
         keyframe_period=cli_args.keyframe_period,
+        death_window=cli_args.death_window,
     )
 
 

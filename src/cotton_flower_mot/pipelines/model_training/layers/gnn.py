@@ -290,3 +290,91 @@ class ResidualCensNet(layers.Layer):
         return cls(
             node_channels, edge_channels, *gcn_args, **gcn_kwargs, **config
         )
+
+
+class ResidualGcn(layers.Layer):
+    """
+    An extension to `DynamicEdgeGcn` that uses it as part of a residual block.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        *args: Any,
+        name: Optional[str] = None,
+        **kwargs: Any
+    ):
+        """
+        Args:
+            channels: Number of output channels for the GCN layer.
+            *args: Will be forwarded to the `DynamicEdgeGcn` layer.
+            name: The name of this layer.
+            **kwargs: Will be forwarded to the `DynamicEdgeGcn` layer.
+        """
+        super().__init__(name=name)
+
+        self._gcn_args = args
+        self._gcn_kwargs = kwargs
+        self._num_channels = channels
+
+        # Pre-create the sub-layers.
+        self._conv1_1 = None
+
+        self._gcn1_1 = DynamicEdgeGcn(channels, *args, **kwargs)
+        self._add_nodes = layers.Add(name="add_nodes")
+        self._add_edges = layers.Add(name="add_edges")
+
+    def build(
+        self, input_shape: Tuple[tf.TensorShape, tf.TensorShape]
+    ) -> None:
+        # Add the additional convolution layer if the sizes don't match.
+        node_shape, _ = input_shape
+        num_input_channels = node_shape[-1]
+        if num_input_channels != self._num_channels:
+            logger.debug(
+                "Adding extra convolution to {} to "
+                "convert from {} channels to {}.",
+                self.name,
+                num_input_channels,
+                self._num_channels,
+            )
+
+            # We bring the number of channels in-line with a 1D convolution,
+            # since the input has 3 channels and the first 2 should always be
+            # the same.
+            self._conv1_1 = layers.Conv1D(
+                self._num_channels, 1, padding="same", name="adapt_outputs"
+            )
+
+        super().build(input_shape)
+
+    def call(
+        self, inputs: Tuple[tf.Tensor, tf.Tensor], **kwargs: Any
+    ) -> Tuple[tf.Tensor, tf.Tensor]:
+        nodes, edges = inputs
+        nodes_res, edges_res = self._gcn1_1(inputs, **kwargs)
+
+        if self._conv1_1 is not None:
+            # Adapt the input size so it matches up.
+            nodes = self._conv1_1(nodes)
+
+        # Compute the residual.
+        new_nodes = self._add_nodes([nodes, nodes_res])
+        new_edges = self._add_edges([edges, edges_res])
+        return new_nodes, new_edges
+
+    def get_config(self) -> Dict[str, Any]:
+        return dict(
+            gcn_args=self._gcn_args,
+            gcn_kwargs=self._gcn_kwargs,
+            channels=self._num_channels,
+            name=self.name,
+        )
+
+    @classmethod
+    def from_config(cls, config) -> "ResidualGcn":
+        gcn_args = config.pop("gcn_args")
+        gcn_kwargs = config.pop("gcn_kwargs")
+        channels = config.pop("channels")
+
+        return cls(channels, *gcn_args, **gcn_kwargs, **config)

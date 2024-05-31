@@ -14,7 +14,7 @@ from .dla import (
     HdaStage,
     UpSamplingIda,
 )
-from .gnn import DynamicEdgeGcn, ResidualCensNet
+from .gnn import DynamicEdgeGcn, ResidualCensNet, ResidualGcn
 from .mlp_conv import MlpConv
 from .pooling import PeakLayer
 from .utility import BnActConv, BnActDense
@@ -33,6 +33,7 @@ CUSTOM_LAYERS = {
         BnActConv,
         BnActDense,
         DynamicEdgeGcn,
+        ResidualGcn,
         ResidualCensNet,
         AggregationNode,
         BasicBlock,

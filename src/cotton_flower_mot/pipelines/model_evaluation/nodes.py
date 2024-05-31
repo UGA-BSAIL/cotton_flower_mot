@@ -29,10 +29,6 @@ _DEATH_WINDOW_S = 1.0
 """
 The number of seconds to use for the death window.
 """
-_MOTION_MODEL_MIN_DETECTIONS = 6
-"""
-The minimum number of detections to use when applying the motion model.
-"""
 
 
 def _make_tracker(
@@ -55,20 +51,12 @@ def _make_tracker(
         An OnlineTracker instance.
 
     """
-    # Convert death window to frames.
-    video_fps = float(sequence_meta["sequences"][sequence_id]["fps"])
-    death_window_frames = int(video_fps * _DEATH_WINDOW_S)
-    logger.debug(
-        "Using {} frame death window for sequence {}.",
-        death_window_frames,
-        sequence_id,
-    )
-
     return OnlineTracker(
         detection_model=detection_model,
         tracking_model=tracking_model,
-        death_window=death_window_frames,
-        motion_model_min_detections=_MOTION_MODEL_MIN_DETECTIONS,
+        death_window=_DEATH_WINDOW_S,
+        confidence_threshold=0.15,
+        enable_two_stage_association=False,
     )
 
 
@@ -102,12 +90,16 @@ def compute_tracks_for_clip(
         tracking_model=tracking_model,
         sequence_id=sequence_id,
     )
+    frame_period = 1 / clip.fps
+    frame_time = 0.0
     for frame in clip.read(0):
         # Make sure it's the right size for the model.
         frame = cv2.resize(frame, (960, 540))
         if sequence_meta["sequences"][sequence_id]["flip_color"]:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        tracker.process_frame(frame)
+        tracker.process_frame(frame, frame_time=frame_time)
+
+        frame_time += frame_period
 
     # Serialize the tracks.
     tracks = []
@@ -242,7 +234,7 @@ def create_mot_challenge_results(
         # Filter out tracks that are very short, which are quite likely to be
         # false positives.
         fps = sequence_meta["sequences"][sequence_id]["fps"]
-        tracks = filter_short_tracks(tracks, min_length=fps)
+        # tracks = filter_short_tracks(tracks, min_length=fps)
 
         mot_results = []
         for track in tracks:

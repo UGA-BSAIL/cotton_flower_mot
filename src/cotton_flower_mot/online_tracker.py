@@ -20,6 +20,7 @@ from .profiler import ProfilingManager
 from .similarity_utils import compute_ious
 from .motion_model import MotionModel
 from .tfrt_utils import GraphFunc
+from .running_median import RunningMedian
 
 
 @dataclass
@@ -70,6 +71,10 @@ class Track:
         self.__latest_frame = -1
         # Keeps track of the last frame we have a motion estimation for.
         self.__latest_motion_frame = -1
+
+        # Keep track of the median detection size.
+        self.__median_width = RunningMedian()
+        self.__median_height = RunningMedian()
 
         # Motion model to use.
         self.__motion_model: Optional[MotionModel] = None
@@ -162,6 +167,10 @@ class Track:
             self.__frames_to_anchor_points[frame_num] = (
                 self.__motion_model.anchor_point
             )
+
+            width, height = detection[2:]
+            self.__median_width.add(width)
+            self.__median_height.add(height)
 
         self.__latest_motion_frame = max(self.__latest_motion_frame, frame_num)
 
@@ -439,8 +448,11 @@ class Track:
             )
         state, _ = self.__motion_model.predict(frame_time)
 
-        # Assume that the size stays the same.
-        return np.concatenate((state[:2], self.last_detection[2:]))
+        # Use the median size when it's occluded.
+        median_size = np.array(
+            [self.__median_width.median(), self.__median_height.median()]
+        )
+        return np.concatenate((state[:2], median_size))
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -485,7 +497,7 @@ class Track:
         )
 
         track.__frames_to_detections = {
-            k: np.array(v) for k, v in config["frames_to_detections"]
+            k: np.array(v) for k, v in config["frames_to_detections"].items()
         }
         track.__frames_to_anchor_points = {
             k: np.array(v)
@@ -595,6 +607,8 @@ def _(model: tf.keras.Model) -> GraphFunc:
         sinkhorn, _ = model(inputs, training=False)
 
         return {ModelTargets.SINKHORN.value: sinkhorn}
+
+    return _adapted_model
 
 
 class OnlineTracker:

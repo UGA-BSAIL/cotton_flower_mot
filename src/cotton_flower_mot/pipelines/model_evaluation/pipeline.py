@@ -37,7 +37,6 @@ def create_pipeline(**kwargs):
                     training_model="best_model",
                     config="model_config",
                     detector_model_path="params:inference_yolo_model_path",
-                    confidence_threshold="params:conf_threshold",
                     nms_iou_threshold="params:nms_iou_threshold",
                 ),
                 ["inference_tracking_model", "inference_detection_model"],
@@ -145,31 +144,31 @@ def create_pipeline(**kwargs):
                 ),
                 "validation_mot_challenge_cvat",
             ),
-            node(
-                create_mot_challenge_results,
-                dict(
-                    tracks_from_clips="testing_tracks",
-                    sequence_meta="sequence_meta",
-                ),
-                "testing_mot_challenge",
-            ),
-            node(
-                partial(create_mot_challenge_results, cvat=True),
-                dict(
-                    tracks_from_clips="testing_tracks",
-                    sequence_meta="sequence_meta",
-                ),
-                "testing_mot_challenge_cvat",
-            ),
+            # node(
+            #     create_mot_challenge_results,
+            #     dict(
+            #         tracks_from_clips="testing_tracks",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "testing_mot_challenge",
+            # ),
+            # node(
+            #     partial(create_mot_challenge_results, cvat=True),
+            #     dict(
+            #         tracks_from_clips="testing_tracks",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "testing_mot_challenge_cvat",
+            # ),
             # Create count reports.
-            node(
-                filter_countable_tracks,
-                dict(
-                    tracks_from_clips="testing_tracks",
-                    sequence_meta="sequence_meta",
-                ),
-                "filtered_testing_tracks",
-            ),
+            # node(
+            #     filter_countable_tracks,
+            #     dict(
+            #         tracks_from_clips="testing_tracks",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "filtered_testing_tracks",
+            # ),
             node(
                 filter_countable_tracks,
                 dict(
@@ -178,11 +177,11 @@ def create_pipeline(**kwargs):
                 ),
                 "filtered_validation_tracks",
             ),
-            node(
-                compute_counts,
-                "filtered_testing_tracks",
-                "count_report_test",
-            ),
+            # node(
+            #     compute_counts,
+            #     "filtered_testing_tracks",
+            #     "count_report_test",
+            # ),
             node(
                 compute_counts,
                 "filtered_validation_tracks",
@@ -252,15 +251,15 @@ def create_pipeline(**kwargs):
             #     ),
             #     "tracking_video_2020-08-11_row1",
             # ),
-            node(
-                partial(make_track_videos_clip, sequence_id="2022-08-23_ENGR"),
-                dict(
-                    tracks_from_clips="validation_tracks",
-                    clip="video_2022_08_23_ENGR",
-                    sequence_meta="sequence_meta",
-                ),
-                "tracking_video_2022-08-23_ENGR",
-            ),
+            # node(
+            #     partial(make_track_videos_clip, sequence_id="2022-08-23_ENGR"),
+            #     dict(
+            #         tracks_from_clips="validation_tracks",
+            #         clip="video_2022_08_23_ENGR",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "tracking_video_2022-08-23_ENGR",
+            # ),
             # node(
             #     partial(make_track_videos_clip, sequence_id="2022-08-31_SPL"),
             #     dict(
@@ -270,17 +269,17 @@ def create_pipeline(**kwargs):
             #     ),
             #     "tracking_video_2022-08-31_SPL",
             # ),
-            node(
-                merge_track_datasets,
-                [
-                    # "tracking_videos_valid_tfrecord",
-                    # "tracking_video_2021-08-25_SPL",
-                    # "tracking_video_2021-09-03_SPL",
-                    # "tracking_video_2020-08-11_row1",
-                    "tracking_video_2022-08-23_ENGR",
-                    # "tracking_video_2022-08-31_SPL",
-                ],
-                "tracking_videos_valid",
-            ),
+            # node(
+            #     merge_track_datasets,
+            #     [
+            #         # "tracking_videos_valid_tfrecord",
+            #         # "tracking_video_2021-08-25_SPL",
+            #         # "tracking_video_2021-09-03_SPL",
+            #         # "tracking_video_2020-08-11_row1",
+            #         "tracking_video_2022-08-23_ENGR",
+            #         # "tracking_video_2022-08-31_SPL",
+            #     ],
+            #     "tracking_videos_valid",
+            # ),
         ]
     )

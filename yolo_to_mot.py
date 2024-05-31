@@ -18,21 +18,24 @@ Pattern to use for extracting frame numbers from label file names.
 """
 
 
-def _gather_yolo_data(label_dir: Path) -> str:
+def _gather_yolo_data(label_dir: Path, has_conf: bool = False) -> str:
     """
     Gathers the data from all the YOLO label files into a single
     text corpus.
 
     Args:
         label_dir: The directory containing YOLO label files.
+        has_conf: Whether the YOLO label files should have confidence scores.
 
     Returns:
         The contents of all the files, concatenated.
 
     """
     label_files = sorted(label_dir.glob("*.txt"))
+    print(f"Found {len(label_files)} labels.")
 
     all_label_data = []
+    expected_separators = 6 if has_conf else 5
     for label_file in label_files:
         label_text = label_file.read_text()
         label_frame = int(
@@ -40,7 +43,7 @@ def _gather_yolo_data(label_dir: Path) -> str:
         )
 
         for label_line in label_text.split("\n"):
-            if label_line.count(" ") < 6:
+            if label_line.count(" ") < expected_separators:
                 # This line does not have an ID, and is therefore an extraneous
                 # detection. Skip it.
                 continue
@@ -52,7 +55,7 @@ def _gather_yolo_data(label_dir: Path) -> str:
 
 
 def _create_mot_df(
-    yolo_data: str, *, frame_size: Tuple[int, int]
+    yolo_data: str, *, frame_size: Tuple[int, int], has_conf: bool = False
 ) -> pd.DataFrame:
     """
     Creates a DataFrame from the YOLO tracking results
@@ -60,6 +63,7 @@ def _create_mot_df(
     Args:
         yolo_data: The contents of all the YOLO label files.
         frame_size: The size of the video frames, in pixels (w, h).
+        has_conf: Whether confidence scores are included in the YOLO labels.
 
     Returns:
         A DataFrame containing the tracking results.
@@ -69,7 +73,7 @@ def _create_mot_df(
         io.StringIO(yolo_data),
         sep=" ",
         header=None,
-        usecols=[0, 2, 3, 4, 5, 7],
+        usecols=[0, 2, 3, 4, 5, 7 if has_conf else 6],
         names=["frame", "x", "y", "w", "h", "id"],
     )
     yolo_df["id"] = yolo_df["id"].astype(int)
@@ -125,6 +129,13 @@ def _make_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "-c",
+        "--has-conf",
+        action="store_true",
+        help="Set this flag if the YOLO data contain confidence scores.",
+    )
+
+    parser.add_argument(
         "-w",
         "--frame-width",
         type=int,
@@ -146,9 +157,13 @@ def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
 
-    yolo_data = _gather_yolo_data(cli_args.label_dir)
+    yolo_data = _gather_yolo_data(
+        cli_args.label_dir, has_conf=cli_args.has_conf
+    )
     mot_df = _create_mot_df(
-        yolo_data, frame_size=(cli_args.frame_width, cli_args.frame_height)
+        yolo_data,
+        frame_size=(cli_args.frame_width, cli_args.frame_height),
+        has_conf=cli_args.has_conf,
     )
 
     mot_df.to_csv(cli_args.output, index=False, header=False)

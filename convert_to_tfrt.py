@@ -141,7 +141,8 @@ def _generate_tracker_inputs(
     box_shape = (1, max_detections, 4)
     appearance_shape = (1, max_detections, num_appearance_features)
 
-    boxes = np.random.normal(size=box_shape).astype(np.float32)
+    boxes = np.random.normal(size=box_shape).astype(np.float32) + 1
+    boxes = np.clip(boxes, 0, 1)
     appearance = np.random.normal(size=appearance_shape).astype(np.float32)
     row_lengths = np.random.randint(
         1, max_detections, size=(1, 1), dtype=np.int32
@@ -381,12 +382,6 @@ def _make_parser() -> argparse.ArgumentParser:
         help="The width of the input frames that the small detector expects.",
     )
 
-    parser.add_argument(
-        "-t",
-        "--tracking-model",
-        type=Path,
-        help="The saved model directory of the tracking model.",
-    )
     parser.add_argument(
         "-a",
         "--appearance-features",
