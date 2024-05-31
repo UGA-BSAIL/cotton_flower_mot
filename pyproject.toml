@@ -6,7 +6,7 @@ authors = ["Daniel Petti <djpetti@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.83,<3.11"
+python = ">=3.8,<3.11"
 kedro = {extras = ["matplotlib", "pandas"], version = "^0.18.1"}
 pycvat = {path = "pycvat", develop = false}
 pandas = "1.4.3"
