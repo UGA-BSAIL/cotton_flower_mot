@@ -98,6 +98,8 @@ def load_yolo(saved_model: Path, *, config: ModelConfig) -> tf.keras.Model:
     boxes, features = PretrainedTf(saved_model, name="yolo_raw")(
         images_preprocessed
     )
+    print(boxes)
+    print(features)
     boxes = layers.Lambda(
         lambda x: _postprocess_boxes(
             x, yolo_shape=yolo_input_shape

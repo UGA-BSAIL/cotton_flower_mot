@@ -6,13 +6,13 @@ authors = ["Daniel Petti <djpetti@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.10,<3.11"
 kedro = {extras = ["matplotlib", "pandas"], version = "^0.18.1"}
 pycvat = {path = "pycvat", develop = false}
 pandas = "1.4.3"
 loguru = "^0.5.3"
 spektral = "^1.2.0"
-seaborn = "^0.11.1"
+seaborn = "^0.13.2"
 matplotlib = "^3.3.4"
 pydantic = "^1.8.1"
 scipy = "^1.6.2"
@@ -24,12 +24,13 @@ opencv-contrib-python = "^4.7.0"
 tqdm = "^4.64.0"
 tensorflow-addons = "^0.19.0"
 python-json-logger = "^2.0.4"
-onnx2tf = "^1.13.11"
-tf2onnx = "^1.16.0"
+onnx2tf = "^1.22.4"
+tf2onnx = "^1.16.1"
 tabulate = "^0.9.0"
 kalmankit = "^1.7.8"
 av = "^11.0.0"
 tensorrt-libs = "8.6.1"
+tensorflow = "^2.16.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"

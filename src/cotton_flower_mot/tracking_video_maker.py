@@ -5,6 +5,7 @@ Framework for creating tracking videos.
 import random
 from functools import lru_cache
 from typing import Iterable, List, Tuple, Optional
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -14,7 +15,9 @@ from loguru import logger
 
 from .online_tracker import Track
 
-_TAG_FONT = ImageFont.truetype("fonts/VeraBd.ttf", 24)
+_TAG_FONT = ImageFont.truetype(
+    Path(__file__).parent.parent.parent / "fonts" / "VeraBd.ttf", 24
+)
 """
 Font to use for bounding box tags.
 """

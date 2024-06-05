@@ -188,6 +188,10 @@ def _convert_saved_model(
     Returns:
 
     """
+    if not input_dir.exists():
+        logger.error("Could not find model at {}, not converting.", input_dir)
+        return
+
     logger.info("Converting model {}.", input_dir)
     converter_factory = trt.TrtGraphConverterV2
     if dynamic_shapes:
