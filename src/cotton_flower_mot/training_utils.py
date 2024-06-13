@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import tensorflow as tf
-import tensorflow.keras.optimizers.schedules as schedules
+import keras.optimizers.schedules as schedules
 from loguru import logger
 
 from .pipelines.callbacks import ClearMemory
