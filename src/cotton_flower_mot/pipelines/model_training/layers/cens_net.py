@@ -20,10 +20,10 @@ class CensNet(MessagePassing):
 
     def __init__(
         self,
-        *,
         num_nodes_out: int,
         num_edges_out: int,
         activation: str = "relu",
+        use_bias: bool = True,
         **kwargs: Any
     ):
         """
@@ -31,6 +31,7 @@ class CensNet(MessagePassing):
             num_nodes_out: The number of node output features.
             num_edges_out: The number of edge output features.
             activation: The activation function to use.
+            use_bias: Whether to use biases as well.
             **kwargs: Will be forwarded to the superclass.
         """
         super().__init__(**kwargs)
@@ -39,11 +40,14 @@ class CensNet(MessagePassing):
         self.num_edges_out = num_edges_out
         self._activation_name = activation
         self._activation = keras.activations.get(activation)
+        self._use_bias = use_bias
 
         self.node_weights = None
         self.edge_weights = None
         self.edge_weight_vector = None
         self.node_weight_vector = None
+        self.node_bias = None
+        self.edge_bias = None
 
     def get_config(self) -> Dict[str, Any]:
         return dict(
@@ -115,8 +119,8 @@ class CensNet(MessagePassing):
             [connected_node_indices[:, 1], edge_indices], axis=1
         )
 
-        # We now have all the points that should go in the sparse binary
-        # transformation matrix.
+        # We now have all the points that should go in the sparse incidence
+        # matrix.
         edge_indicators = tf.ones_like(edge_indices, dtype=tf.float32)
         num_nodes = tf.cast(tf.shape(adjacency)[0], tf.int64)
         num_edges = connected_node_indices.shape[0]
@@ -136,7 +140,10 @@ class CensNet(MessagePassing):
         # Combine the matrices for the left and right nodes.
         combined_sparse = tf.sparse.maximum(left_sparse, right_sparse)
 
-        return combined_sparse
+        if isinstance(adjacency, tf.SparseTensor):
+            return combined_sparse
+        else:
+            return tf.sparse.to_dense(combined_sparse)
 
     @classmethod
     def _square_incidence(
@@ -160,12 +167,10 @@ class CensNet(MessagePassing):
         if edge_weights is not None:
             edge_weights = tf.squeeze(edge_weights, axis=-1)
             diagonal_weighted_incidence = incidence * edge_weights
-        row_sums = tf.sparse.reduce_sum(
-            diagonal_weighted_incidence, axis=1, output_is_sparse=True
-        )
-        diag_indices = tf.range(0, row_sums.dense_shape[0])
+        row_sums = tf.sparse.reduce_sum(diagonal_weighted_incidence, axis=1)
+        diag_indices = tf.range(0, tf.shape(row_sums)[0], dtype=tf.int64)
         diag_indices = tf.stack([diag_indices, diag_indices], axis=1)
-        diag_values = row_sums.values
+        diag_values = row_sums
 
         # Computing the off-diagonals is a little trickier. Basically,
         # we check the indices to see if there are any cases where the row
@@ -205,7 +210,7 @@ class CensNet(MessagePassing):
         )
 
     @classmethod
-    def line_graph(cls, incidence: MaybeSparse) -> MaybeSparse:
+    def line_graph(cls, incidence: tf.SparseTensor) -> tf.SparseTensor:
         """
         Creates the corresponding normal adjacency matrix.
 
@@ -220,14 +225,14 @@ class CensNet(MessagePassing):
         incidence_sq = cls._square_incidence(tf.sparse.transpose(incidence))
 
         num_rows = incidence_sq.dense_shape[0]
-        identity = tf.sparse.eye(num_rows)
+        identity = tf.sparse.eye(num_rows, dtype=incidence.dtype)
         edge_adjacency = tf.sparse.add(
             incidence_sq, identity * tf.constant(-2, dtype=incidence.dtype)
         )
         return cls.add_self_loops(edge_adjacency)
 
     @classmethod
-    def add_self_loops(cls, adjacency: tf.SparseTensor) -> tf.SparseTensor:
+    def add_self_loops(cls, adjacency: MaybeSparse) -> MaybeSparse:
         """
         Adds self-loops to an adjacency matrix if they are not present.
 
@@ -238,12 +243,56 @@ class CensNet(MessagePassing):
             The modified matrix.
 
         """
-        eye = tf.sparse.eye(adjacency.dense_shape[0], dtype=adjacency.dtype)
-        return tf.sparse.maximum(adjacency, eye)
+        if isinstance(adjacency, tf.SparseTensor):
+            eye = tf.sparse.eye(
+                adjacency.dense_shape[0], dtype=adjacency.dtype
+            )
+            return tf.sparse.maximum(adjacency, eye)
+        else:
+            eye = tf.eye(tf.shape(adjacency)[0], dtype=adjacency.dtype)
+            return tf.maximum(adjacency, eye)
+
+    @classmethod
+    def laplacian(cls, adjacency: tf.SparseTensor) -> tf.SparseTensor:
+        """
+        Computes the normalized Laplacian matrix as required by GCN:
+
+        `D^(-1/2)@A@D^(-1/2)`, where `A` is the adjacency matrix and `D` is the
+        degree matrix.
+
+        Args:
+            adjacency: The adjacency matrix, with self-loops.
+
+        Returns:
+            The laplacian.
+
+        """
+        index_sources = adjacency.indices[:, 0]
+        index_targets = adjacency.indices[:, 1]
+
+        # Compute the degree of each node in the adjacency matrix.
+        degrees = tf.math.unsorted_segment_sum(
+            tf.ones_like(index_sources),
+            index_sources,
+            adjacency.dense_shape[0],
+        )
+        # Figure out the degree of the node at each end of each edge.
+        source_edge_degrees = tf.gather(degrees, index_sources)
+        target_edge_degrees = tf.gather(degrees, index_targets)
+
+        # Compute laplacian weights.
+        weights = 1 / tf.sqrt(
+            tf.cast(source_edge_degrees * target_edge_degrees, tf.float32)
+        )
+        return tf.sparse.SparseTensor(
+            indices=adjacency.indices,
+            values=weights,
+            dense_shape=adjacency.dense_shape,
+        )
 
     @classmethod
     def preprocess(
-        cls, adjacency: tf.SparseTensor
+        cls, adjacency: MaybeSparse
     ) -> Tuple[tf.SparseTensor, tf.SparseTensor, tf.SparseTensor]:
         """
         Pre-processes the adjacency matrix such that it can be used in this
@@ -258,13 +307,22 @@ class CensNet(MessagePassing):
             all in the form expected by the layer.
 
         """
+        if not isinstance(adjacency, tf.SparseTensor):
+            adjacency = tf.sparse.from_dense(adjacency)
+
         # Get the incidence matrix.
         incidence = cls.incidence_matrix(adjacency)
         edge_adjacency = cls.line_graph(incidence)
 
+        # Compute normalized laplacian.
+        adjacency = cls.add_self_loops(adjacency)
+        edge_adjacency = cls.add_self_loops(edge_adjacency)
+        laplacian = cls.laplacian(adjacency)
+        edge_laplacian = cls.laplacian(edge_adjacency)
+
         return (
-            cls.add_self_loops(adjacency),
-            cls.add_self_loops(edge_adjacency),
+            laplacian,
+            edge_laplacian,
             incidence,
         )
 
@@ -302,6 +360,18 @@ class CensNet(MessagePassing):
             name="node_weight_vector",
             shape=(nodes_in,),
         )
+
+        if self._use_bias:
+            self.node_bias = self.add_weight(
+                name="node_bias",
+                shape=(self.num_nodes_out,),
+            )
+            self.edge_bias = self.add_weight(
+                name="edge_bias",
+                shape=(self.num_edges_out,),
+            )
+
+        super().build(input_shape)
 
     def call(
         self,
@@ -357,6 +427,9 @@ class CensNet(MessagePassing):
         # Pre-compute the weighted node and edge features.
         node_features = tf.matmul(node_features, self.node_weights)
         edge_features = tf.matmul(edge_features, self.edge_weights)
+        if self._use_bias:
+            node_features += self.node_bias
+            edge_features += self.edge_bias
 
         # We're going to propagate twice: Once for the node update, and once
         # for the edge update.
@@ -380,6 +453,7 @@ class CensNet(MessagePassing):
         self,
         x: tf.Tensor,
         *,
+        a: tf.SparseTensor | None = None,
         node_update_adjacency_weights: tf.SparseTensor | None = None,
         edge_update_adjacency_weights: tf.SparseTensor | None = None,
         **kwargs: Any
@@ -390,6 +464,7 @@ class CensNet(MessagePassing):
 
         Args:
             x: The node features.
+            a: The adjacency matrix.
             node_update_adjacency_weights: The adjacency weights for the node
                 update, if we are doing that with the same shape as the `a`.
             edge_update_adjacency_weights: The adjacency weights for the edge
@@ -410,7 +485,8 @@ class CensNet(MessagePassing):
             # We're processing the edges.
             messages = self.get_sources(x)
             weights = edge_update_adjacency_weights.values
-        return weights[:, None] * messages
+
+        return weights[:, None] * a.values[:, None] * messages
 
     def update(self, embeddings: tf.Tensor, **_: Any) -> tf.Tensor:
         # Apply the activation.
