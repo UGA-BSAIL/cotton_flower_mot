@@ -20,7 +20,7 @@ from ...graph_utils import (
     gcn_filter,
     make_complete_bipartite_adjacency_matrices,
 )
-from .layers import AssociationLayer, BnActConv, ResidualCensNet
+from .layers import AssociationLayer, BnActConv, ResidualCensNet, CensNet
 from .models_common import make_geometry_inputs
 from ...similarity_utils import (
     aspect_ratio_penalty,
@@ -350,9 +350,6 @@ def _incidence_matrix(
 
 def _preprocess_adjacency(
     adjacency_matrices: tf.Tensor,
-    *,
-    num_tracklets: tf.Tensor,
-    num_detections: tf.Tensor,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """
     Pre-processes that adjacency matrix for `CensNet`. Equivalent to
@@ -361,29 +358,18 @@ def _preprocess_adjacency(
     Args:
         adjacency_matrices: The binary adjacency matrix. Should have shape
             `[[batch_size], n_nodes, n_nodes]`.
-        num_tracklets: The number of tracklets for each graph, as a vector.
-        num_detections: The number of detections for each graph, as a vector.
 
     Returns:
         The node Laplacian, edge Laplacian, and incidence matrix.
 
     """
-    # Compute the maximum number of edges we should have.
-    max_num_edges = tf.reduce_max(num_tracklets) * tf.reduce_max(
-        num_detections
-    )
-
     # Force use of float32 here, but convert back once finished.
     input_dtype = adjacency_matrices.dtype
     adjacency_matrices = tf.cast(adjacency_matrices, tf.float32)
 
-    node_laplacian = gcn_filter(adjacency_matrices)
-    incidence = _incidence_matrix(adjacency_matrices, num_edges=max_num_edges)
-    line_graph_adjacency = line_graph(incidence)
-    # Cut off anything below zero. These are artifacts that appear when we try
-    # to compute the line graph of a graph that has unconnected nodes.
-    line_graph_adjacency = tf.maximum(0.0, line_graph_adjacency)
-    edge_laplacian = gcn_filter(line_graph_adjacency)
+    node_laplacian, edge_laplacian, incidence = CensNet.preprocess(
+        adjacency_matrices
+    )
 
     # We want to treat these as constants for the purposes of gradient
     # computation.
@@ -455,11 +441,9 @@ def extract_interaction_features(
     )((num_tracklets, num_detections))
     # Compute CensNet graph structure inputs.
     graph_structure = layers.Lambda(
-        lambda a: _preprocess_adjacency(
-            a[0], num_tracklets=a[1], num_detections=a[2]
-        ),
+        _preprocess_adjacency,
         name="preprocess_cens_net",
-    )((adjacency_matrices, num_tracklets, num_detections))
+    )(adjacency_matrices)
 
     # Note that the order of concatenation is important here.
     combined_app_features = layers.Concatenate(axis=1)(

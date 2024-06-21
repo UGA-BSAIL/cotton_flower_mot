@@ -281,6 +281,36 @@ def test_line_graph(random_graph_descriptors: GraphDescriptors) -> None:
     assert nx.is_isomorphic(got_line_graph, expected_line_graph)
 
 
+def test_line_graph_unconnected_nodes() -> None:
+    """
+    Tests that `line_graph` works when some nodes in the graph are completely
+    unconnected.
+
+    """
+    # Arrange.
+    # Create an unconnected graph.
+    node_adjacency = tf.SparseTensor(
+        indices=[[0, 1], [1, 0], [1, 2], [2, 1]],
+        values=[1, 1, 1, 1],
+        dense_shape=[10, 10],
+    )
+
+    # Compute the incidence matrix.
+    incidence = CensNet.incidence_matrix(node_adjacency)
+
+    # Act.
+    # Compute the line graph.
+    edge_adjacency = CensNet.line_graph(incidence)
+
+    # Assert.
+    # It should not contain invalid values.
+    edge_adjacency = tf.sparse.to_dense(edge_adjacency).numpy()
+    assert np.all(edge_adjacency > 0)
+
+    # There should be two edges.
+    assert edge_adjacency.shape == (2, 2)
+
+
 def test_incidence_same_as_spektral(
     random_graph_descriptors: GraphDescriptors,
 ) -> None:

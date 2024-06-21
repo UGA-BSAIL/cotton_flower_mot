@@ -15,6 +15,7 @@ from ....graph_utils import (
     gcn_filter,
 )
 from .utility import BnActConv
+from .cens_net import CensNet
 
 
 class _AdjacencyMatrixUpdate(layers.Layer):
@@ -198,11 +199,10 @@ class ResidualCensNet(layers.Layer):
         self._node_conv1_1 = None
         self._edge_conv1_1 = None
 
-        self._gcn1_1 = spektral.layers.CensNetConv(
+        self._gcn1_1 = CensNet(
             node_channels,
             edge_channels,
             *args,
-            edge_output=edge_output,
             **kwargs
         )
         self._add_nodes = layers.Add(name="add_nodes")

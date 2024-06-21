@@ -21,6 +21,7 @@ from .utility import BnActConv, BnActDense
 from .pooling import RoiPooling
 from .pretrained_tf import PretrainedTf
 from .appearance_feature_extractor import AppearanceFeatureExtractor
+from .cens_net import CensNet
 
 # Make sure that Kedro is aware of custom layers.
 CUSTOM_LAYERS = {
@@ -46,6 +47,7 @@ CUSTOM_LAYERS = {
         RoiPooling,
         PretrainedTf,
         AppearanceFeatureExtractor,
+        CensNet,
     )
 }
 if "custom_objects" not in TensorFlowModelDataset.DEFAULT_LOAD_ARGS:
