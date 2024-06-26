@@ -267,12 +267,20 @@ def make_complete_bipartite_adjacency_matrices(
         ),
         (num_left_nodes, num_right_nodes, offsets),
         fn_output_signature=tf.SparseTensorSpec(
-            output_shape, dtype=tf.float32
+            (None, None), dtype=tf.float32
         ),
     )
     # They should all be offset correctly already, so we can just sum them.
-    return tf.sparse.reduce_sum(
+    combined_adjacency = tf.sparse.reduce_sum(
         adjacency_matrices, axis=0, output_is_sparse=True
+    )
+    # This little trick is to get Keras to pick up on the fact that the
+    # output is rank 2. For some reason, a straight `reduce_sum` confuses it,
+    # and it can't determine the output rank statically.
+    return tf.SparseTensor(
+        indices=combined_adjacency.indices,
+        values=combined_adjacency.values,
+        dense_shape=adjacency_matrices.dense_shape[1:],
     )
 
 

@@ -192,28 +192,29 @@ def test_make_complete_bipartite_adjacency_matrices() -> None:
 
     # It should have zeros for non-bipartite edges.
     batch_size = len(num_left)
-    offsets = tf.cumsum(num_left + num_right, exclusive=True)
+    num_nodes = num_left + num_right
+    offsets = tf.cumsum(num_nodes, exclusive=True)
     adjacency_matrices = tf.sparse.to_dense(adjacency_matrices).numpy()
-    for b, r, c in itertools.product(
-        *map(range, [batch_size, total_num_nodes, total_num_nodes])
-    ):
-        # Since the individual matrices are laid out diagonally, we can use
-        # an offset to select the correct one.
-        offset = offsets[b].numpy()
-        if r < num_left[b] <= c < num_left[b] + num_right[b]:
-            np.testing.assert_array_almost_equal(
-                1, adjacency_matrices[r + offset][c + offset]
-            )
-        elif c < num_left[b] <= r < num_left[b] + num_right[b]:
-            # Symmetric
-            np.testing.assert_array_almost_equal(
-                1, adjacency_matrices[r + offset][c + offset]
-            )
-        else:
-            print(r, c, offset, adjacency_matrices[r + offset][c + offset])
-            np.testing.assert_array_almost_equal(
-                0, adjacency_matrices[r + offset][c + offset]
-            )
+    for b in range(batch_size):
+        matrix_size = num_nodes[b]
+        for r, c in itertools.product(*map(range, [matrix_size] * 2)):
+            # We have to use the offset to select the correct submatrix.
+            # Since the individual matrices are laid out diagonally, we can use
+            # an offset to select the correct one.
+            offset = offsets[b].numpy()
+            if r < num_left[b] <= c < num_left[b] + num_right[b]:
+                np.testing.assert_array_almost_equal(
+                    1, adjacency_matrices[r + offset][c + offset]
+                )
+            elif c < num_left[b] <= r < num_left[b] + num_right[b]:
+                # Symmetric
+                np.testing.assert_array_almost_equal(
+                    1, adjacency_matrices[r + offset][c + offset]
+                )
+            else:
+                np.testing.assert_array_almost_equal(
+                    0, adjacency_matrices[r + offset][c + offset]
+                )
 
 
 @pytest.mark.parametrize(

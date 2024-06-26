@@ -196,15 +196,10 @@ class ResidualCensNet(layers.Layer):
         self._edge_output = edge_output
 
         # Pre-create the sub-layers.
-        self._node_conv1_1 = None
-        self._edge_conv1_1 = None
+        self._node_proj1_1 = None
+        self._edge_proj1_1 = None
 
-        self._gcn1_1 = CensNet(
-            node_channels,
-            edge_channels,
-            *args,
-            **kwargs
-        )
+        self._gcn1_1 = CensNet(node_channels, edge_channels, *args, **kwargs)
         self._add_nodes = layers.Add(name="add_nodes")
         self._add_edges = layers.Add(name="add_edges")
 
@@ -218,30 +213,28 @@ class ResidualCensNet(layers.Layer):
 
         if num_node_input_channels != self._node_channels:
             logger.debug(
-                "Adding extra convolution to {} to "
+                "Adding extra projection to {} to "
                 "convert from {} node channels to {}.",
                 self.name,
                 num_node_input_channels,
                 self._node_channels,
             )
 
-            # We bring the number of channels in-line with a 1D convolution,
-            # since the input has 3 channels and the first 2 should always be
-            # the same.
-            self._node_conv1_1 = layers.Conv1D(
-                self._node_channels, 1, padding="same", name="adapt_nodes"
+            # We bring the number of channels in-line with a single projection
+            self._node_proj1_1 = layers.Dense(
+                self._node_channels, name="adapt_nodes"
             )
         if num_edge_input_channels != self._edge_channels:
             logger.debug(
-                "Adding extra convolution to {} to "
+                "Adding extra projection to {} to "
                 "convert from {} edge channels to {}.",
                 self.name,
                 num_edge_input_channels,
                 self._edge_channels,
             )
 
-            self._edge_conv1_1 = layers.Conv1D(
-                self._edge_channels, 1, padding="same", name="adapt_edges"
+            self._edge_proj1_1 = layers.Dense(
+                self._edge_channels, name="adapt_edges"
             )
 
         super().build(input_shape)
@@ -251,18 +244,19 @@ class ResidualCensNet(layers.Layer):
     ) -> Union[Tuple[tf.Tensor, tf.Tensor], tf.Tensor]:
         nodes, _, edges = inputs
         outputs = self._gcn1_1(inputs, **kwargs)
+
         nodes_res = outputs
         if self._edge_output:
             # Compute edge residual.
             nodes_res, edges_res = outputs
 
-            if self._edge_conv1_1 is not None:
-                edges = self._edge_conv1_1(edges)
+            if self._edge_proj1_1 is not None:
+                edges = self._edge_proj1_1(edges)
             new_edges = self._add_edges([edges, edges_res])
 
-        if self._node_conv1_1 is not None:
+        if self._node_proj1_1 is not None:
             # Adapt the input size so it matches up.
-            nodes = self._node_conv1_1(nodes)
+            nodes = self._node_proj1_1(nodes)
 
         # Compute the residual.
         new_nodes = self._add_nodes([nodes, nodes_res])

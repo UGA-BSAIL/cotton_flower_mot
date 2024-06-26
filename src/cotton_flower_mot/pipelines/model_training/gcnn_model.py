@@ -9,7 +9,6 @@ from typing import Tuple
 import keras
 import tensorflow as tf
 from keras import layers
-from spektral.utils.convolution import line_graph
 
 from .layers.appearance_feature_extractor import AppearanceFeatureExtractor
 from ..config import ModelConfig
@@ -17,7 +16,6 @@ from ...schemas import ModelTargets, ModelInputs
 from ...graph_utils import (
     compute_bipartite_edge_features,
     compute_pairwise_similarities,
-    gcn_filter,
     make_complete_bipartite_adjacency_matrices,
 )
 from .layers import AssociationLayer, BnActConv, ResidualCensNet, CensNet
@@ -205,14 +203,14 @@ def _build_gnn(
             of the graph. These can be generated using
             `CensNetConv.preprocess()`.
         node_features: The input node features. Should have the shape
-            `[batch_size, n_nodes, n_features]`.
+            `[batch_size * n_nodes, n_features]`.
         edge_features: The input edge features. Should have the shape
-            `[batch_size, n_edges, n_features]`.
+            `[batch_size * n_edges, n_features]`.
         config: The model configuration.
 
     Returns:
         The output node features from the GNN, which will have the shape
-        `[batch_size, n_nodes, n_gcn_channels]`.
+        `[batch_size * n_nodes, n_gcn_channels]`.
 
     """
     # node_features = bound_numerics(node_features)
@@ -304,65 +302,25 @@ def _incidence_matrix_single(triangular_adjacency, *, num_edges):
     return tf.sparse.to_dense(combined_sparse)
 
 
-def _incidence_matrix(
-    adjacency: tf.Tensor, *, num_edges: tf.Tensor
-) -> tf.Tensor:
-    """
-    Creates the corresponding incidence matrices for graphs with particular
-    adjacency matrices.
-
-    Args:
-        adjacency: The binary adjacency matrices. Should have shape
-            ([batch], n_nodes, n_nodes).
-        num_edges: The number of edges to use for the incidence matrix. This
-            will add padding as necessary.
-
-    Returns:
-        The computed incidence matrices. It will have a shape of
-        ([batch], n_nodes, n_edges).
-    """
-    adjacency = tf.convert_to_tensor(adjacency, dtype=tf.float32)
-    added_batch = False
-    if len(adjacency.shape) == 2:
-        # Add the extra batch dimension if needed.
-        adjacency = tf.expand_dims(adjacency, axis=0)
-        added_batch = True
-
-    # Compute the maximum number of edges. We will pad everything in the
-    # batch to this dimension.
-    adjacency_upper = _triangular_adjacency(adjacency)
-
-    # Compute all the transformation matrices.
-    make_single_matrix = partial(_incidence_matrix_single, num_edges=num_edges)
-    transformation_matrices = tf.map_fn(
-        make_single_matrix,
-        adjacency_upper,
-        fn_output_signature=tf.TensorSpec(
-            shape=[None, None], dtype=tf.float32
-        ),
-    )
-
-    if added_batch:
-        # Remove the extra batch dimension before returning.
-        transformation_matrices = transformation_matrices[0]
-    return transformation_matrices
-
-
-def _preprocess_adjacency(
-    adjacency_matrices: tf.Tensor,
+def _preprocess_gnn(
+    num_tracklets: tf.Tensor, num_detections: tf.Tensor
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     """
     Pre-processes that adjacency matrix for `CensNet`. Equivalent to
     `CensNetConv.preprocess()` except that it works on tensors.
 
     Args:
-        adjacency_matrices: The binary adjacency matrix. Should have shape
-            `[[batch_size], n_nodes, n_nodes]`.
+        num_tracklets: A vector of the number of tracklets in each graph,
+        num_detections: A vector of the number of detections in each graph.
 
     Returns:
         The node Laplacian, edge Laplacian, and incidence matrix.
 
     """
+    adjacency_matrices = make_complete_bipartite_adjacency_matrices(
+        num_tracklets, num_detections
+    )
+
     # Force use of float32 here, but convert back once finished.
     input_dtype = adjacency_matrices.dtype
     adjacency_matrices = tf.cast(adjacency_matrices, tf.float32)
@@ -382,6 +340,115 @@ def _preprocess_adjacency(
         tf.cast(edge_laplacian, input_dtype),
         tf.cast(incidence, input_dtype),
     )
+
+
+def _unpad_and_flatten(
+    features: tf.Tensor, row_lengths: tf.Tensor
+) -> tf.Tensor:
+    """
+    A helper function that removes the padding from a padded
+    `RaggedTensor` and then flattens it.
+
+    Args:
+        features: The padded features, with shape
+            `[batch_size, max_n_nodes, n_features]`.
+        row_lengths: The row lengths of the original ragged tensor.
+
+    Returns:
+        The unpadded features with shape
+            `[batch_size * max_n_nodes, n_features]`.
+
+    """
+    ragged_features = tf.RaggedTensor.from_tensor(
+        features, lengths=row_lengths
+    )
+    return ragged_features.merge_dims(0, 1)
+
+
+def _unpad_concat_and_flatten(
+    features1: tf.Tensor,
+    features2: tf.Tensor,
+    row_lengths1: tf.Tensor,
+    row_lengths2: tf.Tensor,
+) -> tf.Tensor:
+    """
+    A helper function that removes the padding from two padded
+    `RaggedTensor`s, concatenates them along the ragged dimension, and then
+    flattens them. The output is a normal tensor because it flattens the
+    first two dimensions.
+
+    Args:
+        features1: The first padded features, with shape
+            `[batch_size, max_n_nodes, n_features]`.
+        features2: The second padded features, with shape
+            `[batch_size, max_n_nodes, n_features]`.
+        row_lengths1: The row lengths of the first original ragged tensor.
+        row_lengths2: The row lengths of the second original ragged tensor.
+
+    Returns:
+        The unpadded features with shape
+            `[batch_size * n_nodes * 2, n_features]`.
+
+    """
+    ragged_features1 = tf.RaggedTensor.from_tensor(
+        features1, lengths=row_lengths1
+    )
+    ragged_features2 = tf.RaggedTensor.from_tensor(
+        features2, lengths=row_lengths2
+    )
+    ragged_features = tf.concat((ragged_features1, ragged_features2), axis=1)
+    return ragged_features.merge_dims(0, 1)
+
+
+def _unflatten_split_and_pad(
+    features: tf.Tensor, row_lengths1: tf.Tensor, row_lengths2: tf.Tensor
+) -> Tuple[tf.Tensor, tf.Tensor]:
+    """
+    A helper function that unflattens a flattened `RaggedTensor`, splits it
+    into the original two tensors, and adds the padding back. Essentially the
+    reverse operation of `_unpad_concat_and_flatten`.
+
+    Args:
+        features: The flattened features, with shape
+            `[batch_size * n_nodes, n_features]`.
+        row_lengths1: The row lengths of the first original ragged tensor.
+        row_lengths2: The row lengths of the second original ragged tensor.
+
+    Returns:
+        Both unpadded features with shape
+        `[batch_size, max_n_nodes, n_features]`.
+
+    """
+    ragged_features = tf.RaggedTensor.from_row_lengths(
+        features, row_lengths1 + row_lengths2
+    )
+
+    # Create the masks that we use to separate data from each tensor.
+    features1_true = tf.repeat(True, tf.reduce_sum(row_lengths1))
+    features1_false = tf.repeat(False, tf.reduce_sum(row_lengths1))
+    features2_true = tf.repeat(True, tf.reduce_sum(row_lengths2))
+    features2_false = tf.repeat(False, tf.reduce_sum(row_lengths2))
+
+    features1_true = tf.RaggedTensor.from_row_lengths(
+        features1_true, row_lengths1
+    )
+    features1_false = tf.RaggedTensor.from_row_lengths(
+        features1_false, row_lengths1
+    )
+    features2_true = tf.RaggedTensor.from_row_lengths(
+        features2_true, row_lengths2
+    )
+    features2_false = tf.RaggedTensor.from_row_lengths(
+        features2_false, row_lengths2
+    )
+
+    features1_mask = tf.concat((features1_true, features2_false), axis=1)
+    features2_mask = tf.concat((features1_false, features2_true), axis=1)
+
+    features1 = tf.ragged.boolean_mask(ragged_features, features1_mask)
+    features2 = tf.ragged.boolean_mask(ragged_features, features2_mask)
+
+    return features1.to_tensor(), features2.to_tensor()
 
 
 def extract_interaction_features(
@@ -435,19 +502,25 @@ def extract_interaction_features(
     # Create the adjacency matrix and build the GCN.
     num_detections = detections_geometry.row_lengths()
     num_tracklets = tracklets_geometry.row_lengths()
-    adjacency_matrices = layers.Lambda(
-        lambda n: make_complete_bipartite_adjacency_matrices(n[0], n[1]),
-        name="adjacency_matrices",
-    )((num_tracklets, num_detections))
     # Compute CensNet graph structure inputs.
     graph_structure = layers.Lambda(
-        _preprocess_adjacency,
+        lambda n: _preprocess_gnn(n[0], n[1]),
         name="preprocess_cens_net",
-    )(adjacency_matrices)
+    )((num_tracklets, num_detections))
 
     # Note that the order of concatenation is important here.
-    combined_app_features = layers.Concatenate(axis=1)(
-        (tracklets_app_features, detections_app_features)
+    combined_app_features = layers.Lambda(
+        lambda n: _unpad_concat_and_flatten(*n)
+    )(
+        (
+            tracklets_app_features,
+            detections_app_features,
+            num_tracklets,
+            num_detections,
+        )
+    )
+    edge_features = layers.Lambda(lambda n: _unpad_and_flatten(*n))(
+        (edge_features, num_tracklets * num_detections)
     )
     final_node_features = _build_gnn(
         graph_structure=graph_structure,
@@ -457,10 +530,10 @@ def extract_interaction_features(
     )
     # final_node_features = bound_numerics(final_node_features)
 
-    # Split back into separate tracklets and detections.
-    max_num_tracklets = tf.shape(tracklets_app_features)[1]
-    tracklets_inter_features = final_node_features[:, :max_num_tracklets, :]
-    detections_inter_features = final_node_features[:, max_num_tracklets:, :]
+    # Add back the padding.
+    tracklets_inter_features, detections_inter_features = layers.Lambda(
+        lambda n: _unflatten_split_and_pad(*n)
+    )((final_node_features, num_tracklets, num_detections))
     return tracklets_inter_features, detections_inter_features
 
 

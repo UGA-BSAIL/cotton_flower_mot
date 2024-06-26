@@ -7,6 +7,8 @@ import tensorflow as tf
 from typing import Tuple, Any, TypeVar, Dict
 import keras
 
+tf.config.run_functions_eagerly(True)
+
 MaybeSparse = TypeVar("MaybeSparse", tf.Tensor, tf.SparseTensor)
 """
 Used to type parameters that can be either dense or sparse tensors.
@@ -123,7 +125,7 @@ class CensNet(MessagePassing):
         # matrix.
         edge_indicators = tf.ones_like(edge_indices, dtype=tf.float32)
         num_nodes = tf.cast(tf.shape(adjacency)[0], tf.int64)
-        num_edges = connected_node_indices.shape[0]
+        num_edges = tf.cast(tf.shape(connected_node_indices)[0], tf.int64)
         output_shape = tf.stack([num_nodes, num_edges])
         left_sparse = tf.SparseTensor(
             indices=edges_with_left_nodes,

@@ -219,6 +219,7 @@ class TensorProvider(BaseProvider):
         return ModelConfig(
             image_input_shape=image_shape,
             detection_model_input_shape=detection_input_shape,
+            raw_yolo_input_shape=detection_input_shape,
             rot_net_input_shape=rot_net_shape,
             colorization_input_shape=detection_input_shape,
             colorization_output_shape=detection_input_shape,
