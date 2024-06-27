@@ -4,15 +4,13 @@ Tests for the `gcnn_model` module.
 
 from pathlib import Path
 
+import keras
 import numpy as np
 import pytest
 import tensorflow as tf
 from faker import Faker
 
 from src.cotton_flower_mot.pipelines.model_training import gcnn_model
-from src.cotton_flower_mot.pipelines.model_training.centernet_model import (
-    build_detection_model,
-)
 from src.cotton_flower_mot.pipelines.model_training.layers import CUSTOM_LAYERS
 
 
@@ -162,7 +160,8 @@ def test_save_model_smoke(faker: Faker, tmp_path: Path) -> None:
     # Arrange.
     # Create the model.
     config = faker.model_config(detection_input_shape=(540, 960, 3))
-    feature_extractor, _ = build_detection_model(config)
+    dummy_input = keras.Input((None, 128), ragged=True)
+    feature_extractor = keras.Model(inputs=dummy_input, outputs=dummy_input)
     model = gcnn_model.build_tracking_model(
         config, feature_extractor=feature_extractor
     )

@@ -7,8 +7,6 @@ import tensorflow as tf
 from typing import Tuple, Any, TypeVar, Dict
 import keras
 
-tf.config.run_functions_eagerly(True)
-
 MaybeSparse = TypeVar("MaybeSparse", tf.Tensor, tf.SparseTensor)
 """
 Used to type parameters that can be either dense or sparse tensors.

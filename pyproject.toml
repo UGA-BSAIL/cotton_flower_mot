@@ -1,64 +1,70 @@
-[tool.poetry]
-name = "cotton_flower_mot"
-version = "0.1.0"
-description = "Multi-object tracking for cotton flowers."
-authors = ["Daniel Petti <djpetti@gmail.com>"]
-license = "MIT"
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "ultralytics<9.0.0,>=8.0.208",
+    "pytest<7.0.0,>=6.2.2",
+    "pytest-mock<4.0.0,>=3.5.1",
+    "pytest-black<1.0.0,>=0.3.12",
+    "black<23.0.0,>=22.3.0",
+    "isort<6.0.0,>=5.7.0",
+    "pre-commit<3.0.0,>=2.11.0",
+    "pytest-snapshot<1.0.0,>=0.5.0",
+    "Faker<18.0.0,>=17.6.0",
+    "pytest-coverage<1.0,>=0.0",
+    "PyYAML<7.0.0,>=6.0.1",
+    "pytest-flake8<2.0.0,>=1.0.7",
+    "pydot<2.0.0,>=1.4.2",
+    "jupyterlab<4.0.0,>=3.4.2",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-kedro = {extras = ["matplotlib", "pandas"], version = "^0.18.1"}
-pycvat = {path = "pycvat", develop = false}
-pandas = "1.4.3"
-loguru = "^0.5.3"
-spektral = "^1.2.0"
-seaborn = "^0.13.2"
-matplotlib = "^3.3.4"
-pydantic = "^1.8.1"
-scipy = "^1.6.2"
-opencv-python = "^4.7.0"
-tenacity = "^8.0.1"
-tensorflow-datasets = "^4.4.0"
-numpy = "^1.26.1"
-opencv-contrib-python = "^4.7.0"
-tqdm = "^4.64.0"
-tensorflow-addons = "^0.19.0"
-python-json-logger = "^2.0.4"
-onnx2tf = "^1.22.4"
-tf2onnx = "^1.16.1"
-tabulate = "^0.9.0"
-kalmankit = "^1.7.8"
-av = "^11.0.0"
-tensorrt-libs = "8.6.1"
-tensorflow = "2.14.1"
-# Fixing this: https://github.com/tensorflow/recommenders/issues/713
-# See Tensorflow? It's crap like this. This is why we're leaving
-# you for Pytorch.
-tensorflow-recommenders = "0.7.2"
+[tool.pdm.build]
+includes = []
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.2.2"
-pytest-mock = "^3.5.1"
-pytest-black = "^0.3.12"
-black = "^22.3.0"
-isort = "^5.7.0"
-pre-commit = "^2.11.0"
-pytest-snapshot = "^0.5.0"
-Faker = "^17.6.0"
-pytest-coverage = "^0.0"
-PyYAML = "^6.0.1"
-pytest-flake8 = "^1.0.7"
-pydot = "^1.4.2"
-jupyterlab = "^3.4.2"
-
-[tool.poetry.group.dev.dependencies]
-ultralytics = "^8.0.208"
-
-
-[[tool.poetry.source]]
+[[tool.pdm.source]]
 name = "nvidia"
 url = "https://pypi.nvidia.com"
-priority = "supplemental"
+verify_ssl = true
+
+[project]
+# PEP 621 project metadata
+# See https://www.python.org/dev/peps/pep-0621/
+authors = [
+    {name = "Daniel Petti", email = "djpetti@gmail.com"},
+]
+license = {text = "MIT"}
+requires-python = "<3.11,>=3.10"
+dependencies = [
+    "kedro[matplotlib,pandas]<1.0.0,>=0.18.1,<0.19.0",
+    "pycvat @ file:///${PROJECT_ROOT}/pycvat",
+    "pandas==1.4.3",
+    "loguru<1.0.0,>=0.5.3",
+    "spektral<2.0.0,>=1.2.0",
+    "seaborn<1.0.0,>=0.13.2",
+    "matplotlib<4.0.0,>=3.3.4",
+    "pydantic<2.0.0,>=1.8.1",
+    "scipy<2.0.0,>=1.6.2",
+    "opencv-python<5.0.0,>=4.7.0",
+    "tenacity<9.0.0,>=8.0.1",
+    "tensorflow-datasets<5.0.0,>=4.4.0",
+    "numpy<2.0.0,>=1.26.1",
+    "opencv-contrib-python<5.0.0,>=4.7.0",
+    "tqdm<5.0.0,>=4.64.0",
+    "tensorflow-addons<1.0.0,>=0.19.0",
+    "python-json-logger<3.0.0,>=2.0.4",
+    "onnx2tf<2.0.0,>=1.22.4",
+    "tf2onnx<2.0.0,>=1.16.1",
+    "tabulate<1.0.0,>=0.9.0",
+    "kalmankit<2.0.0,>=1.7.8",
+    "av<12.0.0,>=11.0.0",
+    "tensorrt-libs==8.6.1",
+    "tensorflow[and-cuda]>=2.15.0,<2.16.0",
+    "tensorflow-recommenders==0.7.2",
+    "tables==3.9.2",
+]
+
+[tool.pdm.resolution.overrides]
+# The version kedro wants fails to build.
+tables = "3.9.2"
 
 [tool.black]
 line-length = 79
@@ -82,8 +88,8 @@ skip = "('.eggs', '.git', '.venv', 'build', 'dist')"
 [tool.kedro]
 package_name = "cotton_flower_mot"
 project_name = "Cotton Flower MOT"
-project_version = "0.18.1"
+kedro_init_version = "0.18.1"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
