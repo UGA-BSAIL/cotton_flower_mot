@@ -224,6 +224,7 @@ def _build_gnn(
         config.num_node_features,
         config.num_edge_features,
         activation="relu",
+        agg="mean",
     )((node_features, graph_structure, edge_features))
 
     nodes1_1 = layers.BatchNormalization()(nodes1_1)
@@ -232,6 +233,7 @@ def _build_gnn(
         config.num_node_features,
         config.num_edge_features,
         activation="relu",
+        agg="mean",
     )((nodes1_1, graph_structure, edges1_1))
 
     return nodes1_2
