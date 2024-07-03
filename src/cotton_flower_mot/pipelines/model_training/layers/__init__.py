@@ -4,7 +4,7 @@ Custom Keras layers used by this pipeline.
 
 from kedro.extras.datasets.tensorflow import TensorFlowModelDataset
 
-from .association import AssociationLayer
+from .association import AssociationLayer, HungarianLayer
 from .centernet import CenterSizes, ReductionStages
 from .dense import DenseBlock, TransitionLayer
 from .dla import (
@@ -31,6 +31,7 @@ CUSTOM_LAYERS = {
         DenseBlock,
         TransitionLayer,
         AssociationLayer,
+        HungarianLayer,
         BnActConv,
         BnActDense,
         DynamicEdgeGcn,

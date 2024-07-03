@@ -2,26 +2,30 @@ from functools import partial
 from typing import Any, Dict, Optional, Tuple
 
 import tensorflow as tf
+from keras import layers
 
 from ....assignment import (
     do_hard_assignment,
     solve_optimal_transport,
     add_births_and_deaths,
 )
+from ..ragged_utils import ragged_map_fn
 
 
-class AssociationLayer(tf.keras.layers.Layer):
+class AssociationLayer(layers.Layer):
     """
-    Custom layer that computes association matrices.
+    Custom layer that computes association matrix and applies the Sinkhorn
+    algorithm.
     """
 
-    def __init__(self, sinkhorn_lambda: float = 10.0):
+    def __init__(self, sinkhorn_lambda: float = 10.0, **kwargs: Any):
         """
         Args:
             sinkhorn_lambda: The Sinkhorn lambda value.
+            kwargs: Will be forwarded to the superclass.
 
         """
-        super().__init__()
+        super().__init__(**kwargs)
 
         self._lambda = sinkhorn_lambda
 
@@ -54,7 +58,7 @@ class AssociationLayer(tf.keras.layers.Layer):
         inputs: Tuple[tf.Tensor, tf.Tensor, tf.Tensor],
         training: Optional[bool] = None,
         **_,
-    ) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
+    ) -> tf.RaggedTensor:
         """
 
         Args:
@@ -70,9 +74,9 @@ class AssociationLayer(tf.keras.layers.Layer):
             training: Whether the layer should operate in training mode.
 
         Returns:
-            The normalized optimal transport matrix, and the corresponding hard
-            assignment matrix. These will be`RaggedTensor`s where the second
-            dimension is ragged, so it will have the shape
+            The normalized optimal transport matrix. This will
+            be a `RaggedTensor` where the second dimension is ragged,
+            so it will have the shape
             `[batch_size, (n_tracklets + 1) * (n_detections + 1)]`.
 
         """
@@ -81,7 +85,7 @@ class AssociationLayer(tf.keras.layers.Layer):
 
         def _normalize(
             element: Tuple[tf.Tensor, tf.Tensor, tf.Tensor]
-        ) -> Tuple[tf.Tensor, tf.Tensor]:
+        ) -> tf.Tensor:
             affinity_matrix, _num_detections, _num_tracklets = element
             # For the output, will add an extra row and column for
             # births/deaths.
@@ -135,27 +139,98 @@ class AssociationLayer(tf.keras.layers.Layer):
             )
             # Remove extraneous batch dimension.
             transport = transport[0]
-            assignment = do_hard_assignment(transport)
-            assignment = add_births_and_deaths(assignment)
-
-            return _pad_and_flatten(transport), _pad_and_flatten(assignment)
+            return _pad_and_flatten(transport)
 
         # Unfortunately, we can't have padding for the affinity scores, because
         # it affects the optimization. Therefore, this process has to be done
         # with map_fn instead of vectorized.
-        sinkhorn_dense, assignment_dense = tf.map_fn(
+        sinkhorn_dense = tf.map_fn(
             _normalize,
             (affinity_scores, num_detections, num_tracklets),
             fn_output_signature=(
-                tf.TensorSpec(shape=[None], dtype=tf.float32),
-                tf.TensorSpec(shape=[None], dtype=tf.bool),
+                tf.TensorSpec(shape=[None], dtype=tf.float32)
             ),
         )
 
         # Convert to a ragged tensor.
         row_lengths = (num_detections + one) * (num_tracklets + one)
         to_ragged = partial(tf.RaggedTensor.from_tensor, lengths=row_lengths)
-        return to_ragged(sinkhorn_dense), to_ragged(assignment_dense)
+        return to_ragged(sinkhorn_dense)
 
     def get_config(self) -> Dict[str, Any]:
         return dict(sinkhorn_lambda=self._lambda)
+
+
+class HungarianLayer(layers.Layer):
+    """
+    Custom layer that applies the Hungarian algorithm to the input to compute a
+    final hard assignment matrix.
+    """
+
+    def __init__(self, threshold: float = 0.5, **kwargs: Any):
+        """
+        Args:
+            threshold: The threshold to apply to the Sinkhorn matrix before
+                applying the Hungarian algorithm.
+            kwargs: Will be forwarded to the superclass.
+
+        """
+        super().__init__(**kwargs)
+
+        self._threshold = threshold
+
+    def call(
+        self,
+        inputs: Tuple[tf.RaggedTensor, tf.Tensor, tf.Tensor],
+        training: Optional[bool] = None,
+        **_,
+    ) -> tf.RaggedTensor:
+        """
+
+        Args:
+            inputs:
+                - sinkhorn: The flattened Sinkhorn matrix. Should have a
+                    shape of
+                    `[batch_size, (n_tracklets + 1) * (n_detections + 1)]`.
+                - num_detections: The number of detections in each example.
+                    Should be a vector of shape `[batch_size]`.
+                - num_tracklets: The number of tracklets in each example.
+                    Should be a vector of shape `[batch_size]`.
+            training: Whether the layer should operate in training mode.
+
+        Returns:
+            The hard assignment matrix. This will be a `RaggedTensor` where
+            the second dimension is ragged, so it will have the shape
+            `[batch_size, (n_tracklets + 1) * (n_detections + 1)]`.
+
+        """
+        sinkhorn, num_detections, num_tracklets = inputs
+        one = tf.constant(1, dtype=num_detections.dtype)
+
+        def _hungarian(
+            element: Tuple[tf.Tensor, tf.Tensor, tf.Tensor],
+        ) -> Tuple[tf.Tensor, tf.Tensor]:
+            _sinkhorn, _num_detections, _num_tracklets = element
+            # Un-flatten the sinkhorn matrix.
+            _sinkhorn = tf.reshape(
+                _sinkhorn,
+                (
+                    _num_tracklets + one,
+                    _num_detections + one,
+                ),
+            )
+
+            assignment = do_hard_assignment(
+                _sinkhorn, threshold=self._threshold
+            )
+            assignment = add_births_and_deaths(assignment)
+
+            return tf.reshape(assignment, (-1,))
+
+        return ragged_map_fn(
+            _hungarian,
+            (sinkhorn, num_detections, num_tracklets),
+            fn_output_signature=tf.RaggedTensorSpec(
+                ragged_rank=0, dtype=tf.bool
+            ),
+        )

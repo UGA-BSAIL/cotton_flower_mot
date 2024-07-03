@@ -3,7 +3,6 @@ Implements a model inspired by GCNNTrack.
 https://arxiv.org/pdf/2010.00067.pdf
 """
 
-from functools import partial
 from typing import Tuple
 
 import keras
@@ -18,7 +17,13 @@ from ...graph_utils import (
     compute_pairwise_similarities,
     make_complete_bipartite_adjacency_matrices,
 )
-from .layers import AssociationLayer, BnActConv, ResidualCensNet, CensNet
+from .layers import (
+    AssociationLayer,
+    BnActConv,
+    ResidualCensNet,
+    CensNet,
+    HungarianLayer,
+)
 from .models_common import make_geometry_inputs
 from ...similarity_utils import (
     aspect_ratio_penalty,
@@ -546,7 +551,8 @@ def compute_association(
     detections_geometry: tf.RaggedTensor,
     tracklets_geometry: tf.RaggedTensor,
     config: ModelConfig,
-) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
+    hard_assignment: bool = True,
+) -> Tuple[tf.RaggedTensor, tf.RaggedTensor | None]:
     """
     Builds a model that computes associations between tracklets and detections.
 
@@ -566,6 +572,8 @@ def compute_association(
             `[batch_size, n_tracklets, n_features]`, where the second dimension
             is ragged.
         config: The model configuration.
+        hard_assignment: If true, calculate and include the hard assignment
+            matrix in the output.
 
     Returns:
         The sinkhorn and assignment matrices. Will have shape
@@ -573,7 +581,8 @@ def compute_association(
         dimension is ragged and represents the flattened matrix. The association
         matrix is simply the Sinkhorn-normalized associations, whereas the
         assignment matrix is the hard assignments calculated with the
-        Hungarian algorithm.
+        Hungarian algorithm. If `hard_assignment` is false, the hard
+        assignment output will be None.
 
     """
     # Pad appearance features to dense tensors.
@@ -608,22 +617,31 @@ def compute_association(
     )
 
     # Compute the association matrices.
-    sinkhorn, assignment = AssociationLayer(
-        sinkhorn_lambda=config.sinkhorn_lambda
-    )(
+    sinkhorn = AssociationLayer(sinkhorn_lambda=config.sinkhorn_lambda)(
         (
             affinity_scores,
             detections_geometry.row_lengths(),
             tracklets_geometry.row_lengths(),
         )
     )
+
+    assignment = None
+    if hard_assignment:
+        assignment = HungarianLayer()(
+            (
+                sinkhorn,
+                detections_geometry.row_lengths(),
+                tracklets_geometry.row_lengths(),
+            )
+        )
+        assignment = layers.Activation(
+            "linear", name=ModelTargets.ASSIGNMENT.value
+        )(assignment)
+
     # Ensure outputs have the right name and dtype.
     sinkhorn = layers.Activation(
         "linear", name=ModelTargets.SINKHORN.value, dtype=tf.float32
     )(sinkhorn)
-    assignment = layers.Activation(
-        "linear", name=ModelTargets.ASSIGNMENT.value
-    )(assignment)
     return sinkhorn, assignment
 
 
