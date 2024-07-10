@@ -14,6 +14,7 @@ from loguru import logger
 import numpy as np
 from tensorflow.python.compiler.tensorrt import trt_convert as trt
 import tensorflow as tf
+from itertools import product
 
 
 InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
@@ -21,7 +22,7 @@ InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
 Type alias for a function that returns fake inputs to a model.
 """
 
-_MAX_MEMORY = 7000
+_MAX_MEMORY = 16000
 """
 Maximum memory usage to allow for TF, in MB.
 """
@@ -138,29 +139,55 @@ def _generate_tracker_inputs(
         The input function for the tracker.
 
     """
-    box_shape = (1, max_detections, 4)
-    appearance_shape = (1, max_detections, num_appearance_features)
 
-    boxes = np.random.normal(size=box_shape).astype(np.float32) + 1
-    boxes = np.clip(boxes, 0, 1)
-    appearance = np.random.normal(size=appearance_shape).astype(np.float32)
-    row_lengths = np.random.randint(
-        1, max_detections, size=(1, 1), dtype=np.int32
-    )
+    def _make_inputs_one_side(
+        num_boxes: int,
+    ) -> Tuple[np.array, np.array, np.array]:
+        box_shape = (1, num_boxes, 4)
+        appearance_shape = (1, num_boxes, num_appearance_features)
+
+        boxes = np.random.normal(size=box_shape).astype(np.float32) + 1
+        boxes = np.clip(boxes, 0, 1)
+        appearance = np.random.normal(size=appearance_shape).astype(np.float32)
+        row_lengths = np.array([[num_boxes]], dtype=np.int32)
+
+        return appearance, row_lengths, boxes
+
+    tracker_inputs = []
+    for num_detections, num_tracklets in product(
+        range(1, max_detections + 1), range(1, max_detections + 1)
+    ):
+        detection_inputs = _make_inputs_one_side(num_detections)
+        tracklet_inputs = _make_inputs_one_side(num_tracklets)
+
+        tracker_inputs.append(tracklet_inputs + detection_inputs)
 
     def _input_fn() -> Iterable[List[tf.Tensor]]:
         # Create dummy values for both detection and tracklet appearances
         # and bounding boxes.
-        yield [
-            appearance,
-            row_lengths,
-            boxes,
-            row_lengths,
-            appearance,
-            row_lengths,
-            boxes,
-            row_lengths,
-        ]
+        for (
+            track_appearance,
+            track_row_lengths,
+            track_boxes,
+            det_appearance,
+            det_row_lengths,
+            det_boxes,
+        ) in tracker_inputs:
+            logger.debug(
+                "Producing input with {} tracks and {} detections.",
+                track_boxes.shape[1],
+                det_boxes.shape[1],
+            )
+            yield [
+                track_appearance,
+                track_row_lengths,
+                track_boxes,
+                track_row_lengths,
+                det_appearance,
+                det_row_lengths,
+                det_boxes,
+                det_row_lengths,
+            ]
 
     return _input_fn
 
@@ -198,7 +225,7 @@ def _convert_saved_model(
         converter_factory = partial(
             converter_factory,
             use_dynamic_shape=True,
-            dynamic_shape_profile_strategy="Optimal",
+            dynamic_shape_profile_strategy="Range",
         )
     use_fp16 = calibration_input_function is None
     converter = converter_factory(
@@ -316,6 +343,7 @@ def _convert_mot_models(
         input_dir=model_dir / "tracking_model",
         output_dir=tracker_output,
         input_function=tracking_inputs,
+        dynamic_shapes=True
     )
 
     logger.info("Done converting MOT models.")
