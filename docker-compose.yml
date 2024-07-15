@@ -1,0 +1,21 @@
+services:
+  model_server:
+    # Docker container for running the model server.
+    build:
+      dockerfile: dockerfiles/model_server.docker
+      context: ./serving
+      target: server
+    command: "tensorflow_model_server --rest_api_port=8501 --model_config_file=model_serving.config"
+    network_mode: host
+    volumes:
+      - "${MODEL_DIR:?error}:/models"
+    # Nvidia recommended settings
+    ipc: "host"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: nvidia
+    
+  model_conversion:
+    # Docker container for performing TFRT conversion.
+    image: nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu

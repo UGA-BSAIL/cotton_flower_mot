@@ -1,0 +1,155 @@
+# Copyright 2018 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu as base_build
+
+ARG TF_SERVING_VERSION_GIT_BRANCH=master
+ARG TF_SERVING_VERSION_GIT_COMMIT=8cdf0b8
+ARG DEBIAN_FRONTEND=noninteractive
+
+LABEL maintainer=gvasudevan@google.com
+LABEL tensorflow_serving_github_branchtag=${TF_SERVING_VERSION_GIT_BRANCH}
+LABEL tensorflow_serving_github_commit=${TF_SERVING_VERSION_GIT_COMMIT}
+
+ENV CUDNN_VERSION=8.9.4.25
+ENV TF_TENSORRT_VERSION=8.6.2
+ENV CUDA=12.2
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl
+
+# Download TF Serving sources (optionally at specific commit).
+WORKDIR /tensorflow-serving
+RUN curl -sSL --retry 5 https://github.com/tensorflow/serving/tarball/${TF_SERVING_VERSION_GIT_COMMIT} | tar --strip-components=1 -xzf -
+
+RUN /tensorflow-serving/tensorflow_serving/tools/docker/setup.sources.sh
+
+RUN apt-get install -y --no-install-recommends \
+        automake \
+        build-essential \
+        ca-certificates \
+        libcufft-dev-12-2 \
+        libcurand-dev-12-2 \
+        libcusolver-dev-12-2 \
+        libcusparse-dev-12-2 \
+        clang-17 \
+        llvm-17 \
+        lld-17 \
+        git \
+        libfreetype6-dev \
+        libtool \
+        libcurl3-dev \
+        libzmq3-dev \
+        mlocate \
+        openjdk-8-jdk\
+        openjdk-8-jre-headless \
+        pkg-config \
+        software-properties-common \
+        swig \
+        unzip \
+        wget \
+        zip \
+        zlib1g-dev && \
+    find /usr/local/cuda-12.2/lib64/ -type f -name 'lib*_static.a' -not -name 'libcudart_static.a' -delete
+
+RUN pip3 --no-cache-dir install \
+    future>=0.17.1 \
+    grpcio \
+    h5py \
+    keras_applications>=1.0.8 \
+    keras_preprocessing>=1.1.0 \
+    mock \
+    numpy \
+    portpicker \
+    requests \
+     --ignore-installed six>=1.12.0
+
+# Set up Bazel
+ENV BAZEL_VERSION 6.4.0
+WORKDIR /
+RUN mkdir /bazel && \
+    cd /bazel && \
+    curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /usr/local/bin/bazel -O https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-arm64 && \
+    curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE
+
+# Build TensorFlow with the CUDA configuration
+ENV CI_BUILD_PYTHON python
+ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64:/usr/local/cuda/lib64/stubs:/usr/include/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:$LD_LIBRARY_PATH
+
+# Fix paths so that CUDNN can be found: https://github.com/tensorflow/tensorflow/issues/8264
+WORKDIR /
+RUN ln -s /usr/include/cudnn.h /usr/local/cuda/include/cudnn.h && \
+  ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so /usr/local/cuda/lib64/libcudnn.so && \
+  ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.${TF_CUDNN_VERSION} \
+    /usr/local/cuda/lib64/libcudnn.so.${TF_CUDNN_VERSION}
+
+# For backward compatibility we need this line. After 1.13 we can safely remove
+# it.
+ENV TF_NCCL_VERSION=
+
+# Set TMP for nvidia build environment
+ENV TMP="/tmp"
+
+WORKDIR /tensorflow-serving
+
+FROM base_build as binary_build
+# Build, and install TensorFlow Serving
+# Force it only to build kernels with the Jetson Orin compute capability. If running on
+# a different platform, this may need to be modified.
+ARG TF_SERVING_BUILD_OPTIONS="--config=release --repo_env=TF_CUDA_COMPUTE_CAPABILITIES=8.7"
+RUN echo "Building with build options: ${TF_SERVING_BUILD_OPTIONS}"
+ARG TF_SERVING_BAZEL_OPTIONS=""
+RUN echo "Building with Bazel options: ${TF_SERVING_BAZEL_OPTIONS}"
+
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:${LD_LIBRARY_PATH} \
+    bazel build --color=yes --curses=yes --config=cuda_clang --copt="-fPIC"\
+    ${TF_SERVING_BAZEL_OPTIONS} \
+    --verbose_failures \
+    --output_filter=DONT_MATCH_ANYTHING \
+    --loading_phase_threads=2 \
+    ${TF_SERVING_BUILD_OPTIONS} \
+    tensorflow_serving/model_servers:tensorflow_model_server && \
+    cp bazel-bin/tensorflow_serving/model_servers/tensorflow_model_server \
+    /usr/local/bin/ && \
+    rm /usr/local/cuda/lib64/stubs/libcuda.so.1
+
+# Build and install TensorFlow Serving API
+RUN bazel build --color=yes --curses=yes \
+    ${TF_SERVING_BAZEL_OPTIONS} \
+    --verbose_failures \
+    --output_filter=DONT_MATCH_ANYTHING \
+    ${TF_SERVING_BUILD_OPTIONS} \
+    tensorflow_serving/tools/pip_package:build_pip_package && \
+    bazel-bin/tensorflow_serving/tools/pip_package/build_pip_package \
+    /tmp/pip && \
+    pip --no-cache-dir install --upgrade \
+    /tmp/pip/tensorflow_serving_api_gpu-*.whl && \
+    rm -rf /tmp/pip
+
+FROM binary_build as clean_build
+# Clean up Bazel cache when done.
+RUN bazel clean --expunge --color=yes && \
+    rm -rf /root/.cache
+CMD ["/bin/bash"]
+
+
+FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu AS server
+
+# Install TF Serving GPU pkg
+COPY --from=clean_build /usr/local/bin/tensorflow_model_server \
+    /usr/bin/tensorflow_model_server
+
+RUN pip3 install tensorflow-serving-api==2.8.0
+
+ADD model_serving.config .
