@@ -138,7 +138,7 @@ def apply_tracker(
         detection_geometry: The bounding boxes for the new detections.
 
     Returns:
-        The sinkhorn and assignment matrices.
+        The sinkhorn matrix and assignment matrix, if present.
 
     """
     sinkhorn, assignment = tracker(

@@ -5,7 +5,7 @@ services:
       dockerfile: dockerfiles/model_server.docker
       context: ./serving
       target: server
-    command: "tensorflow_model_server --rest_api_port=8501 --model_config_file=model_serving.config"
+    command: "tensorflow_model_server --rest_api_port=8501 --per_process_gpu_memory_fraction=0.1 --model_config_file=model_serving.config"
     network_mode: host
     volumes:
       - "${MODEL_DIR:?error}:/models"
@@ -15,7 +15,4 @@ services:
       memlock: -1
       stack: 67108864
     runtime: nvidia
-    
-  model_conversion:
-    # Docker container for performing TFRT conversion.
-    image: nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu
+    restart: unless-stopped

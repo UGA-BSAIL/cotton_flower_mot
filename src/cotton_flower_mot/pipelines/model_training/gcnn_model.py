@@ -552,7 +552,7 @@ def compute_association(
     tracklets_geometry: tf.RaggedTensor,
     config: ModelConfig,
     hard_assignment: bool = True,
-) -> Tuple[tf.RaggedTensor, tf.RaggedTensor | None]:
+) -> Tuple[tf.RaggedTensor, tf.RaggedTensor]:
     """
     Builds a model that computes associations between tracklets and detections.
 
@@ -582,7 +582,7 @@ def compute_association(
         matrix is simply the Sinkhorn-normalized associations, whereas the
         assignment matrix is the hard assignments calculated with the
         Hungarian algorithm. If `hard_assignment` is false, the hard
-        assignment output will be None.
+        assignment output will be empty.
 
     """
     # Pad appearance features to dense tensors.
@@ -625,7 +625,7 @@ def compute_association(
         )
     )
 
-    assignment = None
+    assignment = sinkhorn
     if hard_assignment:
         assignment = HungarianLayer()(
             (
@@ -634,14 +634,14 @@ def compute_association(
                 tracklets_geometry.row_lengths(),
             )
         )
-        assignment = layers.Activation(
-            "linear", name=ModelTargets.ASSIGNMENT.value
-        )(assignment)
 
     # Ensure outputs have the right name and dtype.
     sinkhorn = layers.Activation(
         "linear", name=ModelTargets.SINKHORN.value, dtype=tf.float32
     )(sinkhorn)
+    assignment = layers.Activation(
+        "linear", name=ModelTargets.ASSIGNMENT.value
+    )(assignment)
     return sinkhorn, assignment
 
 
@@ -698,7 +698,10 @@ def build_appearance_model(
 
 
 def build_tracking_model(
-    config: ModelConfig, *, feature_extractor: keras.Model
+    config: ModelConfig,
+    *,
+    feature_extractor: keras.Model,
+    hard_assignment: bool = True,
 ) -> tf.keras.Model:
     """
     Builds the complete Keras model.
@@ -707,6 +710,8 @@ def build_tracking_model(
         config: The model configuration.
         feature_extractor: The model to use for extracting appearance features.
             It is used only to determine the input shape.
+        hard_assignment: Whether to include an output for the hard assignment
+            matrix.
 
     Returns:
         The model that it created.
@@ -737,6 +742,7 @@ def build_tracking_model(
         detections_geometry=detection_geometry_input,
         tracklets_geometry=tracklet_geometry_input,
         config=config,
+        hard_assignment=hard_assignment,
     )
     return tf.keras.Model(
         inputs=[

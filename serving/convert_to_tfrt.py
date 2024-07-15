@@ -296,6 +296,7 @@ def _convert_mot_models(
     *,
     model_dir: Path,
     output_dir: Path,
+    save_version: Optional[int] = None,
     frame_shape: Tuple[int, int],
     small_frame_shape: Tuple[int, int],
     num_appearance_features: int,
@@ -307,6 +308,8 @@ def _convert_mot_models(
     Args:
         model_dir: The directory containing the saved models.
         output_dir: The output directory to save the converted models to.
+        save_version: If provided, it will save this model as a particular
+            version. This is used for model serving.
         frame_shape: The shape of the frames in the MOT dataset.
         small_frame_shape: The shape of the inputs to the small detector.
         num_appearance_features: The number of appearance features used by
@@ -320,6 +323,10 @@ def _convert_mot_models(
     detector_output = output_dir / "detection_model"
     small_detector_output = output_dir / "small_detection_model"
     tracker_output = output_dir / "tracking_model"
+    if save_version is not None:
+        detector_output = detector_output / f"{save_version}"
+        small_detector_output = small_detector_output / f"{save_version}"
+        tracker_output = tracker_output / f"{save_version}"
 
     # Create detection models.
     _convert_detection_model(
@@ -343,7 +350,7 @@ def _convert_mot_models(
         input_dir=model_dir / "tracking_model",
         output_dir=tracker_output,
         input_function=tracking_inputs,
-        dynamic_shapes=True
+        dynamic_shapes=True,
     )
 
     logger.info("Done converting MOT models.")
@@ -422,12 +429,36 @@ def _make_parser() -> argparse.ArgumentParser:
         help="The number of appearance features the tracker expects.",
     )
 
+    parser.add_argument(
+        "-v",
+        "--save-version",
+        type=int,
+        default=None,
+        help="Save this model as a particular version. If not provided, "
+        "it will increment the old one.",
+    )
+
     return parser
 
 
 def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
+
+    save_version = cli_args.save_version
+    if save_version is None:
+        detection_dir = cli_args.output / "detection_model"
+        save_version = 1
+        if detection_dir.exists():
+            # Check to see what the newest version is.
+            version_dirs = [p for p in detection_dir.iterdir() if p.is_dir()]
+            for version_dir in version_dirs:
+                try:
+                    save_version = max(int(version_dir.name), save_version)
+                except ValueError:
+                    # Not a version directory.
+                    continue
+    logger.info("Saving model version {}.", save_version)
 
     _convert_mot_models(
         model_dir=cli_args.model,
@@ -441,6 +472,7 @@ def main() -> None:
         calibration_images=(
             cli_args.calibration_images if not cli_args.fp16 else None
         ),
+        save_version=cli_args.save_version,
     )
 
 

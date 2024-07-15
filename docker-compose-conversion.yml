@@ -1,0 +1,21 @@
+services:
+  model_conversion:
+    # Docker container for performing TFRT conversion.
+    build:
+      dockerfile: dockerfiles/model_converter.docker
+      context: ./serving
+    command: "python convert_to_tfrt.py -o /models -l /calibration_data_dir /model_input"
+    network_mode: host
+    volumes:
+      # Directory containing the input models.
+      - "${INPUT_DIR:?error}:/model_input"
+      # Directory where the output models will be saved.
+      - "${MODEL_DIR:?error}:/models"
+      # Directory containing calibration images.
+      - "${CALIBRATION_DATA_DIR:-/media/mars/Data/calibration_images}:/calibration_data_dir"
+    # Nvidia recommended settings
+    ipc: "host"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: nvidia

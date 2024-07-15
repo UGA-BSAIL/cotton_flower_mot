@@ -168,7 +168,7 @@ class CensNet(MessagePassing):
             edge_weights = tf.squeeze(edge_weights, axis=-1)
             diagonal_weighted_incidence = incidence * edge_weights
         row_sums = tf.sparse.reduce_sum(diagonal_weighted_incidence, axis=1)
-        diag_indices = tf.range(0, tf.shape(row_sums)[0], dtype=tf.int64)
+        diag_indices = tf.range(0, tf.shape(row_sums)[0], dtype=tf.int32)
         diag_indices = tf.stack([diag_indices, diag_indices], axis=1)
         diag_values = row_sums
 
@@ -179,8 +179,8 @@ class CensNet(MessagePassing):
         # would when performing the matrix multiplication naively),
         # the result will be a one, which tells us the position of a one in
         # the output.
-        row_indices = incidence.indices[:, 0]
-        col_indices = incidence.indices[:, 1]
+        row_indices = tf.cast(incidence.indices[:, 0], tf.int32)
+        col_indices = tf.cast(incidence.indices[:, 1], tf.int32)
         different_rows = row_indices[None, :] != row_indices[:, None]
         same_cols = col_indices[None, :] == col_indices[:, None]
         ones_mask = tf.logical_and(different_rows, same_cols)
@@ -203,7 +203,7 @@ class CensNet(MessagePassing):
         output_shape = tf.stack([incidence.dense_shape[0]] * 2)
         return tf.sparse.reorder(
             tf.SparseTensor(
-                indices=all_indices,
+                indices=tf.cast(all_indices, tf.int64),
                 values=all_values,
                 dense_shape=output_shape,
             )
@@ -491,3 +491,11 @@ class CensNet(MessagePassing):
     def update(self, embeddings: tf.Tensor, **_: Any) -> tf.Tensor:
         # Apply the activation.
         return self._activation(embeddings)
+
+    def get_targets(self, x: tf.Tensor) -> tf.Tensor:
+        # Re-implement with int32 so that it can be optimized better by
+        # TensorRT.
+        return tf.gather(x, tf.cast(self.index_targets, tf.int32), axis=-2)
+
+    def get_sources(self, x: tf.Tensor) -> tf.Tensor:
+        return tf.gather(x, tf.cast(self.index_sources, tf.int32), axis=-2)
