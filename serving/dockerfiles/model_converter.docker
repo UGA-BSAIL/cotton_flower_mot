@@ -1,0 +1,11 @@
+####
+# Handles conversion of the models to TensorRT.
+####
+FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu
+
+# Install dependencies.
+ADD conversion_requirements.txt .
+RUN pip install -r conversion_requirements.txt
+
+# Copy the conversion script.
+ADD convert_to_tfrt.py .

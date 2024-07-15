@@ -167,14 +167,9 @@ def test_make_adjacency_matrix(
         )
 
 
-def test_make_complete_bipartite_adjacency_matrices(
-    faker: Faker,
-) -> None:
+def test_make_complete_bipartite_adjacency_matrices() -> None:
     """
     Tests that `make_complete_bipartite_adjacency_matrices` works.
-
-    Args:
-        faker: The fixture to use for generating fake data.
 
     """
     # Arrange.
@@ -182,37 +177,44 @@ def test_make_complete_bipartite_adjacency_matrices(
     num_right = np.array([1, 4, 5, 3])
 
     # Act.
-    adjacency_matrices = graph_utils.make_complete_bipartite_adjacency_matrices(
-        tf.constant(num_left), tf.constant(num_right)
-    ).numpy()
+    adjacency_matrices = (
+        graph_utils.make_complete_bipartite_adjacency_matrices(
+            tf.constant(num_left), tf.constant(num_right)
+        )
+    )
 
     # Assert.
     # It should have the correct shape.
-    batch_size = len(num_left)
-    max_num_nodes = tf.reduce_max(num_left + num_right).numpy()
-    assert adjacency_matrices.shape == (
-        batch_size,
-        max_num_nodes,
-        max_num_nodes,
+    total_num_nodes = tf.reduce_sum(num_left) + tf.reduce_sum(num_right)
+    assert tf.reduce_all(
+        adjacency_matrices.dense_shape == (total_num_nodes, total_num_nodes)
     )
 
     # It should have zeros for non-bipartite edges.
-    for b, r, c in itertools.product(
-        *map(range, [batch_size, max_num_nodes, max_num_nodes])
-    ):
-        if r < num_left[b] <= c < num_left[b] + num_right[b]:
-            np.testing.assert_array_almost_equal(
-                1, adjacency_matrices[b][r][c]
-            )
-        elif c < num_left[b] <= r < num_left[b] + num_right[b]:
-            # Symmetric
-            np.testing.assert_array_almost_equal(
-                1, adjacency_matrices[b][r][c]
-            )
-        else:
-            np.testing.assert_array_almost_equal(
-                0, adjacency_matrices[b][r][c]
-            )
+    batch_size = len(num_left)
+    num_nodes = num_left + num_right
+    offsets = tf.cumsum(num_nodes, exclusive=True)
+    adjacency_matrices = tf.sparse.to_dense(adjacency_matrices).numpy()
+    for b in range(batch_size):
+        matrix_size = num_nodes[b]
+        for r, c in itertools.product(*map(range, [matrix_size] * 2)):
+            # We have to use the offset to select the correct submatrix.
+            # Since the individual matrices are laid out diagonally, we can use
+            # an offset to select the correct one.
+            offset = offsets[b].numpy()
+            if r < num_left[b] <= c < num_left[b] + num_right[b]:
+                np.testing.assert_array_almost_equal(
+                    1, adjacency_matrices[r + offset][c + offset]
+                )
+            elif c < num_left[b] <= r < num_left[b] + num_right[b]:
+                # Symmetric
+                np.testing.assert_array_almost_equal(
+                    1, adjacency_matrices[r + offset][c + offset]
+                )
+            else:
+                np.testing.assert_array_almost_equal(
+                    0, adjacency_matrices[r + offset][c + offset]
+                )
 
 
 @pytest.mark.parametrize(

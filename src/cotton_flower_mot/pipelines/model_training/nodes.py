@@ -92,13 +92,17 @@ def prepare_pretrained_encoder(
     )
 
 
-def create_model(config: ModelConfig, *, yolo_path: Path) -> tf.keras.Model:
+def create_model(
+    config: ModelConfig, *, yolo_path: Path, hard_assignment: bool = True
+) -> tf.keras.Model:
     """
     Builds the model to use.
 
     Args:
         config: The model configuration.
         yolo_path: The path to the saved pretrained YOLO detector.
+        hard_assignment: Whether to include an output for the hard assignment
+            matrix.
 
     Returns:
         The end-to-end model.
@@ -107,7 +111,7 @@ def create_model(config: ModelConfig, *, yolo_path: Path) -> tf.keras.Model:
     yolo = load_yolo(saved_model=yolo_path, config=config)
     yolo.trainable = False
     detector, appearance, tracker = build_separate_models_yolo(
-        config, yolo_model=yolo
+        config, yolo_model=yolo, hard_assignment=hard_assignment
     )
     combined = build_combined_model(
         config, detector=detector, appearance=appearance, tracker=tracker

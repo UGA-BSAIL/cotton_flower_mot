@@ -1,0 +1,18 @@
+services:
+  model_server:
+    # Docker container for running the model server.
+    build:
+      dockerfile: dockerfiles/model_server.docker
+      context: ./serving
+      target: server
+    command: "tensorflow_model_server --rest_api_port=8501 --per_process_gpu_memory_fraction=0.1 --model_config_file=model_serving.config"
+    network_mode: host
+    volumes:
+      - "${MODEL_DIR:?error}:/models"
+    # Nvidia recommended settings
+    ipc: "host"
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: nvidia
+    restart: unless-stopped

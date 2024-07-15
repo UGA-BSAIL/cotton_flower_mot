@@ -4,15 +4,13 @@ Tests for the `gcnn_model` module.
 
 from pathlib import Path
 
+import keras
 import numpy as np
 import pytest
 import tensorflow as tf
 from faker import Faker
 
 from src.cotton_flower_mot.pipelines.model_training import gcnn_model
-from src.cotton_flower_mot.pipelines.model_training.centernet_model import (
-    build_detection_model,
-)
 from src.cotton_flower_mot.pipelines.model_training.layers import CUSTOM_LAYERS
 
 
@@ -59,39 +57,15 @@ def test_extract_interaction_features_smoke(faker: Faker) -> None:
     config = faker.model_config(image_shape=image_shape)
 
     # Act.
-    input_shape = (None,) + image_shape
-    detection_input = tf.keras.Input(input_shape, ragged=True)
-    tracklet_input = tf.keras.Input(input_shape, ragged=True)
-
-    geom_input_shape = (None, num_geom_features)
-    detection_geometry_input = tf.keras.Input(geom_input_shape, ragged=True)
-    tracklet_geometry_input = tf.keras.Input(geom_input_shape, ragged=True)
-
     (
-        tracklet_inter_features,
-        detection_inter_features,
+        got_tracklet_features,
+        got_detection_features,
     ) = gcnn_model.extract_interaction_features(
         detections_app_features=detections_app_features,
         tracklets_app_features=tracklets_app_features,
-        detections_geometry=detection_geometry_input,
-        tracklets_geometry=tracklet_geometry_input,
+        detections_geometry=detections_geometry,
+        tracklets_geometry=tracklets_geometry,
         config=config,
-    )
-
-    # Turn this into a model.
-    model = tf.keras.Model(
-        inputs=[
-            detection_input,
-            tracklet_input,
-            detection_geometry_input,
-            tracklet_geometry_input,
-        ],
-        outputs=[tracklet_inter_features, detection_inter_features],
-    )
-
-    # Apply the model to the inputs we generated.
-    got_tracklet_features, got_detection_features = model.predict(
-        (detections, tracklets, detections_geometry, tracklets_geometry)
     )
 
     # Assert.
@@ -126,6 +100,14 @@ def test_compute_association_smoke(faker: Faker) -> None:
         image_shape=app_feature_shape, batch_size=batch_size
     )
 
+    # Create fake appearance features.
+    detections_app_features = faker.ragged_tensor(
+        row_lengths=detections.row_lengths(), inner_shape=app_feature_shape
+    )
+    tracklets_app_features = faker.ragged_tensor(
+        row_lengths=tracklets.row_lengths(), inner_shape=app_feature_shape
+    )
+
     # Create fake geometry features.
     detections_geometry = faker.ragged_tensor(
         row_lengths=detections.row_lengths(), inner_shape=(4,)
@@ -137,36 +119,12 @@ def test_compute_association_smoke(faker: Faker) -> None:
     config = faker.model_config(image_shape=(100, 100, 3))
 
     # Act.
-    input_shape = (None,) + app_feature_shape
-    detection_input = tf.keras.Input(input_shape, ragged=True)
-    tracklet_input = tf.keras.Input(input_shape, ragged=True)
-
-    geom_input_shape = (None, 4)
-    detection_geometry_input = tf.keras.Input(geom_input_shape, ragged=True)
-    tracklet_geometry_input = tf.keras.Input(geom_input_shape, ragged=True)
-
-    sinkhorn, assigment = gcnn_model.compute_association(
-        detections_app_features=detection_input,
-        tracklets_app_features=tracklet_input,
-        detections_geometry=detection_geometry_input,
-        tracklets_geometry=tracklet_geometry_input,
+    got_sinkhorn, got_assignment = gcnn_model.compute_association(
+        detections_app_features=detections_app_features,
+        tracklets_app_features=tracklets_app_features,
+        detections_geometry=detections_geometry,
+        tracklets_geometry=tracklets_geometry,
         config=config,
-    )
-
-    # Turn this into a model.
-    model = tf.keras.Model(
-        inputs=[
-            detection_input,
-            tracklet_input,
-            detection_geometry_input,
-            tracklet_geometry_input,
-        ],
-        outputs=[sinkhorn, assigment],
-    )
-
-    # Apply the model to the inputs we generated.
-    got_sinkhorn, got_assignment = model.predict(
-        (detections, tracklets, detections_geometry, tracklets_geometry)
     )
 
     # Assert.
@@ -175,9 +133,10 @@ def test_compute_association_smoke(faker: Faker) -> None:
     assignment_shape = got_assignment.bounding_shape()
     assert len(sinkhorn_shape) == len(assignment_shape) == 2
 
-    # Make sure the association matrices are the expected size.
-    row_sizes = tracklets.row_lengths().numpy()
-    col_sizes = detections.row_lengths().numpy()
+    # Make sure the association matrices are the expected size. We add one
+    # due to the births/deaths.
+    row_sizes = tracklets.row_lengths().numpy() + 1
+    col_sizes = detections.row_lengths().numpy() + 1
     expected_lengths = row_sizes * col_sizes
     np.testing.assert_array_equal(
         got_sinkhorn.row_lengths().numpy(), expected_lengths
@@ -201,7 +160,8 @@ def test_save_model_smoke(faker: Faker, tmp_path: Path) -> None:
     # Arrange.
     # Create the model.
     config = faker.model_config(detection_input_shape=(540, 960, 3))
-    feature_extractor, _ = build_detection_model(config)
+    dummy_input = keras.Input((None, 128), ragged=True)
+    feature_extractor = keras.Model(inputs=dummy_input, outputs=dummy_input)
     model = gcnn_model.build_tracking_model(
         config, feature_extractor=feature_extractor
     )

@@ -170,7 +170,9 @@ def _single_complete_bipartite_adjacency_matrix(
     num_right_nodes: tf.Tensor,
     *,
     adjacency_shape: tf.Tensor,
-) -> tf.Tensor:
+    index_offset: tf.Tensor = tf.constant(0),
+    sparse: bool = True,
+) -> tf.Tensor | tf.SparseTensor:
     """
     Creates the binary adjacency matrix for a complete bipartite graph.
 
@@ -181,7 +183,10 @@ def _single_complete_bipartite_adjacency_matrix(
             0D tensor.
         adjacency_shape: The shape to use for the output dense adjacency matrix.
             This can be specified to a shape larger than necessary to facilitate
-            batching the output of this function across multiple graphs.
+            batching the output of this function across multiple graphs. It
+            should be a vector of length 2.
+        index_offset: A constant offset to add to all the indices in the output.
+        sparse: If true, it will output a sparse matrix.
 
     Returns:
         The binary adjacency matrix that it created, which will have the shape
@@ -204,6 +209,7 @@ def _single_complete_bipartite_adjacency_matrix(
     x = tf.reshape(x, (-1,))
     y = tf.reshape(y, (-1,))
     edge_indices = tf.stack([x, y], axis=-1)
+    edge_indices += tf.cast(index_offset, edge_indices.dtype)
     num_edges = tf.shape(edge_indices)[0]
 
     adjacency_shape = tf.cast(adjacency_shape, tf.int64)
@@ -212,16 +218,22 @@ def _single_complete_bipartite_adjacency_matrix(
         values=tf.ones(tf.expand_dims(num_edges, 0), dtype=tf.float32),
         dense_shape=adjacency_shape,
     )
-    dense_adjacency = tf.sparse.to_dense(adjacency_sparse)
-
     # We've only produced the upper half of the adjacency matrix, so make it
     # symmetric now.
-    return dense_adjacency + tf.transpose(dense_adjacency)
+    adjacency_sparse = tf.sparse.add(
+        adjacency_sparse,
+        tf.sparse.transpose(adjacency_sparse),
+    )
+
+    if sparse:
+        return adjacency_sparse
+    else:
+        return tf.sparse.to_dense(adjacency_sparse)
 
 
 def make_complete_bipartite_adjacency_matrices(
     num_left_nodes: tf.Tensor, num_right_nodes: tf.Tensor
-) -> tf.Tensor:
+) -> tf.SparseTensor:
     """
     Creates the binary adjacency matrices for a batch of complete bipartite
     graphs.
@@ -233,25 +245,42 @@ def make_complete_bipartite_adjacency_matrices(
             right side of each graph.
 
     Returns:
-        The binary adjacency matrices that it created, which will have the shape
-        `[batch_size, max_n_left_nodes + max_n_right_nodes, max_n_left_nodes +
-          max_n_right_nodes]`
+        The binary adjacency matrices that it created, which will be a giant
+        sparse matrix that encodes the adjacency matrices in Spektral's
+        disjoint data format.
 
     """
     num_left_nodes = tf.convert_to_tensor(num_left_nodes)
     num_right_nodes = tf.convert_to_tensor(num_right_nodes)
 
-    # Our output has to be large enough to hold the largest adjacency matrix.
-    max_num_left_nodes = tf.reduce_max(num_left_nodes)
-    max_num_right_nodes = tf.reduce_max(num_right_nodes)
-    output_shape = tf.stack([max_num_left_nodes + max_num_right_nodes] * 2)
+    # Our output is just going to be all the adjacency matrices arranged
+    # diagonally.
+    num_nodes = num_left_nodes + num_right_nodes
+    output_shape = tf.stack([tf.reduce_sum(num_nodes)] * 2)
 
-    return tf.map_fn(
+    # Compute offsets for making the disjoint adjacency matrix.
+    offsets = tf.cumsum(num_nodes, exclusive=True)
+
+    adjacency_matrices = tf.map_fn(
         lambda n: _single_complete_bipartite_adjacency_matrix(
-            n[0], n[1], adjacency_shape=output_shape
+            n[0], n[1], adjacency_shape=output_shape, index_offset=n[2]
         ),
-        (num_left_nodes, num_right_nodes),
-        fn_output_signature=tf.TensorSpec([None, None], dtype=tf.float32),
+        (num_left_nodes, num_right_nodes, offsets),
+        fn_output_signature=tf.SparseTensorSpec(
+            (None, None), dtype=tf.float32
+        ),
+    )
+    # They should all be offset correctly already, so we can just sum them.
+    combined_adjacency = tf.sparse.reduce_sum(
+        adjacency_matrices, axis=0, output_is_sparse=True
+    )
+    # This little trick is to get Keras to pick up on the fact that the
+    # output is rank 2. For some reason, a straight `reduce_sum` confuses it,
+    # and it can't determine the output rank statically.
+    return tf.SparseTensor(
+        indices=combined_adjacency.indices,
+        values=combined_adjacency.values,
+        dense_shape=adjacency_matrices.dense_shape[1:],
     )
 
 

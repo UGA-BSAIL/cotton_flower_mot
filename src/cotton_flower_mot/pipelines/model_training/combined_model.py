@@ -108,7 +108,9 @@ def build_separate_models(
 
 
 def build_separate_models_yolo(
-    config: ModelConfig, yolo_model: tf.keras.Model
+    config: ModelConfig,
+    yolo_model: tf.keras.Model,
+    hard_assignment: bool = True,
 ) -> Tuple[tf.keras.Model, tf.keras.Model, tf.keras.Model]:
     """
     Builds compatible detection and tracking models, using a pretrained YOLO
@@ -117,6 +119,8 @@ def build_separate_models_yolo(
     Args:
         config: The model configuration.
         yolo_model: The pretrained YOLO model to use for detection.
+        hard_assignment: Whether to include an output for the hard assignment
+            matrix.
 
     Returns:
         The detection, appearance, and tracking models.
@@ -126,7 +130,9 @@ def build_separate_models_yolo(
     appearance_model = build_appearance_model(config, detector=yolo_model)
     logger.debug("Building tracking model...")
     tracking_model = build_tracking_model(
-        config=config, feature_extractor=appearance_model
+        config=config,
+        feature_extractor=appearance_model,
+        hard_assignment=hard_assignment,
     )
 
     return yolo_model, appearance_model, tracking_model

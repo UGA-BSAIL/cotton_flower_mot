@@ -1,0 +1,394 @@
+import enum
+from typing import Tuple
+
+import networkx as nx
+import numpy as np
+import pytest
+from keras import Input, Model
+import tensorflow as tf
+from spektral.utils.convolution import (
+    normalized_adjacency,
+    incidence_matrix,
+    line_graph,
+)
+
+from src.cotton_flower_mot.pipelines.model_training.layers.cens_net import (
+    CensNet,
+)
+
+batch_size = 32
+N = 11
+F = 7
+S = 3
+A = np.ones((N, N))
+
+NODE_CHANNELS = 8
+"""
+Number of node output channels to use for testing.
+"""
+EDGE_CHANNELS = 10
+"""
+Number of edge output channels to use for testing.
+"""
+
+
+@enum.unique
+class Mode(enum.IntEnum):
+    """
+    Represents the data modes to use for testing.
+    """
+
+    SINGLE = enum.auto()
+    BATCH = enum.auto()
+    MIXED = enum.auto()
+
+
+GraphDescriptors = Tuple[np.array, np.array, np.array]
+"""
+Describes a graph to use for testing.
+"""
+
+
+@pytest.fixture()
+def random_graph_descriptors() -> GraphDescriptors:
+    """
+    Creates a random graph to use, and computes its various descriptors.
+    :return: The adjacency matrices for the graph and line graph, and the
+        incidence matrix.
+    """
+    graph = nx.dense_gnm_random_graph(11, 50, seed=1337)
+    line_graph = nx.line_graph(graph)
+    node_adjacency = nx.to_numpy_array(graph)
+    edge_adjacency = nx.to_numpy_array(line_graph)
+    incidence = np.array(nx.incidence_matrix(graph).todense())
+
+    return node_adjacency, edge_adjacency, incidence
+
+
+def test_smoke(random_graph_descriptors: GraphDescriptors) -> None:
+    """
+    Tests that we can create a model with the layer, and it processes
+    input data without crashing.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when
+            testing.
+    """
+    # Arrange.
+    node_adjacency, edge_adjacency, incidence = random_graph_descriptors
+    # Add self loops.
+    node_adjacency += np.eye(node_adjacency.shape[0]).astype(np.float32)
+    edge_adjacency += np.eye(edge_adjacency.shape[0]).astype(np.float32)
+
+    node_adjacency = tf.sparse.from_dense(node_adjacency)
+    edge_adjacency = tf.sparse.from_dense(edge_adjacency)
+    incidence = tf.sparse.from_dense(incidence)
+
+    # Create node and edge features.
+    node_feature_shape = (node_adjacency.shape[0], F)
+    edge_feature_shape = (edge_adjacency.shape[0], S)
+
+    node_features = tf.random.normal(shape=node_feature_shape)
+    edge_features = tf.random.normal(shape=edge_feature_shape)
+
+    # Create the model.
+    node_input = Input(shape=node_features.shape[1:])
+    node_adjacency_input = Input(shape=node_adjacency.shape[1:], sparse=True)
+    edge_adjacency_input = Input(shape=edge_adjacency.shape[1:], sparse=True)
+    incidence_input = Input(shape=incidence.shape[1:], sparse=True)
+    edge_input = Input(shape=edge_features.shape[1:])
+
+    next_nodes, next_edges = CensNet(
+        num_nodes_out=NODE_CHANNELS,
+        num_edges_out=EDGE_CHANNELS,
+        activation="relu",
+    )(
+        (
+            node_input,
+            (node_adjacency_input, edge_adjacency_input, incidence_input),
+            edge_input,
+        )
+    )
+
+    model = Model(
+        inputs=(
+            node_input,
+            edge_input,
+            node_adjacency_input,
+            edge_adjacency_input,
+            incidence_input,
+        ),
+        outputs=(next_nodes, next_edges),
+    )
+
+    # Act.
+    # Run the model.
+    got_next_nodes, got_next_edges = model(
+        [
+            node_features,
+            edge_features,
+            node_adjacency,
+            edge_adjacency,
+            incidence,
+        ]
+    )
+
+    # Assert.
+    # Make sure that the output shapes are correct.
+    got_node_shape = got_next_nodes.numpy().shape
+    got_edge_shape = got_next_edges.numpy().shape
+    assert got_node_shape == node_features.shape[:-1] + (NODE_CHANNELS,)
+    assert got_edge_shape == edge_features.shape[:-1] + (EDGE_CHANNELS,)
+
+
+def test_get_config_round_trip():
+    """
+    Tests that it is possible to serialize a layer using `get_config()`,
+    and then re-instantiate an identical one.
+    """
+    # Arrange.
+    # Create the layer to test with.
+    layer = CensNet(num_nodes_out=NODE_CHANNELS, num_edges_out=EDGE_CHANNELS)
+
+    # Act.
+    config = layer.get_config()
+    new_layer = CensNet(**config)
+
+    # Assert.
+    # The new layer should be the same.
+    assert new_layer.num_nodes_out == layer.num_nodes_out
+    assert new_layer.num_edges_out == layer.num_edges_out
+
+
+@pytest.mark.parametrize("sparse", [True, False], ids=["sparse", "dense"])
+def test_preprocess_smoke(sparse: bool) -> None:
+    """
+    Tests that the preprocessing functionality does not crash.
+
+    Args:
+        sparse: Whether to use sparse inputs.
+
+    """
+    # Arrange.
+    adjacency = A
+    if sparse:
+        adjacency = tf.sparse.from_dense(adjacency)
+
+    # Act.
+    node_adjacency, edge_adjacency, incidence = CensNet.preprocess(adjacency)
+
+    # Assert.
+    node_adjacency = tf.sparse.to_dense(node_adjacency).numpy()
+    edge_adjacency = tf.sparse.to_dense(edge_adjacency).numpy()
+    incidence = tf.sparse.to_dense(incidence).numpy()
+
+    # All matrices should be in (0, 1).
+    assert np.all(node_adjacency >= 0)
+    assert np.all(node_adjacency <= 1)
+    assert np.all(edge_adjacency >= 0)
+    assert np.all(edge_adjacency <= 1)
+    assert np.all(incidence >= 0)
+    assert np.all(incidence <= 1)
+
+    # It should have self-loops.
+    assert np.all(np.diag(node_adjacency) > 0)
+    assert np.all(np.diag(edge_adjacency) > 0)
+
+
+@pytest.mark.parametrize("sparse", [True, False], ids=["sparse", "dense"])
+def test_add_self_loops(
+    random_graph_descriptors: GraphDescriptors, sparse: bool
+) -> None:
+    """
+    Tests that the self-loop addition functionality works.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when
+            testing.
+        sparse: Whether to use sparse inputs.
+    """
+    # Arrange.
+    node_adjacency_dense, _, __ = random_graph_descriptors
+    node_adjacency = node_adjacency_dense
+    if sparse:
+        node_adjacency = tf.sparse.from_dense(node_adjacency_dense)
+
+    # Act.
+    got_node = CensNet.add_self_loops(node_adjacency)
+
+    # Assert.
+    # It should have self-loops.
+    if sparse:
+        got_node = tf.sparse.to_dense(got_node).numpy()
+    assert np.all(np.diag(got_node) == 1)
+
+    # Everything else should be the same.
+    non_diagonal_mask = ~np.eye(got_node.shape[0], dtype=bool)
+    assert np.all(
+        got_node[non_diagonal_mask] == node_adjacency_dense[non_diagonal_mask]
+    )
+
+
+def test_laplacian(random_graph_descriptors: GraphDescriptors) -> None:
+    """
+    Tests that computing the Laplacian works.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when
+            testing.
+    """
+    # Arrange.
+    node_adjacency_dense, _, __ = random_graph_descriptors
+
+    # Add self-loops.
+    node_adjacency_dense += np.eye(node_adjacency_dense.shape[0])
+    node_adjacency = tf.sparse.from_dense(node_adjacency_dense)
+
+    # Act.
+    got_laplacian = CensNet.laplacian(node_adjacency)
+
+    # Assert.
+    # It should match Spektral's version.
+    expected_laplacian = normalized_adjacency(node_adjacency_dense)
+    got_laplacian = tf.sparse.to_dense(got_laplacian).numpy()
+    assert np.allclose(expected_laplacian, got_laplacian)
+
+
+def test_line_graph(random_graph_descriptors: GraphDescriptors) -> None:
+    """
+    Tests that computing the line graph works.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when
+            testing.
+
+    """
+    # Arrange.
+    _, edge_adjacency_dense, incidence_dense = random_graph_descriptors
+    incidence = tf.sparse.from_dense(incidence_dense)
+
+    # Add self-loops.
+    edge_adjacency_dense += np.eye(edge_adjacency_dense.shape[0])
+
+    # Act.
+    got_line_graph = CensNet.line_graph(incidence)
+
+    # Assert.
+    # It should match the ground-truth line graph with self-loops.
+    got_line_graph = tf.sparse.to_dense(got_line_graph).numpy()
+    got_line_graph = nx.Graph(got_line_graph)
+    expected_line_graph = nx.Graph(edge_adjacency_dense)
+    assert nx.is_isomorphic(got_line_graph, expected_line_graph)
+
+
+def test_line_graph_unconnected_nodes() -> None:
+    """
+    Tests that `line_graph` works when some nodes in the graph are completely
+    unconnected.
+
+    """
+    # Arrange.
+    # Create an unconnected graph.
+    node_adjacency = tf.SparseTensor(
+        indices=[[0, 1], [1, 0], [1, 2], [2, 1]],
+        values=[1, 1, 1, 1],
+        dense_shape=[10, 10],
+    )
+
+    # Compute the incidence matrix.
+    incidence = CensNet.incidence_matrix(node_adjacency)
+
+    # Act.
+    # Compute the line graph.
+    edge_adjacency = CensNet.line_graph(incidence)
+
+    # Assert.
+    # It should not contain invalid values.
+    edge_adjacency = tf.sparse.to_dense(edge_adjacency).numpy()
+    assert np.all(edge_adjacency > 0)
+
+    # There should be two edges.
+    assert edge_adjacency.shape == (2, 2)
+
+
+def test_incidence_same_as_spektral(
+    random_graph_descriptors: GraphDescriptors,
+) -> None:
+    """
+    Tests that it produces an incidence matrix equivalent to that produced by
+    Spektral.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when testing.
+
+    """
+    # Arrange.
+    adjacency_dense, _, _ = random_graph_descriptors
+    adjacency = tf.sparse.from_dense(adjacency_dense)
+
+    # Act.
+    got_incidence = CensNet.incidence_matrix(adjacency)
+
+    # Assert.
+    expected_incidence = incidence_matrix(adjacency_dense)
+    assert np.allclose(
+        tf.sparse.to_dense(got_incidence).numpy(), expected_incidence.numpy()
+    )
+
+
+def test_line_graph_same_as_spektral(
+    random_graph_descriptors: GraphDescriptors,
+) -> None:
+    """
+    Tests that it produces a line graph equivalent to that produced by
+    Spektral.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when testing.
+
+    """
+    # Arrange.
+    _, _, incidence_dense = random_graph_descriptors
+    incidence = tf.sparse.from_dense(incidence_dense)
+
+    # Act.
+    got_line_graph = CensNet.line_graph(incidence)
+
+    # Assert.
+    expected_line_graph = line_graph(incidence_dense)
+    # Our implementation adds self-loops at the same time.
+    expected_line_graph = CensNet.add_self_loops(expected_line_graph)
+    assert np.allclose(
+        tf.sparse.to_dense(got_line_graph).numpy(), expected_line_graph.numpy()
+    )
+
+
+@pytest.mark.parametrize("sparse", [True, False], ids=["sparse", "dense"])
+def test_incidence_matrix(
+    random_graph_descriptors: GraphDescriptors, sparse: bool
+) -> None:
+    """
+    Tests that computing the incidence matrix works.
+
+    Args:
+        random_graph_descriptors: Descriptors for the graph to use when
+            testing.
+        sparse: Whether to use sparse inputs.
+
+    """
+    # Arrange.
+    node_adjacency_dense, _, incidence = random_graph_descriptors
+    node_adjacency = tf.constant(node_adjacency_dense)
+    if sparse:
+        node_adjacency = tf.sparse.from_dense(node_adjacency_dense)
+
+    # Act.
+    got_incidence = CensNet.incidence_matrix(node_adjacency)
+
+    # Assert.
+    # It should match the ground-truth incidence matrix.
+    if sparse:
+        got_incidence = tf.sparse.to_dense(got_incidence).numpy()
+    else:
+        got_incidence = got_incidence.numpy()
+    assert np.all(got_incidence == incidence)

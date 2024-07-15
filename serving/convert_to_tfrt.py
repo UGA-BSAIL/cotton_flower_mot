@@ -14,6 +14,7 @@ from loguru import logger
 import numpy as np
 from tensorflow.python.compiler.tensorrt import trt_convert as trt
 import tensorflow as tf
+from itertools import product
 
 
 InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
@@ -21,7 +22,7 @@ InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
 Type alias for a function that returns fake inputs to a model.
 """
 
-_MAX_MEMORY = 7000
+_MAX_MEMORY = 16000
 """
 Maximum memory usage to allow for TF, in MB.
 """
@@ -138,29 +139,55 @@ def _generate_tracker_inputs(
         The input function for the tracker.
 
     """
-    box_shape = (1, max_detections, 4)
-    appearance_shape = (1, max_detections, num_appearance_features)
 
-    boxes = np.random.normal(size=box_shape).astype(np.float32) + 1
-    boxes = np.clip(boxes, 0, 1)
-    appearance = np.random.normal(size=appearance_shape).astype(np.float32)
-    row_lengths = np.random.randint(
-        1, max_detections, size=(1, 1), dtype=np.int32
-    )
+    def _make_inputs_one_side(
+        num_boxes: int,
+    ) -> Tuple[np.array, np.array, np.array]:
+        box_shape = (1, num_boxes, 4)
+        appearance_shape = (1, num_boxes, num_appearance_features)
+
+        boxes = np.random.normal(size=box_shape).astype(np.float32) + 1
+        boxes = np.clip(boxes, 0, 1)
+        appearance = np.random.normal(size=appearance_shape).astype(np.float32)
+        row_lengths = np.array([[num_boxes]], dtype=np.int32)
+
+        return appearance, row_lengths, boxes
+
+    tracker_inputs = []
+    for num_detections, num_tracklets in product(
+        range(1, max_detections + 1), range(1, max_detections + 1)
+    ):
+        detection_inputs = _make_inputs_one_side(num_detections)
+        tracklet_inputs = _make_inputs_one_side(num_tracklets)
+
+        tracker_inputs.append(tracklet_inputs + detection_inputs)
 
     def _input_fn() -> Iterable[List[tf.Tensor]]:
         # Create dummy values for both detection and tracklet appearances
         # and bounding boxes.
-        yield [
-            appearance,
-            row_lengths,
-            boxes,
-            row_lengths,
-            appearance,
-            row_lengths,
-            boxes,
-            row_lengths,
-        ]
+        for (
+            track_appearance,
+            track_row_lengths,
+            track_boxes,
+            det_appearance,
+            det_row_lengths,
+            det_boxes,
+        ) in tracker_inputs:
+            logger.debug(
+                "Producing input with {} tracks and {} detections.",
+                track_boxes.shape[1],
+                det_boxes.shape[1],
+            )
+            yield [
+                track_appearance,
+                track_row_lengths,
+                track_boxes,
+                track_row_lengths,
+                det_appearance,
+                det_row_lengths,
+                det_boxes,
+                det_row_lengths,
+            ]
 
     return _input_fn
 
@@ -188,13 +215,17 @@ def _convert_saved_model(
     Returns:
 
     """
+    if not input_dir.exists():
+        logger.error("Could not find model at {}, not converting.", input_dir)
+        return
+
     logger.info("Converting model {}.", input_dir)
     converter_factory = trt.TrtGraphConverterV2
     if dynamic_shapes:
         converter_factory = partial(
             converter_factory,
             use_dynamic_shape=True,
-            dynamic_shape_profile_strategy="Optimal",
+            dynamic_shape_profile_strategy="Range",
         )
     use_fp16 = calibration_input_function is None
     converter = converter_factory(
@@ -265,6 +296,7 @@ def _convert_mot_models(
     *,
     model_dir: Path,
     output_dir: Path,
+    save_version: Optional[int] = None,
     frame_shape: Tuple[int, int],
     small_frame_shape: Tuple[int, int],
     num_appearance_features: int,
@@ -276,6 +308,8 @@ def _convert_mot_models(
     Args:
         model_dir: The directory containing the saved models.
         output_dir: The output directory to save the converted models to.
+        save_version: If provided, it will save this model as a particular
+            version. This is used for model serving.
         frame_shape: The shape of the frames in the MOT dataset.
         small_frame_shape: The shape of the inputs to the small detector.
         num_appearance_features: The number of appearance features used by
@@ -289,6 +323,10 @@ def _convert_mot_models(
     detector_output = output_dir / "detection_model"
     small_detector_output = output_dir / "small_detection_model"
     tracker_output = output_dir / "tracking_model"
+    if save_version is not None:
+        detector_output = detector_output / f"{save_version}"
+        small_detector_output = small_detector_output / f"{save_version}"
+        tracker_output = tracker_output / f"{save_version}"
 
     # Create detection models.
     _convert_detection_model(
@@ -312,6 +350,7 @@ def _convert_mot_models(
         input_dir=model_dir / "tracking_model",
         output_dir=tracker_output,
         input_function=tracking_inputs,
+        dynamic_shapes=True,
     )
 
     logger.info("Done converting MOT models.")
@@ -390,12 +429,36 @@ def _make_parser() -> argparse.ArgumentParser:
         help="The number of appearance features the tracker expects.",
     )
 
+    parser.add_argument(
+        "-v",
+        "--save-version",
+        type=int,
+        default=None,
+        help="Save this model as a particular version. If not provided, "
+        "it will increment the old one.",
+    )
+
     return parser
 
 
 def main() -> None:
     parser = _make_parser()
     cli_args = parser.parse_args()
+
+    save_version = cli_args.save_version
+    if save_version is None:
+        detection_dir = cli_args.output / "detection_model"
+        save_version = 1
+        if detection_dir.exists():
+            # Check to see what the newest version is.
+            version_dirs = [p for p in detection_dir.iterdir() if p.is_dir()]
+            for version_dir in version_dirs:
+                try:
+                    save_version = max(int(version_dir.name), save_version)
+                except ValueError:
+                    # Not a version directory.
+                    continue
+    logger.info("Saving model version {}.", save_version)
 
     _convert_mot_models(
         model_dir=cli_args.model,
@@ -409,6 +472,7 @@ def main() -> None:
         calibration_images=(
             cli_args.calibration_images if not cli_args.fp16 else None
         ),
+        save_version=cli_args.save_version,
     )
 
 

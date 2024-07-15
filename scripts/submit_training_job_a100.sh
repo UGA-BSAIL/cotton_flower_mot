@@ -23,39 +23,9 @@
 
 set -e
 
-# Base directory we use for job output.
-OUTPUT_BASE_DIR="/blue/cli2/$(whoami)/job_scratch/"
-# Directory where our data and venv are located.
-LARGE_FILES_DIR="/blue/cli2/$(whoami)/mot/"
-# Local copy of the dataset.
-LOCAL_DATA_DIR="${SLURM_TMPDIR}/data/"
-
-function prepare_environment() {
-  # Create the working directory for this job.
-  job_dir="${OUTPUT_BASE_DIR}/job_${SLURM_JOB_ID}"
-  mkdir "${job_dir}"
-  echo "Job directory is ${job_dir}."
-
-  # Copy the code.
-  cp -Rd "${SLURM_SUBMIT_DIR}/"* "${job_dir}/"
-
-  # Link to the input data directory and venv.
-  rm -rf "${job_dir}/data"
-  ln -s "${LARGE_FILES_DIR}/data" "${job_dir}/data"
-  ln -s "${LARGE_FILES_DIR}/.venv" "${job_dir}/.venv"
-
-  # Create output directories.
-  mkdir "${job_dir}/output_data"
-  mkdir "${job_dir}/logs"
-
-  # Set the working directory correctly for Kedro.
-  cd "${job_dir}"
-}
-
+source scripts/common.sh
 # Prepare the environment.
 prepare_environment
 
-source scripts/load_common.sh
-
 # Run the training.
-poetry run kedro run --pipeline=model_training --env=a100 "$@"
+kedro run --pipeline=model_training --env=a100 "$@"
