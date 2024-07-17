@@ -15,6 +15,8 @@ dev = [
     "pytest-flake8<2.0.0,>=1.0.7",
     "pydot<2.0.0,>=1.4.2",
     "jupyterlab<4.0.0,>=3.4.2",
+    "kedro[matplotlib,pandas]<1.0.0,>=0.18.1,<0.19.0",
+    "tables==3.9.2",
 ]
 
 [tool.pdm.build]
@@ -28,13 +30,14 @@ verify_ssl = true
 [project]
 # PEP 621 project metadata
 # See https://www.python.org/dev/peps/pep-0621/
+name = "cotton-flower-mot"
+version = "2.0.0"
 authors = [
     {name = "Daniel Petti", email = "djpetti@gmail.com"},
 ]
 license = {text = "MIT"}
-requires-python = "<3.11,>=3.10"
+requires-python = "<3.11,>=3.8"
 dependencies = [
-    "kedro[matplotlib,pandas]<1.0.0,>=0.18.1,<0.19.0",
     "pycvat @ file:///${PROJECT_ROOT}/pycvat",
     "pandas==1.4.3",
     "loguru<1.0.0,>=0.5.3",
@@ -43,20 +46,15 @@ dependencies = [
     "matplotlib<4.0.0,>=3.3.4",
     "pydantic<2.0.0,>=1.8.1",
     "scipy<2.0.0,>=1.6.2",
-    "opencv-python<5.0.0,>=4.7.0",
+    "opencv-python-headless<5.0.0,>=4.7.0",
     "tenacity<9.0.0,>=8.0.1",
-    "tensorflow-datasets<5.0.0,>=4.4.0",
-    "opencv-contrib-python<5.0.0,>=4.7.0",
+    "opencv-contrib-python-headless<5.0.0,>=4.7.0",
     "tqdm<5.0.0,>=4.64.0",
-    "tensorflow-addons<1.0.0,>=0.19.0",
-    "python-json-logger<3.0.0,>=2.0.4",
-    "onnx2tf<2.0.0,>=1.22.4",
-    "tf2onnx<2.0.0,>=1.16.1",
     "tabulate<1.0.0,>=0.9.0",
     "kalmankit<2.0.0,>=1.7.8",
     "av<12.0.0,>=11.0.0",
-    "tables==3.9.2",
-    "tensorflow[and-cuda]==2.15; platform_machine == 'x86_64'",
+    "tensorflow[and-cuda]==2.12; platform_machine == 'x86_64' and python_version < '3.9'",
+    "tensorflow[and-cuda]==2.15; platform_machine == 'x86_64' and python_version >= '3.9'",
     "tensorflow[and-cuda] @ https://developer.download.nvidia.com/compute/redist/jp/v512/tensorflow/tensorflow-2.12.0+nv23.06-cp38-cp38-linux_aarch64.whl ; platform_machine == 'aarch64'",
     "tensorflow-serving-api>=2.12.1",
 ]

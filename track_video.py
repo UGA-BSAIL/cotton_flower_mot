@@ -28,9 +28,10 @@ set_gpu_memory_limit(256)
 
 from src.cotton_flower_mot.frame_reader import FrameReader
 from src.cotton_flower_mot.online_tracker import (
-    Track,
     OnlineTracker,
 )
+from src.object_tracking.cotton_flower_mot.src.cotton_flower_mot.track import \
+    Track
 from src.cotton_flower_mot.roi_tracker import RoiTracker
 from src.cotton_flower_mot.mot_challenge import track_to_mot_challenge
 from src.cotton_flower_mot.tracking_video_maker import (

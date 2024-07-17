@@ -14,7 +14,8 @@ from matplotlib import pyplot as plot
 import seaborn as sns
 
 from ...schemas import ModelInputs
-from ...online_tracker import OnlineTracker, Track
+from ...online_tracker import OnlineTracker
+from ...track import Track
 from ...tracking_video_maker import draw_tracks, filter_short_tracks
 from ...frame_reader import FrameReader
 

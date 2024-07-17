@@ -172,7 +172,7 @@ def _single_complete_bipartite_adjacency_matrix(
     adjacency_shape: tf.Tensor,
     index_offset: tf.Tensor = tf.constant(0),
     sparse: bool = True,
-) -> tf.Tensor | tf.SparseTensor:
+) -> Union[tf.Tensor, tf.SparseTensor]:
     """
     Creates the binary adjacency matrix for a complete bipartite graph.
 

@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from loguru import logger
 
-from .online_tracker import Track
+from .track import Track
 
 _TAG_FONT = ImageFont.truetype(
     Path(__file__).parent.parent.parent / "fonts" / "VeraBd.ttf", 24

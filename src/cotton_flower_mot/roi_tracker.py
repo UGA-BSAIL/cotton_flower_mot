@@ -3,15 +3,15 @@ Uses the ROI tracking algorithm to speed up the detection process in cases
 where there are few flowers in the frame.
 """
 
-from typing import Any, Union, Tuple, List
+from typing import Any, Tuple, List
 
 import numpy as np
-import tensorflow as tf
 
 from loguru import logger
 
-from .online_tracker import OnlineTracker, adapt_detection_model, Track
-from .tfrt_utils import GraphFunc
+from .online_tracker import OnlineTracker
+from .track import Track
+from .model import DetectionModel
 
 
 class RoiTracker(OnlineTracker):
@@ -32,7 +32,7 @@ class RoiTracker(OnlineTracker):
     def __init__(
         self,
         *args: Any,
-        roi_detection_model: Union[GraphFunc, tf.keras.Model],
+        roi_detection_model: DetectionModel,
         keyframe_period: float = 0.1,
         roi_size: Tuple[int, int] = (256, 256),
         **kwargs,
@@ -56,9 +56,7 @@ class RoiTracker(OnlineTracker):
             f"\troi_size: {roi_size}"
         )
 
-        self.__roi_detection_model = adapt_detection_model(
-            roi_detection_model, reverse_inputs=True
-        )
+        self.__roi_detection_model = roi_detection_model
         self.__keyframe_period = keyframe_period
         self.__roi_size = np.array(roi_size[::-1])
 
@@ -168,14 +166,14 @@ class RoiTracker(OnlineTracker):
         all_appearance = []
         frame_size = frame.shape[:2]
         for roi, frame_offset in rois:
-            detector_inputs = self._create_detection_inputs(roi)
             with self._profiler.profile(
                 "detection_model_roi", warmup_iters=10
             ):
-                detections = self.__roi_detection_model(detector_inputs)
+                (
+                    roi_geometry,
+                    roi_appearance,
+                ) = self.__roi_detection_model.detect(roi)
 
-            roi_geometry = detections["geometry"][0].numpy()
-            roi_appearance = detections["appearance"][0].numpy()
             if len(roi_geometry) > 0:
                 # Convert it back to the coordinates of the full frame.
                 self.__roi_to_frame_detection(
