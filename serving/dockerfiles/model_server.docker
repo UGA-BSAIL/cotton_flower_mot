@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu as base_build
+FROM nvcr.io/nvidia/tensorrt:24.06-py3-igpu as base_build
 
 ARG TF_SERVING_VERSION_GIT_BRANCH=master
 ARG TF_SERVING_VERSION_GIT_COMMIT=8cdf0b8
@@ -144,7 +144,7 @@ RUN bazel clean --expunge --color=yes && \
 CMD ["/bin/bash"]
 
 
-FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3-igpu AS server
+FROM nvcr.io/nvidia/tensorrt:24.06-py3-igpu AS server
 
 # Install TF Serving GPU pkg
 COPY --from=clean_build /usr/local/bin/tensorflow_model_server \
