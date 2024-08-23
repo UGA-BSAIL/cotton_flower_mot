@@ -75,7 +75,7 @@ class Track:
 
         """
         if self.__motion_model is None:
-            initial_cov = np.eye(4, dtype=np.float32)
+            initial_cov = np.eye(4, dtype=np.float32) * 0.05
             initial_cov[2:, 2:] = self.__velocity_cov
             logger.debug(
                 "Initializing motion model with box {}, vel {}, and cov {}.",
@@ -323,6 +323,19 @@ class Track:
         end_time = self.__frames_to_time[last_frame]
 
         return (last_pos - first_pos) / (end_time - start_time)
+
+    def position_cov(self) -> np.array:
+        """
+        Returns:
+            The latest position covariance for this track, as a 2x2 matrix.
+
+        """
+        if self.__motion_model is None:
+            raise ValueError(
+                "Cannot use motion model before we have detections."
+            )
+
+        return self.__motion_model.cov[:2, :2]
 
     def velocity_cov(self) -> np.array:
         """
