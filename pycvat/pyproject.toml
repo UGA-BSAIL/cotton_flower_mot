@@ -1,27 +1,27 @@
 [tool.poetry]
 name = "pycvat"
-version = "0.9.2"
+version = "0.9.3"
 description = "High-level Python API and utilities for CVAT."
 authors = ["Daniel Petti <djpetti@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.11"
-requests = "^2.24.0"
-loguru = "^0.5.1"
-pillow = ">=7.1.0"
+python = ">=3.8,<3.11"
+requests = "^2.32.3"
+loguru = "^0.7.2"
+pillow = "^10.4.0"
 methodtools = "^0.4.2"
 numpy = ">=1.16"
-opencv-python = "^4.4.0"
-opencv-contrib-python = "^4.4.0"
+opencv-python = "^4.10.0.84"
+opencv-contrib-python = "^4.10.0.84"
 pydantic = "^1.6.1"
 kedro = ">=0.16.4"
 "backports.cached-property" = "^1.0.0"
 swagger-client = { path = "python-client", develop = false }
 singledispatchmethod = "^1.0"
 
-[tool.poetry.dev-dependencies]
-black = "^19.10b0"
+[tool.poetry.group.dev.dependencies]
+black = "^24.8.0"
 flake8 = "^3.8.3"
 pre-commit = "^2.6.0"
 pytest = "^6.0.1"
