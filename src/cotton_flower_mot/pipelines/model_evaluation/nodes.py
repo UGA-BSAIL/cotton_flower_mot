@@ -341,11 +341,11 @@ def make_horizontal_displacement_histogram(
         all_average_displacements.extend(average_displacements)
 
     # Plot them.
-    axes = sns.displot(all_average_displacements)
-    axes.fig.suptitle("Average Horizontal Displacements")
-    axes.set_axis_labels(
-        xlabel="Displacement (fraction of frame)", ylabel="Count"
-    )
+    plot.figure(figsize=(5, 5), dpi=300)
+    sns.histplot(all_average_displacements, bins=7)
+    plot.title("Average Horizontal Displacements")
+    plot.xlabel("Displacement (fraction of frame)")
+    plot.ylabel("Count")
 
     return plot.gcf()
 
@@ -364,8 +364,9 @@ def _estimate_velocity(track: Track) -> float:
     # We'll estimate the velocity by extrapolating two frames into the
     # future.
     last_frame_num = track.last_detection_frame
-    bbox_1 = track.predict_future_box(last_frame_num + 1)
-    bbox_2 = track.predict_future_box(last_frame_num + 2)
+    first_frame_num = track.first_detection_frame
+    bbox_1 = track.detection_for_frame(first_frame_num)[:2]
+    bbox_2 = track.detection_for_frame(last_frame_num)[:2]
 
     velocity_xy = (bbox_2 - bbox_1)[:2]
     return np.linalg.norm(velocity_xy)
@@ -413,9 +414,11 @@ def make_vertical_displacement_histogram(
         all_displacements.extend(normalized_velocities)
 
     # Plot them.
-    axes = sns.displot(all_displacements)
-    axes.fig.suptitle("Average Vertical Displacements")
-    axes.set_axis_labels(xlabel="Relative Displacement", ylabel="Count")
+    plot.figure(figsize=(5, 5), dpi=300)
+    sns.histplot(all_displacements, bins=8)
+    plot.title("Average Vertical Displacements")
+    plot.xlabel("Relative Displacement")
+    plot.ylabel("Count")
 
     return plot.gcf()
 

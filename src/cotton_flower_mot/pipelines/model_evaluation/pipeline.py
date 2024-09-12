@@ -29,18 +29,18 @@ Sessions to perform more advanced analysis on.
 def create_pipeline(**kwargs):
     return Pipeline(
         [
-            node(set_mixed_precision, "params:enable_mixed_precision", None),
+            # node(set_mixed_precision, "params:enable_mixed_precision", None),
             # Create the inference model.
-            node(
-                build_inference_model,
-                dict(
-                    training_model="best_model",
-                    config="model_config",
-                    detector_model_path="params:inference_yolo_model_path",
-                    nms_iou_threshold="params:nms_iou_threshold",
-                ),
-                ["inference_tracking_model", "inference_detection_model"],
-            ),
+            # node(
+            #     build_inference_model,
+            #     dict(
+            #         training_model="best_model",
+            #         config="model_config",
+            #         detector_model_path="params:inference_yolo_model_path",
+            #         nms_iou_threshold="params:nms_iou_threshold",
+            #     ),
+            #     ["inference_tracking_model", "inference_detection_model"],
+            # ),
             # Compute online tracks.
             # node(
             #     compute_tracks_for_clip_dataset,
@@ -62,18 +62,18 @@ def create_pipeline(**kwargs):
             #     ),
             #     "validation_tracks_tfrecord",
             # ),
-            node(
-                partial(
-                    compute_tracks_for_clip, sequence_id="2022-08-23_ENGR"
-                ),
-                dict(
-                    tracking_model="inference_tracking_model",
-                    detection_model="inference_detection_model",
-                    clip="video_2022_08_23_ENGR",
-                    sequence_meta="sequence_meta",
-                ),
-                "2022-08-23_ENGR_tracks",
-            ),
+            # node(
+            #     partial(
+            #         compute_tracks_for_clip, sequence_id="2022-08-23_ENGR"
+            #     ),
+            #     dict(
+            #         tracking_model="inference_tracking_model",
+            #         detection_model="inference_detection_model",
+            #         clip="video_2022_08_23_ENGR",
+            #         sequence_meta="sequence_meta",
+            #     ),
+            #     "2022-08-23_ENGR_tracks",
+            # ),
             # node(
             #     partial(compute_tracks_for_clip, sequence_id="2021-08-25_SPL"),
             #     dict(
@@ -115,18 +115,18 @@ def create_pipeline(**kwargs):
             #     "2022-08-31_SPL_tracks",
             # ),
             # Merge all the tracks.
-            node(
-                merge_track_datasets,
-                [
-                    # "validation_tracks_tfrecord",
-                    # "2021-08-25_SPL_tracks",
-                    # "2021-09-03_SPL_tracks",
-                    # "2020-08-11_row1_tracks",
-                    "2022-08-23_ENGR_tracks",
-                    # "2022-08-31_SPL_tracks",
-                ],
-                "validation_tracks",
-            ),
+            # node(
+            #     merge_track_datasets,
+            #     [
+            #         # "validation_tracks_tfrecord",
+            #         # "2021-08-25_SPL_tracks",
+            #         # "2021-09-03_SPL_tracks",
+            #         # "2020-08-11_row1_tracks",
+            #         "2022-08-23_ENGR_tracks",
+            #         # "2022-08-31_SPL_tracks",
+            #     ],
+            #     "validation_tracks",
+            # ),
             # Save the results in MOT challenge format.
             node(
                 create_mot_challenge_results,
