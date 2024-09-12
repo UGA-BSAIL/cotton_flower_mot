@@ -16,7 +16,7 @@ dev = [
     "pydot<2.0.0,>=1.4.2",
     "jupyterlab<4.0.0,>=3.4.2",
     "kedro[matplotlib,pandas]<1.0.0,>=0.18.1,<0.19.0",
-    "tables==3.9.2",
+    "tables==3.8.0",
 ]
 
 [tool.pdm.build]
@@ -56,12 +56,12 @@ dependencies = [
     "tensorflow[and-cuda]==2.12; platform_machine == 'x86_64' and python_version < '3.9'",
     "tensorflow[and-cuda]==2.15; platform_machine == 'x86_64' and python_version >= '3.9'",
     "tensorflow[and-cuda] @ https://developer.download.nvidia.com/compute/redist/jp/v512/tensorflow/tensorflow-2.12.0+nv23.06-cp38-cp38-linux_aarch64.whl ; platform_machine == 'aarch64'",
-    "tensorflow-serving-api>=2.12.1",
+    "tensorflow-serving-api==2.12.1",
 ]
 
 [tool.pdm.resolution.overrides]
 # The version kedro wants fails to build.
-tables = "3.9.2"
+tables = "3.8.0"
 
 [tool.black]
 line-length = 79

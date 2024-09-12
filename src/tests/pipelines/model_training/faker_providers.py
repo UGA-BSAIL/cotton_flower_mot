@@ -2,8 +2,6 @@
 Contains custom `Faker` providers.
 """
 
-import math
-from functools import partial
 from typing import Any, Iterable, Optional, Reversible, Tuple
 
 import numpy as np

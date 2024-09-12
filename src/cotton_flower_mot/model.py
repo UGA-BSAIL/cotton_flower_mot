@@ -9,7 +9,7 @@ from typing import Tuple, Optional, Dict, Any
 import numpy as np
 
 import grpc
-from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
+from tensorflow_serving.apis import prediction_service_pb2_grpc
 import tensorflow as tf
 
 from .grpc_utils import make_predict_request
