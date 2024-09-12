@@ -7,7 +7,7 @@ from functools import partial
 import itertools
 from pathlib import Path
 import random
-from typing import List, Iterable, Callable, Union, Tuple, Optional
+from typing import List, Iterable, Callable, Union, Tuple, Optional, Dict
 import argparse
 
 from loguru import logger
@@ -15,6 +15,8 @@ import numpy as np
 from tensorflow.python.compiler.tensorrt import trt_convert as trt
 import tensorflow as tf
 from itertools import product
+from tensorflow_serving.apis import predict_pb2
+from tensorflow_serving.apis import prediction_log_pb2
 
 
 InputFunction = Callable[[], Iterable[List[Union[np.array, tf.Tensor]]]]
@@ -28,6 +30,12 @@ Maximum memory usage to allow for TF, in MB.
 """
 
 
+_NUM_WARMUP_EXAMPLES = 10
+"""
+The number of examples to save for model warmup.
+"""
+
+
 gpus = tf.config.list_physical_devices("GPU")
 if gpus:
     # The Jetson has unified memory, so if we let TF gobble up all the GPU
@@ -36,6 +44,32 @@ if gpus:
         gpus[0],
         [tf.config.LogicalDeviceConfiguration(memory_limit=_MAX_MEMORY)],
     )
+
+
+def _make_predict_request(
+    input_dict: Dict[str, np.array], *, model_name: str
+) -> predict_pb2.PredictRequest:
+    """
+    Creates a prediction request message.
+
+    Args:
+        input_dict: The dictionary of inputs, mapping input names to
+                input data.
+        model_name: The name of the model.
+
+    Returns:
+        The prediction request message.
+
+    """
+    request = predict_pb2.PredictRequest()
+
+    request.model_spec.name = model_name
+
+    # Set the input as the data
+    for input_name, input_data in input_dict.items():
+        request.inputs[input_name].CopyFrom(tf.make_tensor_proto(input_data))
+
+    return request
 
 
 def _generate_detector_inputs(
@@ -353,7 +387,107 @@ def _convert_mot_models(
         dynamic_shapes=True,
     )
 
+    # Save the warmup data.
+    _save_detector_warmup_data(
+        detector_output, frame_shape=frame_shape, model_name="flower_detector"
+    )
+    _save_detector_warmup_data(
+        small_detector_output,
+        frame_shape=small_frame_shape,
+        model_name="small_flower_detector",
+    )
+    _save_tracker_warmup_data(
+        tracker_output,
+        num_appearance_features=num_appearance_features,
+        model_name="flower_tracker",
+    )
+
     logger.info("Done converting MOT models.")
+
+
+def _save_detector_warmup_data(
+    model_dir: Path, *, frame_shape: Tuple[int, int], model_name: str
+) -> None:
+    """
+    Saves warmup data for the detector model.
+
+    Args:
+        model_dir: The `SavedModel` directory where we are writing data to.
+        frame_shape: The expected shape of the inputs to the model.
+        model_name: The name of the model we are generating data for.
+
+    """
+    logger.info("Saving warmup data for {}...", model_dir)
+    warmup_dir = model_dir / "assets.extra"
+    warmup_dir.mkdir(exist_ok=True, parents=True)
+    warmup_file = warmup_dir / "tf_serving_warmup_requests"
+
+    detection_inputs = _generate_detector_inputs(
+        input_shapes=[frame_shape] * _NUM_WARMUP_EXAMPLES
+    )
+    with tf.io.TFRecordWriter(warmup_file.as_posix()) as writer:
+        for image_batch in detection_inputs():
+            request = _make_predict_request(
+                dict(detections_frame=image_batch[0]),
+                model_name=model_name,
+            )
+            log = prediction_log_pb2.PredictionLog(
+                predict_log=prediction_log_pb2.PredictLog(request=request)
+            )
+
+            writer.write(log.SerializeToString())
+
+
+def _save_tracker_warmup_data(
+    model_dir: Path, *, num_appearance_features: int, model_name: str
+) -> None:
+    """
+    Saves warmup data for the tracker model.
+
+    Args:
+        model_dir: The `SavedModel` directory where we are writing data to.
+        num_appearance_features: The number of expected appearance features.
+        model_name: The name of the model we are generating data for.
+
+    """
+    logger.info("Saving warmup data for {}...", model_dir)
+    warmup_dir = model_dir / "assets.extra"
+    warmup_dir.mkdir(exist_ok=True, parents=True)
+    warmup_file = warmup_dir / "tf_serving_warmup_requests"
+
+    tracking_inputs = _generate_tracker_inputs(
+        num_appearance_features=num_appearance_features, max_detections=10
+    )
+    with tf.io.TFRecordWriter(warmup_file.as_posix()) as writer:
+        for (
+            track_appearance,
+            track_row_lengths,
+            track_boxes,
+            _,
+            det_appearance,
+            det_row_lengths,
+            det_boxes,
+            _,
+        ) in tracking_inputs():
+            input_dict = {
+                "detection_appearance_flat": det_appearance,
+                "detection_appearance_row_lengths": det_row_lengths,
+                "tracklet_appearance_flat": track_appearance,
+                "tracklet_appearance_row_lengths": track_row_lengths,
+                "detection_geometry_flat": det_boxes,
+                "detection_geometry_row_lengths": det_row_lengths,
+                "tracklet_geometry_flat": track_boxes,
+                "tracklet_geometry_row_lengths": track_row_lengths,
+            }
+            request = _make_predict_request(
+                input_dict,
+                model_name=model_name,
+            )
+            log = prediction_log_pb2.PredictionLog(
+                predict_log=prediction_log_pb2.PredictLog(request=request)
+            )
+
+            writer.write(log.SerializeToString())
 
 
 def _make_parser() -> argparse.ArgumentParser:

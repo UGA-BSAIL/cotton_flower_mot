@@ -3,12 +3,20 @@ bounding_box_size_dist:
   type: matplotlib.MatplotlibWriter
   filepath: data/08_reporting/eda/bounding_box_size_dist.png
   versioned: True
+  save_args:
+    dpi: 300
+    # Stop the title from getting cut off.
+    bbox_inches: "tight"
 
 # Plot showing the number of annotations per frame.
 annotations_per_frame:
   type: matplotlib.MatplotlibWriter
   filepath: data/08_reporting/eda/annotations_per_frame.png
   versioned: True
+  save_args:
+    dpi: 300
+    # Stop the axis labels from getting cut off.
+    bbox_inches: "tight"
 
 # Plot showing the track lengths.
 track_lengths:

@@ -34,10 +34,17 @@ def annotation_size(annotations: pd.DataFrame) -> plot.Figure:
 
     # Plot it.
     axes = sns.jointplot(x=bbox_width, y=bbox_height, kind="hex")
-    axes.fig.suptitle("Distribution of Bounding Box Size")
-    axes.set_axis_labels(xlabel="width (px)", ylabel="height (px)")
 
-    return plot.gcf()
+    # Manually adjust the figure size and DPI
+    axes.fig.set_size_inches(5, 5)
+    axes.fig.set_dpi(300)
+
+    # Set labels and title
+    axes.set_axis_labels("Width (px)", "Height (px)", fontsize=12)
+    # Adjust 'y' for title position so it doesn't overlap.
+    plot.suptitle("Distribution of Bounding Box Sizes", fontsize=14, y=1.02)
+
+    return axes.fig
 
 
 def annotations_per_frame(annotations: pd.DataFrame) -> plot.Figure:
@@ -51,15 +58,19 @@ def annotations_per_frame(annotations: pd.DataFrame) -> plot.Figure:
         The plot that it created.
 
     """
+    plot.figure(figsize=(5, 5), dpi=300)
+
     # Calculate the number of annotations per frame.
     flowers_per_frame = annotations.pivot_table(
-        index=[Otf.IMAGE_FRAME_NUM.value], aggfunc="size"
+        index=[Otf.IMAGE_SEQUENCE_ID.value, Otf.IMAGE_FRAME_NUM.value],
+        aggfunc="size",
     )
 
     # Plot it.
-    axes = sns.displot(flowers_per_frame, discrete=True)
-    axes.fig.suptitle("Number of Annotations per Frame")
-    axes.set_axis_labels(xlabel="Number of Annotations", ylabel="Count")
+    sns.histplot(flowers_per_frame, bins=10)
+    plot.title("Number of Annotations per Frame", fontsize=14)
+    plot.xlabel("Number of Annotations", fontsize=12)
+    plot.ylabel("Count", fontsize=12)
 
     return plot.gcf()
 

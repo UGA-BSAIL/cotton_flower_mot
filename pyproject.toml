@@ -56,7 +56,7 @@ dependencies = [
     "tensorflow[and-cuda]==2.12; platform_machine == 'x86_64' and python_version < '3.9'",
     "tensorflow[and-cuda]==2.15; platform_machine == 'x86_64' and python_version >= '3.9'",
     "tensorflow[and-cuda] @ https://developer.download.nvidia.com/compute/redist/jp/v512/tensorflow/tensorflow-2.12.0+nv23.06-cp38-cp38-linux_aarch64.whl ; platform_machine == 'aarch64'",
-    "tensorflow-serving-api>=2.12.1",
+    "tensorflow-serving-api==2.12.1",
 ]
 
 [tool.pdm.resolution.overrides]

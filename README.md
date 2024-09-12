@@ -1,122 +1,67 @@
-# Cotton Flower MOT
+# Serving the Tracking Models on the Jetson
 
-## Overview
+The tracking pipeline on the Jetson is implemented using 
+[TensorFlow Serving](https://www.tensorflow.org/tfx/tutorials/serving/rest_simple).
+The server is designed to run in the background, and the ROS nodes that 
+perform tracking make gRPC calls to this server.
 
-This is your new Kedro project, which was generated using `Kedro 0.17.1`.
+The server is managed using `docker compose`. In order to set it up, you will
+first need to build the Docker container on the Jetson:
 
-Take a look at the [Kedro documentation](https://kedro.readthedocs.io) to get started.
-
-## Rules and guidelines
-
-In order to get the best out of the template:
-
-* Don't remove any lines from the `.gitignore` file we provide
-* Make sure your results can be reproduced by following a [data engineering convention](https://kedro.readthedocs.io/en/stable/12_faq/01_faq.html#what-is-data-engineering-convention)
-* Don't commit data to your repository
-* Don't commit any credentials or your local configuration to your repository. Keep all your credentials and local configuration in `conf/local/`
-
-## How to install dependencies
-
-Declare any dependencies in `src/requirements.txt` for `pip` installation and `src/environment.yml` for `conda` installation.
-
-To install them, run:
-
-```
-kedro install
+```shell
+MODEL_DIR="" docker compose build
 ```
 
-## How to run your Kedro pipeline
+Note that, as of this time, there is no binary TensorFlow Serving package
+available for the Jetson. Therefore, this Docker build process will compile
+it from source, which generally takes several hours. I suggest you run it
+overnight.
 
-You can run your Kedro project with:
+## Converting the Models
 
-```
-kedro run
-```
+Realtime tracking depends on models converted using TensorRT for fast 
+inference. This conversion will need to be performed every time you update
+the models. These instructions assume that you have uploaded the raw models
+to `~/tf_models_temp` on the Jetson. This directory should have the 
+following structure:
 
-## How to test your Kedro project
-
-Have a look at the file `src/tests/test_run.py` for instructions on how to write your tests. You can run your tests as follows:
-
-```
-kedro test
-```
-
-To configure the coverage threshold, go to the `.coveragerc` file.
-
-## Project dependencies
-
-To generate or update the dependency requirements for your project:
-
-```
-kedro build-reqs
+```shell
+- tf_models_temp
+ |__ detection_model
+ |__ small_detection_model
+ |__ tracking_model
 ```
 
-This will copy the contents of `src/requirements.txt` into a new file `src/requirements.in` which will be used as the source for `pip-compile`. You can see the output of the resolution by opening `src/requirements.txt`.
+Each of these three models should be stored in the TensorFlow `saved_model` 
+format. See `notebooks/model_to_tf_saved.ipynb`.
 
-After this, if you'd like to update your project requirements, please update `src/requirements.in` and re-run `kedro build-reqs`.
+Converting the models can be done (mostly) automatically:
 
-[Further information about project dependencies](https://kedro.readthedocs.io/en/stable/04_kedro_project_setup/01_dependencies.html#project-specific-dependencies)
-
-## How to work with Kedro and notebooks
-
-> Note: Using `kedro jupyter` or `kedro ipython` to run your notebook provides these variables in scope: `context`, `catalog`, and `startup_error`.
->
-> Jupyter, JupyterLab, and IPython are already included in the project requirements by default, so once you have run `kedro install` you will not need to take any extra steps before you use them.
-
-### Jupyter
-To use Jupyter notebooks in your Kedro project, you need to install Jupyter:
-
-```
-pip install jupyter
+```shell
+INPUT_DIR=/home/mars/tf_models_temp/ MODEL_DIR=/media/mars/Data/models/trt_models docker compose -f docker-compose-conversion.yml up
 ```
 
-After installing Jupyter, you can start a local notebook server:
+Here, `INPUT_DIR` is the directory containing the input models, and 
+`MODEL_DIR` is the desired output directory. This can be anything you want. 
+You just have to point TensorFlow Serving at it later. This conversion process
+might take awhile, up to an hour or so.
 
-```
-kedro jupyter notebook
-```
+The conversion script can automatically recognize whether previous versioned 
+models are saved in `MODEL_DIR` already. If so, it will automatically create 
+a new version for the output. This allows you to non-destructively update 
+the model such that you can later access both versions through TensorFlow 
+Serving.
 
-### JupyterLab
-To use JupyterLab, you need to install it:
+## Starting the Server
 
-```
-pip install jupyterlab
-```
+Once the build is done, you can start the server. Use the `MODEL_DIR` 
+environment variable to specify the location of the models to serve. (It 
+should have the same value as it did for the TensorRT conversion step.)
 
-You can also start JupyterLab:
-
-```
-kedro jupyter lab
-```
-
-### IPython
-And if you want to run an IPython session:
-
-```
-kedro ipython
+```shell
+MODEL_DIR=/media/mars/Data/models/trt_models docker compose up -d
 ```
 
-### How to convert notebook cells to nodes in a Kedro project
-You can move notebook code over into a Kedro project structure using a mixture of [cell tagging](https://jupyter-notebook.readthedocs.io/en/stable/changelog.html#release-5-0-0) and Kedro CLI commands.
-
-By adding the `node` tag to a cell and running the command below, the cell's source code will be copied over to a Python file within `src/<package_name>/nodes/`:
-
-```
-kedro jupyter convert <filepath_to_my_notebook>
-```
-> *Note:* The name of the Python file matches the name of the original notebook.
-
-Alternatively, you may want to transform all your notebooks in one go. Run the following command to convert all notebook files found in the project root directory and under any of its sub-folders:
-
-```
-kedro jupyter convert --all
-```
-
-### How to ignore notebook output cells in `git`
-To automatically strip out all output cell contents before committing to `git`, you can run `kedro activate-nbstripout`. This will add a hook in `.git/config` which will run `nbstripout` before anything is committed to `git`.
-
-> *Note:* Your output cells will be retained locally.
-
-## Package your Kedro project
-
-[Further information about building project documentation and packaging your project](https://kedro.readthedocs.io/en/stable/03_tutorial/05_package_a_project.html)
+The `docker compose` project is configured to automatically launch the server 
+whenever the Jetson boots. This is why you might notice high GPU usage right 
+after boot.
