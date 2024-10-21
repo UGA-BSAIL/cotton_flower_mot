@@ -166,13 +166,23 @@ class RemoteTrackingModel(_RemoteModelMixin, TrackingModel):
     Wrapper that provides a unified API to access remote tracking models.
     """
 
+    def __init__(self, output: str = "input.to_tensor", **kwargs: Any):
+        """
+        Args:
+            output: The name of the output for the Sinkhorn matrix.
+            **kwargs: Will be forwarded to the superclass.
+
+        """
+        super().__init__(**kwargs)
+        self.__output = output
+
     def track(
-        self,
-        *,
-        detections: np.array,
-        detections_appearance: np.array,
-        tracklets: np.array,
-        tracklets_appearance: np.array,
+            self,
+            *,
+            detections: np.array,
+            detections_appearance: np.array,
+            tracklets: np.array,
+            tracklets_appearance: np.array,
     ) -> np.array:
         num_detections = np.array([[detections.shape[0]]], dtype=np.int32)
         num_tracklets = np.array([[tracklets.shape[0]]], dtype=np.int32)
@@ -188,4 +198,5 @@ class RemoteTrackingModel(_RemoteModelMixin, TrackingModel):
         }
 
         outputs = self._predict_grpc(input_dict)
-        return outputs["input.to_tensor"][0]
+        return outputs[self.__output][0]
+
