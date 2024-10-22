@@ -1,6 +1,6 @@
 import tensorflow as tf
 from pathlib import Path
-from typing import Tuple, Any, Dict
+from typing import Tuple, Any, Dict, Union
 from loguru import logger
 
 
@@ -12,7 +12,7 @@ class PretrainedTf(layers.Layer):
     Represents a pre-trained TF model that we can use directly as a layer.
     """
 
-    def __init__(self, model_path: Path | str, *args: Any, **kwargs: Any):
+    def __init__(self, model_path: Union[Path], *args: Any, **kwargs: Any):
         """
         Args:
             model_path: Path to the TF model.

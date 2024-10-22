@@ -81,6 +81,7 @@ RUN mkdir /bazel && \
     cd /bazel && \
     curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /usr/local/bin/bazel -O https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-arm64 && \
     curl -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36" -fSsL -o /bazel/LICENSE.txt https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE
+RUN chmod +x /usr/local/bin/bazel
 
 # Build TensorFlow with the CUDA configuration
 ENV CI_BUILD_PYTHON python

@@ -4,7 +4,7 @@ Message-passing-based implementation of CensNet.
 
 from spektral.layers import MessagePassing
 import tensorflow as tf
-from typing import Tuple, Any, TypeVar, Dict
+from typing import Tuple, Any, TypeVar, Dict, Optional
 import keras
 
 MaybeSparse = TypeVar("MaybeSparse", tf.Tensor, tf.SparseTensor)
@@ -147,7 +147,9 @@ class CensNet(MessagePassing):
 
     @classmethod
     def _square_incidence(
-        cls, incidence: tf.SparseTensor, edge_weights: tf.Tensor | None = None
+        cls,
+        incidence: tf.SparseTensor,
+        edge_weights: Optional[tf.Tensor] = None,
     ) -> tf.SparseTensor:
         """
         A special, optimized method that computes the square (M@M') of a sparse
@@ -453,9 +455,9 @@ class CensNet(MessagePassing):
         self,
         x: tf.Tensor,
         *,
-        a: tf.SparseTensor | None = None,
-        node_update_adjacency_weights: tf.SparseTensor | None = None,
-        edge_update_adjacency_weights: tf.SparseTensor | None = None,
+        a: Optional[tf.SparseTensor] = None,
+        node_update_adjacency_weights: Optional[tf.SparseTensor] = None,
+        edge_update_adjacency_weights: Optional[tf.SparseTensor] = None,
         **kwargs: Any
     ) -> tf.Tensor:
         """
