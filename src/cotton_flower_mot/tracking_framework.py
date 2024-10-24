@@ -35,7 +35,7 @@ class TrackingStats:
     """
 
 
-class OnlineTracker:
+class OnlineTrackingFramework:
     """
     Performs online tracking using a given model.
     """
@@ -656,32 +656,32 @@ class OnlineTracker:
             fast_assignment, slow_tracklet_ind, slow_detection_ind = (
                 self.__do_fast_association(model_inputs)
             )
-        # if len(slow_tracklet_ind) > 0 and len(slow_detection_ind) > 0:
-        #     # Fast association failed for some of the inputs.
-        #     logger.debug("Falling back on slow association...")
-        #     with self._profiler.profile("slow_association", warmup_iters=10):
-        #         # Filter to only the inputs we need for slow association.
-        #         slow_inputs = self.__create_tracking_inputs(
-        #             detections=detection_geometry[slow_detection_ind],
-        #             appearance_features=appearance_features[
-        #                 slow_detection_ind
-        #             ],
-        #             frame_time=frame_time,
-        #             restrict_to_tracklets=slow_tracklet_ind,
-        #         )
-        #
-        #         sinkhorn = self.__tracking_model.track(**slow_inputs)
-        #
-        #         slow_assignment = self.__sinkhorn_to_assigment(
-        #             sinkhorn,
-        #             num_detections=len(slow_detection_ind),
-        #             num_tracklets=len(slow_tracklet_ind),
-        #         )
-        #         slow_assignment = self.__dense_to_sparse_assignment(
-        #             slow_assignment,
-        #             row_indices=slow_tracklet_ind,
-        #             col_indices=slow_detection_ind,
-        #         )
+        if len(slow_tracklet_ind) > 0 and len(slow_detection_ind) > 0:
+            # Fast association failed for some of the inputs.
+            logger.debug("Falling back on slow association...")
+            with self._profiler.profile("slow_association", warmup_iters=10):
+                # Filter to only the inputs we need for slow association.
+                slow_inputs = self.__create_tracking_inputs(
+                    detections=detection_geometry[slow_detection_ind],
+                    appearance_features=appearance_features[
+                        slow_detection_ind
+                    ],
+                    frame_time=frame_time,
+                    restrict_to_tracklets=slow_tracklet_ind,
+                )
+
+                sinkhorn = self.__tracking_model.track(**slow_inputs)
+
+                slow_assignment = self.__sinkhorn_to_assigment(
+                    sinkhorn,
+                    num_detections=len(slow_detection_ind),
+                    num_tracklets=len(slow_tracklet_ind),
+                )
+                slow_assignment = self.__dense_to_sparse_assignment(
+                    slow_assignment,
+                    row_indices=slow_tracklet_ind,
+                    col_indices=slow_detection_ind,
+                )
 
         # Combine results from fast and slow association.
         assignment = np.concatenate((fast_assignment, slow_assignment), axis=0)
