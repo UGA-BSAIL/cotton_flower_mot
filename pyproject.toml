@@ -19,6 +19,9 @@ dev = [
     "tables==3.9.2",
 ]
 
+[tool.setuptools.package-data]
+myModule = ["*.csv"]
+
 [tool.pdm.build]
 includes = []
 

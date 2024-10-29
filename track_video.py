@@ -18,23 +18,20 @@ import cv2
 
 import pandas as pd
 
-from src.cotton_flower_mot.tfrt_utils import (
-    GraphFunc,
-    get_func_from_saved_model,
-    set_gpu_memory_limit,
+from cotton_flower_mot.frame_reader import FrameReader
+from cotton_flower_mot.tracking_framework import OnlineTrackingFramework
+from cotton_flower_mot.track import (
+    Track,
 )
-
-set_gpu_memory_limit(256)
-
-from src.cotton_flower_mot.frame_reader import FrameReader
-from src.cotton_flower_mot.online_tracker import (
-    OnlineTracker,
+from cotton_flower_mot.roi_tracking_framework import RoiTrackingFramework
+from cotton_flower_mot.model_tracker import ModelTracker
+from cotton_flower_mot.model import (
+    RemoteDetectionModel,
+    RemoteTrackingModel,
 )
-from src.object_tracking.cotton_flower_mot.src.cotton_flower_mot.track import \
-    Track
-from src.cotton_flower_mot.roi_tracker import RoiTracker
-from src.cotton_flower_mot.mot_challenge import track_to_mot_challenge
-from src.cotton_flower_mot.tracking_video_maker import (
+from cotton_flower_mot.profiler import ProfilingManager
+from cotton_flower_mot.mot_challenge import track_to_mot_challenge
+from cotton_flower_mot.tracking_video_maker import (
     draw_tracks,
     filter_short_tracks,
 )
@@ -55,11 +52,11 @@ def _configure_logging() -> None:
 
 def _make_tracker(
     *,
-    tracking_model: GraphFunc,
-    detection_model: GraphFunc,
-    small_detection_model: Optional[GraphFunc],
-    **kwargs: Any,
-) -> OnlineTracker:
+    tracking_model: RemoteTrackingModel,
+    detection_model: RemoteDetectionModel,
+    small_detection_model: Optional[RemoteDetectionModel] = None,
+    cli_args: argparse.Namespace,
+) -> OnlineTrackingFramework:
     """
     Creates an OnlineTracker instance for a given video.
 
@@ -68,25 +65,33 @@ def _make_tracker(
         detection_model: The model to use for detection.
         small_detection_model: The small detection model to use for ROI
             tracking. If not specified, ROI tracking will be disabled.
-        **kwargs: Will be forwarded to `OnlineTracker`.
+        cli_args: The CLI arguments passed to the program.
 
     Returns:
         An OnlineTracker instance.
 
     """
+    profiler = ProfilingManager()
+    tracker = ModelTracker(
+        tracking_model=tracking_model,
+        stage_one_iou_threshold=cli_args.iou,
+        profile_manager=profiler,
+    )
     common_args = dict(
         detection_model=detection_model,
-        tracking_model=tracking_model,
-        **kwargs,
+        tracker=tracker,
+        death_window=cli_args.death_window,
+        confidence_threshold=cli_args.conf,
+        profile_manager=profiler,
     )
     if small_detection_model is not None:
-        return RoiTracker(
+        return RoiTrackingFramework(
+            keyframe_period=cli_args.keyframe_period,
             roi_detection_model=small_detection_model,
             **common_args,
         )
     else:
-        common_args.pop("keyframe_period")
-        return OnlineTracker(
+        return OnlineTrackingFramework(
             **common_args,
         )
 
@@ -195,11 +200,12 @@ def _write_tracks_csv(
 
 def _track_video(
     *,
-    detection_model: Path,
-    tracking_model: Path,
+    endpoint: str,
+    detection_model_name: str,
+    small_detection_model_name: Optional[str] = None,
+    tracking_model_name: str,
     video_path: Path,
     output_path: Path,
-    small_detection_model: Optional[Path] = None,
     bgr_color: bool = False,
     cvat_output: bool = False,
     **kwargs: Any,
@@ -208,12 +214,13 @@ def _track_video(
     Performs tracking on a video.
 
     Args:
-        detection_model: The path to the detection model.
-        tracking_model: The path to the tracking model.
+        endpoint: The gRPC endpoint to connect to.
+        detection_model_name: The name of the detection model to run.
+        small_detection_model_name: The name of the small detection model to
+            run, or None if we are not using ROI tracking.
+        tracking_model_name: The name of the tracking model to run.
         video_path: The path to the video.
         output_path: Where to write the output tracking data file.
-        small_detection_model: If a small detection model path is specified,
-            it will enable the ROI tracker and use it.
         bgr_color: Assume video uses BGR colorspace instead of RGB.
         cvat_output: Whether to use CVAT output format.
         **kwargs: Will be forwarded to `_compute_tracks_for_clip()`.
@@ -222,11 +229,19 @@ def _track_video(
     logger.info("Tracking from video {}...", video_path)
 
     # Load the models.
-    detection_model, _1 = get_func_from_saved_model(detection_model)
-    tracking_model, _2 = get_func_from_saved_model(tracking_model)
-    if small_detection_model is not None:
-        small_detection_model, _3 = get_func_from_saved_model(
-            small_detection_model
+    detection_model = RemoteDetectionModel(
+        endpoint=endpoint, model_name=detection_model_name
+    )
+    tracking_model = RemoteTrackingModel(
+        endpoint=endpoint, model_name=tracking_model_name
+    )
+    small_detection_model = None
+    if small_detection_model_name is not None:
+        small_detection_model = RemoteDetectionModel(
+            endpoint=endpoint,
+            model_name=small_detection_model_name,
+            detections_output="input.to_tensor_3",
+            appearance_output="input.to_tensor_4",
         )
 
     # Load the video.
@@ -271,9 +286,25 @@ def _make_parser() -> argparse.ArgumentParser:
         description="Run the tracking system on a video."
     )
     parser.add_argument(
-        "model_dir",
-        type=Path,
-        help="The saved model directory.",
+        "-e",
+        "--endpoint",
+        default="localhost:8500",
+        help="The URI of the model server.",
+    )
+    parser.add_argument(
+        "--detector-name",
+        default="flower_detector",
+        help="The name of the detection model to use.",
+    )
+    parser.add_argument(
+        "--small-detector-name",
+        default="small_flower_detector",
+        help="The name of the small detection model to use.",
+    )
+    parser.add_argument(
+        "--tracker-name",
+        default="flower_tracker",
+        help="The name of the tracking model to use.",
     )
     parser.add_argument("video", type=Path, help="The path to the video file.")
 
@@ -345,22 +376,18 @@ def main() -> None:
     # Load ROI detector for ROI tracking.
     small_detection_model = None
     if not cli_args.no_roi:
-        small_detection_model = cli_args.model_dir / "small_detection_model"
+        small_detection_model = cli_args.small_detector_name
 
     output_path = cli_args.output or cli_args.video.with_suffix(".csv")
     _track_video(
-        detection_model=cli_args.model_dir / "detection_model",
-        tracking_model=cli_args.model_dir / "tracking_model",
-        small_detection_model=small_detection_model,
+        endpoint=cli_args.endpoint,
+        detection_model_name=cli_args.detector_name,
+        tracking_model_name=cli_args.tracker_name,
+        small_detection_model_name=small_detection_model,
         video_path=cli_args.video,
         output_path=output_path,
         bgr_color=cli_args.bgr_color,
-        enable_two_stage_association=not cli_args.gnn_only,
-        stage_one_iou_threshold=cli_args.iou,
-        confidence_threshold=cli_args.conf,
-        cvat_output=cli_args.cvat,
-        keyframe_period=cli_args.keyframe_period,
-        death_window=cli_args.death_window,
+        cli_args=cli_args,
     )
 
 
