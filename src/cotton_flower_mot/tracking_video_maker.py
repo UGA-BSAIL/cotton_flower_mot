@@ -16,7 +16,7 @@ from loguru import logger
 from .track import Track
 
 _TAG_FONT = ImageFont.truetype(
-    Path(__file__).parent.parent.parent / "fonts" / "VeraBd.ttf", 24
+    Path(__file__).parent / "fonts" / "VeraBd.ttf", 24
 )
 """
 Font to use for bounding box tags.

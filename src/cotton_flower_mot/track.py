@@ -75,7 +75,7 @@ class Track:
 
         """
         if self.__motion_model is None:
-            initial_cov = np.eye(4, dtype=np.float32)
+            initial_cov = np.eye(4, dtype=np.float32) * 0.05
             initial_cov[2:, 2:] = self.__velocity_cov
             logger.debug(
                 "Initializing motion model with box {}, vel {}, and cov {}.",
@@ -324,6 +324,19 @@ class Track:
 
         return (last_pos - first_pos) / (end_time - start_time)
 
+    def position_cov(self) -> np.array:
+        """
+        Returns:
+            The latest position covariance for this track, as a 2x2 matrix.
+
+        """
+        if self.__motion_model is None:
+            raise ValueError(
+                "Cannot use motion model before we have detections."
+            )
+
+        return self.__motion_model.cov[:2, :2]
+
     def velocity_cov(self) -> np.array:
         """
         Returns:
@@ -466,19 +479,19 @@ class Track:
 
         """
         track = cls(
-            mean_velocity=np.array(config.get("mean_velocity", [0, 0])),
-            velocity_cov=np.array(config.get("velocity_cov", [0, 0])),
+            mean_velocity=np.array(config["mean_velocity"]),
+            velocity_cov=np.array(config["velocity_cov"]),
         )
 
         track.__frames_to_detections = {
             k: np.array(v) for k, v in config["frames_to_detections"].items()
         }
-        # track.__frames_to_anchor_points = {
-        #     k: np.array(v)
-        #     for k, v in config["frames_to_anchor_points"].items()
-        # }
+        track.__frames_to_anchor_points = {
+            k: np.array(v)
+            for k, v in config["frames_to_anchor_points"].items()
+        }
         track.__frame_has_detection = config["frame_has_detection"]
-        # track.__frames_to_time = config["frames_to_time"]
+        track.__frames_to_time = config["frames_to_time"]
         track.__latest_frame = config["latest_frame"]
         track.__id = config["track_id"]
 

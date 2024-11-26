@@ -9,10 +9,8 @@ from typing import Tuple, Optional, Dict, Any
 import numpy as np
 
 import grpc
-from tensorflow_serving.apis import prediction_service_pb2_grpc
+from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
 import tensorflow as tf
-
-from .grpc_utils import make_predict_request
 
 
 class DetectionModel(abc.ABC):
@@ -111,14 +109,19 @@ class _RemoteModelMixin:
 
         """
         # Create a gRPC request made for prediction
-        request = make_predict_request(
-            input_dict, model_name=self.__model_name
-        )
+        request = predict_pb2.PredictRequest()
 
+        request.model_spec.name = self.__model_name
         request.model_spec.signature_name = self.__signature_name
         if self.__version is not None:
             # Use a specific version.
             request.model_spec.version.value = self.__version
+
+        # Set the input as the data
+        for input_name, input_data in input_dict.items():
+            request.inputs[input_name].CopyFrom(
+                tf.make_tensor_proto(input_data)
+            )
 
         # Send the gRPC request to the TF Server
         result = self.__stub.Predict(request)
@@ -163,13 +166,23 @@ class RemoteTrackingModel(_RemoteModelMixin, TrackingModel):
     Wrapper that provides a unified API to access remote tracking models.
     """
 
+    def __init__(self, output: str = "input.to_tensor", **kwargs: Any):
+        """
+        Args:
+            output: The name of the output for the Sinkhorn matrix.
+            **kwargs: Will be forwarded to the superclass.
+
+        """
+        super().__init__(**kwargs)
+        self.__output = output
+
     def track(
-        self,
-        *,
-        detections: np.array,
-        detections_appearance: np.array,
-        tracklets: np.array,
-        tracklets_appearance: np.array,
+            self,
+            *,
+            detections: np.array,
+            detections_appearance: np.array,
+            tracklets: np.array,
+            tracklets_appearance: np.array,
     ) -> np.array:
         num_detections = np.array([[detections.shape[0]]], dtype=np.int32)
         num_tracklets = np.array([[tracklets.shape[0]]], dtype=np.int32)
@@ -185,4 +198,5 @@ class RemoteTrackingModel(_RemoteModelMixin, TrackingModel):
         }
 
         outputs = self._predict_grpc(input_dict)
-        return outputs["input.to_tensor"][0]
+        return outputs[self.__output][0]
+

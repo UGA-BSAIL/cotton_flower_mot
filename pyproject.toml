@@ -16,8 +16,11 @@ dev = [
     "pydot<2.0.0,>=1.4.2",
     "jupyterlab<4.0.0,>=3.4.2",
     "kedro[matplotlib,pandas]<1.0.0,>=0.18.1,<0.19.0",
-    "tables==3.8.0",
+    "tables==3.9.2",
 ]
+
+[tool.setuptools.package-data]
+myModule = ["*.csv"]
 
 [tool.pdm.build]
 includes = []
@@ -61,7 +64,7 @@ dependencies = [
 
 [tool.pdm.resolution.overrides]
 # The version kedro wants fails to build.
-tables = "3.8.0"
+tables = "3.9.2"
 
 [tool.black]
 line-length = 79

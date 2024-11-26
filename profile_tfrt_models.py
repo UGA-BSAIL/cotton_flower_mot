@@ -15,10 +15,11 @@ import tensorflow as tf
 
 from tqdm import trange
 
-from src.cotton_flower_mot.tfrt_utils import (
+from cotton_flower_mot.tfrt_utils import (
     GraphFunc,
     get_func_from_saved_model,
 )
+from cotton_flower_mot.model import RemoteDetectionModel, RemoteTrackingModel
 
 
 def _get_test_image(size: Tuple[int, int]) -> tf.Tensor:
@@ -147,9 +148,10 @@ def _make_parser() -> argparse.ArgumentParser:
         description="Profile the performance of a TFRT model."
     )
     parser.add_argument(
-        "model_dir",
-        type=Path,
-        help="The saved model directory.",
+        "-e", "--endpoint",
+        type=str,
+        default="localhost:8500",
+        help="The endpoint for the model server.",
     )
     return parser
 

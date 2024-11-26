@@ -9,12 +9,12 @@ import numpy as np
 
 from loguru import logger
 
-from .online_tracker import OnlineTracker
+from .tracking_framework import OnlineTrackingFramework
 from .track import Track
 from .model import DetectionModel
 
 
-class RoiTracker(OnlineTracker):
+class RoiTrackingFramework(OnlineTrackingFramework):
     """
     Specialized online tracker that uses the ROI tracking algorithm for
     additional performance. This algorithm only applies the detector in small
