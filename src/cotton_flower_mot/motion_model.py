@@ -148,10 +148,7 @@ class MotionModel:
         # Adjust our velocities based on the time that elapsed since the last
         # update.
         xk_adjusted = self.__filter.xk * np.array([1, 1, elapsed, elapsed])
-        # Covariances also have to be scaled based on time. Note that we
-        # implicitly assume that state covariance remains constant during the
-        # time between observations.
-        pk_adjusted = self.__filter.Pk * np.sqrt(elapsed)
+        # Noise also has to be scaled based on time.
         q_adjusted = self.__filter.Q * np.sqrt(elapsed)
 
         return self.__filter.predict(
@@ -159,7 +156,7 @@ class MotionModel:
             xk=xk_adjusted,
             Bk=self.__filter.B,
             uk=None,
-            Pk=pk_adjusted,
+            Pk=self.__filter.Pk,
             Qk=q_adjusted,
         )
 
